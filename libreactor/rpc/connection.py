@@ -32,7 +32,6 @@ class Connection(IOStream):
         self._sock = sock
         self._state = State.DISCONNECTED
 
-        self._read_size = READ_SIZE
         self._write_buffer = b""
 
         self._context = context
@@ -380,7 +379,7 @@ class Connection(IOStream):
         """
         while True:
             try:
-                data = self._sock.recv(self._read_size)
+                data = self._sock.recv(READ_SIZE)
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
@@ -489,6 +488,4 @@ class Connection(IOStream):
 
         self._context.remove_connection(self._conn_id)
         self._conn_id = -1
-        self._context = None
         self._protocol = None
-        self._event_loop = None
