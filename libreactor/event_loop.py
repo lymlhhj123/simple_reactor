@@ -227,8 +227,8 @@ class EventLoop(object):
             if not timer:
                 return DEFAULT_TIMEOUT
 
-        diff_ms = (timer.when - self.time())
-        return min(max(0.0, diff_ms), DEFAULT_TIMEOUT)
+        timeout = timer.when - self.time()
+        return min(max(0.0, timeout), DEFAULT_TIMEOUT)
 
     def _handle_events(self, events):
         """

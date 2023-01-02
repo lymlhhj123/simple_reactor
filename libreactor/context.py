@@ -25,7 +25,7 @@ class Context(object):
 
         self._logger = logger or _logger.get_logger(log_debug)
 
-        # idx 0 is main event loop
+        # main event loop
         self._ev_list = [EventLoop()]
 
         self._lock = Lock()

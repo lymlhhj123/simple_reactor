@@ -38,7 +38,7 @@ class TimerQueue(object):
 
         :return:
         """
-        if self.cancelled < 10:
+        if self.cancelled < 100:
             return
 
         queue = [t for t in self.queue if t.is_cancelled() is False]
