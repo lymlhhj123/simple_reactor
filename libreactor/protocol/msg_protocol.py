@@ -71,7 +71,7 @@ class MsgProtocol(Protocol):
             return False
 
         header, self._buffer = self._buffer[:HEADER_LEN], self._buffer[HEADER_LEN:]
-        self._crc32, self._msg_len = struct.unpack(HEADER_FMT, header)
+        _, self._crc32, self._msg_len = struct.unpack(HEADER_FMT, header)
         return True
 
     def msg_received(self, msg):

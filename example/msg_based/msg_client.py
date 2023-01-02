@@ -18,7 +18,8 @@ def succeed_callback(protocol):
         "c": 3,
 
     }
-    protocol.send_msg(json.dumps(msg))
+
+    protocol.event_loop.call_every(5, protocol.send_msg, msg)
 
 
 def tcp_main(ctx):
