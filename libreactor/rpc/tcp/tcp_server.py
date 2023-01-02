@@ -24,7 +24,7 @@ class TcpServer(Server):
         :param addr:
         :return:
         """
-        self._context.logger().info(f"new connection from {addr}")
+        self._context.logger().info(f"new connection from {addr}, fd: {sock.fileno()}")
 
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)

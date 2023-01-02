@@ -22,6 +22,7 @@ class ClientProtocol(Protocol):
         :return:
         """
         if self._end:
+            self.context.logger().info(f"test done")
             self.close_connection()
             return
 
