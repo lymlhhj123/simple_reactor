@@ -30,6 +30,10 @@ class MsgProtocol(Protocol):
         if isinstance(msg, str):
             msg = msg.encode("utf-8")
 
+        if not isinstance(msg, bytes):
+            self.context.logger().error(f"msg must be str or bytes, not {type(msg)}")
+            return
+
         crc32 = zlib.crc32(msg)
         msg_len = len(msg)
 
