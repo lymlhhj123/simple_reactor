@@ -467,9 +467,7 @@ class Connection(IOStream):
             self._linger_timer = None
 
         self._write_buffer = b""
-        # todo: need disable event?
-        # self.disable_all()
-        self._event_loop.remove_io_stream(self)
+        self.disable_all()
         self._async_close()
 
     def _async_close(self):
