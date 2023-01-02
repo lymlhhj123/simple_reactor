@@ -17,11 +17,11 @@ class UnixAcceptor(Acceptor):
         :param endpoint:
         :param backlog:
         """
-        super(UnixAcceptor, self).__init__(context, event_loop, endpoint, backlog)
-
         dir_name, base_name = os.path.split(endpoint)
         self._lock_file = os.path.join(dir_name, f".lock.{base_name}")
         self._lock_fd = None
+        
+        super(UnixAcceptor, self).__init__(context, event_loop, endpoint, backlog)
 
     def _create_listen_sock(self):
         """
