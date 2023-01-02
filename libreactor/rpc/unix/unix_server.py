@@ -23,4 +23,6 @@ class UnixServer(Server):
         :param addr:
         :return:
         """
+        self._context.logger().info(f"new connection on unix, fd: {sock.fileno()}")
+
         self._default_on_new_connection(sock, addr)
