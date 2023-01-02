@@ -5,12 +5,8 @@ import heapq
 
 class TimerQueue(object):
 
-    def __init__(self, max_size=512):
-        """
+    def __init__(self):
 
-        :param max_size:
-        """
-        self.max_size = max_size
         self.queue = []
         self.cancelled = 0
 
@@ -20,23 +16,7 @@ class TimerQueue(object):
         :param timer:
         :return:
         """
-        if self._is_queue_full():
-            return
-
         heapq.heappush(self.queue, timer)
-
-    def _is_queue_full(self):
-        """
-
-        :return:
-        """
-        if self.max_size == -1:
-            return False
-
-        if len(self.queue) < self.max_size:
-            return False
-
-        return True
 
     def cancel(self, timer):
         """
