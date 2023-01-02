@@ -60,11 +60,17 @@ class MsgProtocol(Protocol):
         if len(self._buffer) < self._msg_len:
             return
 
-        msg, self._buffer = self._buffer[:self._msg_len], self._buffer[self._msg_len:]
-        self.msg_received(msg)
+        try:
+            msg, self._buffer = self._buffer[:self._msg_len], self._buffer[self._msg_len:]
+            if zlib.crc32(msg) != self._crc32:
+                self.context.logger().error("msg broken, drop it")
+                return
 
-        self._header_retrieved = False
-        self._crc32, self._msg_len = 0, 0
+            self.msg_received(msg)
+        except Exception as e:
+            self.context.logger().error(f"error happened when handle msg, {e}")
+        finally:
+            self._clear_header()
 
     def _retrieve_header(self):
         """
@@ -77,6 +83,14 @@ class MsgProtocol(Protocol):
         header, self._buffer = self._buffer[:HEADER_LEN], self._buffer[HEADER_LEN:]
         _, self._crc32, self._msg_len = struct.unpack(HEADER_FMT, header)
         return True
+
+    def _clear_header(self):
+        """
+
+        :return:
+        """
+        self._header_retrieved = False
+        self._crc32, self._msg_len = 0, 0
 
     def msg_received(self, msg):
         """
