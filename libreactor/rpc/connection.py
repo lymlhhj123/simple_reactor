@@ -157,6 +157,7 @@ class Connection(IOStream):
 
         :return:
         """
+        self._context.logger().info(f"connection established to {self._endpoint}, fd: {self._sock.fileno()}")
         self._state = State.CONNECTED
 
         if self._timeout_timer:
