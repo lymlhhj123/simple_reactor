@@ -28,6 +28,7 @@ class ClientProtocol(Protocol):
 
         :return:
         """
+        self.start_time = self.event_loop.time()
         self._timer = self.event_loop.call_later(60, self.end_count)
 
     def connection_lost(self):
@@ -56,6 +57,7 @@ class ClientProtocol(Protocol):
         now = self.event_loop.time()
         self.context.logger().info(f"ops: {self.count / (now - self.start_time)}")
         self._timer = None
+        self.close_connection()
 
 
 context = Context(stream_protocol_cls=ClientProtocol, log_debug=True)
@@ -67,16 +69,17 @@ def succeed_callback(protocol):
     :param protocol:
     :return: 
     """
-    protocol.context.logger().info("succeed")
+    protocol.context.logger().info("start test")
     protocol.count_down()
-    protocol.start_time = protocol.event_loop.time()
     protocol.send_data(PING)
 
 
 def tcp_main():
+    """
 
-    context.connect_tcp("127.0.0.1", 9527,
-                        on_connection_established=succeed_callback, auto_reconnect=True)
+    :return:
+    """
+    context.connect_tcp("127.0.0.1", 9527, on_connection_established=succeed_callback)
 
     context.main_loop()
 

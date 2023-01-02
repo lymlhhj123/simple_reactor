@@ -7,10 +7,6 @@ PONG = b"PONG"
 
 
 class ServerProtocol(Protocol):
-    
-    def __init__(self):
-        super(ServerProtocol, self).__init__()
-        self.count = 0
 
     def data_received(self, data: bytes):
         """
@@ -31,7 +27,7 @@ def tcp_server():
     """
     context.listen_tcp(9527)
 
-    context.main_ev().loop()
+    context.main_loop()
 
 
 def unix_server():
@@ -41,7 +37,7 @@ def unix_server():
     """
     context.listen_unix("/var/run/echo.sock")
 
-    context.main_ev().loop()
+    context.main_loop()
 
 
 tcp_server()
