@@ -38,8 +38,6 @@ class UnixAcceptor(Acceptor):
             pass
 
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        fd_util.make_fd_async(s.fileno())
-        fd_util.close_on_exec(s.fileno())
         s.bind(self._endpoint)
         s.listen(self._backlog)
         return s

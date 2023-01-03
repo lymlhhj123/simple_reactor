@@ -5,6 +5,7 @@ import socket
 
 from ..io_stream import IOStream
 from ..utils import errno_from_ex
+from .. import fd_util
 
 
 class Acceptor(IOStream):
@@ -26,6 +27,9 @@ class Acceptor(IOStream):
         self._on_new_connection = None
 
         self._sock = self._create_listen_sock()
+
+        fd_util.make_fd_async(self._sock.fileno())
+        fd_util.close_on_exec(self._sock.fileno())
 
         super(Acceptor, self).__init__(self._sock.fileno(), event_loop)
 
