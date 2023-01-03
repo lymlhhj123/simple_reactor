@@ -89,18 +89,18 @@ class Connection(IOStream):
             state = State.CONNECTED
 
         conn = cls(sa, sock, event_loop, context)
-        event_loop.call_soon(conn._open_connection, state, timeout)
+        event_loop.call_soon(conn._wait_connection_established(state, timeout))
         return conn
 
-    def _open_connection(self, state, timeout):
+    def _wait_connection_established(self, state, timeout):
         """
 
         :param state:
         :param timeout:
         :return:
         """
-        self._state = state
-        if state == state.CONNECTING:
+        if state == State.CONNECTING:
+            self._state = state
             self.enable_writing()
             self._timeout_timer = self._event_loop.call_later(timeout, self.connection_timeout)
         else:

@@ -27,6 +27,6 @@ def udp_main(ctx):
     ctx.listen_udp(9528)
 
 
-context = Context()
+context = Context(dgram_protocol_cls=DgramProtocol, log_debug=True)
 udp_main(context)
 context.main_loop()

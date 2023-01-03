@@ -39,6 +39,6 @@ def udp_main(ctx):
     ctx.connect_udp("127.0.0.1", 9528)
 
 
-context = Context()
+context = Context(dgram_protocol_cls=DgramProtocol, log_debug=True)
 udp_main(context)
 context.main_loop()
