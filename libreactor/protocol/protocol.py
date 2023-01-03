@@ -70,6 +70,15 @@ class Protocol(object):
         :return:
         """
 
+    def safe_send_dgram(self, data, addr):
+        """
+
+        :param data:
+        :param addr:
+        :return:
+        """
+        self.event_loop.call_soon(self.send_dgram, data, addr)
+
     def send_dgram(self, data, addr):
         """
         dgram protocol
@@ -77,6 +86,7 @@ class Protocol(object):
         :param addr:
         :return:
         """
+        self.connection.write_dgram(data, addr)
 
     def dgram_received(self, data, addr):
         """

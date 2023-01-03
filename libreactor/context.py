@@ -5,6 +5,7 @@ from threading import Lock
 from .event_loop import EventLoop
 from .event_loop_thread import EventLoopThread
 from . import stream_rpc
+from . import dgram_rpc
 from . import _logger
 
 
@@ -173,14 +174,20 @@ class Context(object):
         :param port:
         :return:
         """
+        server = dgram_rpc.UdpServer(port, self)
+        server.start()
 
-    def connect_udp(self, host, port):
+    def connect_udp(self, host, port, on_connection_established=None):
         """
 
         :param host:
         :param port:
+        :param on_connection_established:
         :return:
         """
+        client = dgram_rpc.UdpClient((host, port), self)
+        client.set_on_connection_established(on_connection_established)
+        client.start()
 
     def build_stream_protocol(self):
         """

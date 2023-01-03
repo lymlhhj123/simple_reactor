@@ -34,12 +34,16 @@ class Connection(IOStream):
         self._buffer = deque()
 
     @classmethod
-    def open_server(cls):
+    def open(cls, sock, event_loop, context):
         """
 
+        :param sock:
+        :param event_loop:
+        :param context:
         :return:
         """
-        return
+        conn = cls(sock, event_loop, context)
+        return conn
 
     def connection_made(self):
         """
@@ -51,13 +55,6 @@ class Connection(IOStream):
 
         self._protocol = self._context.build_dgram_protocol()
         self._protocol.connection_made(self, self._event_loop, self._context)
-
-    @classmethod
-    def open_client(cls):
-        """
-
-        :return:
-        """
 
     def connection_established(self):
         """
@@ -170,3 +167,25 @@ class Connection(IOStream):
         :param delay:
         :return:
         """
+        self._buffer = []
+        self.disable_all()
+        self._async_close()
+
+    def _async_close(self):
+        """
+
+        :return:
+        """
+        self._event_loop.call_soon(self._close_force)
+
+    def _close_force(self):
+        """
+
+        :return:
+        """
+        self._event_loop.remove_io_stream(self)
+
+        self.close_fd()
+
+        self._sock = None
+        self._protocol = None
