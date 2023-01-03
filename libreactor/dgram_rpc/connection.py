@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import os
 import socket
 import errno
 from collections import deque
@@ -8,6 +7,7 @@ from collections import deque
 from libreactor.io_stream import IOStream
 from libreactor.utils import errno_from_ex
 from libreactor.status import Status
+from libreactor import fd_util
 
 READ_SIZE = 1500
 
@@ -23,6 +23,9 @@ class Connection(IOStream):
         """
         super(Connection, self).__init__(sock.fileno(), event_loop)
 
+        fd_util.make_fd_async(sock.fileno())
+        fd_util.close_on_exec(sock.fileno())
+
         self._context = context
         self._sock = sock
 
@@ -30,20 +33,8 @@ class Connection(IOStream):
 
         self._on_connection_established = None
 
-        # (data, addr) pair
+        # (data, addr) pair, write buffer
         self._buffer = deque()
-
-    @classmethod
-    def open(cls, sock, event_loop, context):
-        """
-
-        :param sock:
-        :param event_loop:
-        :param context:
-        :return:
-        """
-        conn = cls(sock, event_loop, context)
-        return conn
 
     def connection_made(self):
         """
@@ -97,7 +88,7 @@ class Connection(IOStream):
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                     return Status.OK
                 else:
-                    self._context.logger().error(f"error happened on read event, {os.strerror(err_code)}")
+                    self._context.logger().error(f"error happened on read event, {e}")
                     return Status.ERROR
 
             if not data:
@@ -155,7 +146,7 @@ class Connection(IOStream):
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                     return Status.OK
                 else:
-                    self._context.logger().error(f"error happened on write event, {os.strerror(err_code)}")
+                    self._context.logger().error(f"error happened on write event, {e}")
                     return Status.ERROR
 
             self._buffer.popleft()

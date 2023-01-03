@@ -77,7 +77,7 @@ def unix_main():
 
     :return:
     """
-    context.connect_stream_unix("/var/run/echo.sock", on_connection_established=succeed_callback)
+    context.connect_unix("/var/run/echo.sock", on_connection_established=succeed_callback)
 
     context.main_loop()
 

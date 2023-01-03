@@ -35,7 +35,7 @@ def unix_server():
 
     :return:
     """
-    context.listen_stream_unix("/var/run/echo.sock")
+    context.listen_unix("/var/run/echo.sock")
 
     context.main_loop()
 

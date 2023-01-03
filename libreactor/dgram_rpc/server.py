@@ -26,5 +26,5 @@ class Server(object):
         s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         s.bind(("::", self._endpoint))
 
-        conn = Connection.open(s, self._event_loop, self._context)
+        conn = Connection(s, self._event_loop, self._context)
         self._event_loop.call_soon(conn.connection_made)

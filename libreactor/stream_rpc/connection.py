@@ -5,9 +5,9 @@ import socket
 import errno
 
 from libreactor.io_stream import IOStream
-from libreactor import utils
 from libreactor import sock_util
 from libreactor import fd_util
+from libreactor import utils
 from .const import State
 from libreactor.status import Status
 
@@ -64,7 +64,16 @@ class Connection(IOStream):
         :return:
         """
         host, port = endpoint
-        addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        try:
+            addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except Exception as e:
+            context.logger().error(f"failed to dns resolve {endpoint}, {e}")
+            return
+
+        if not addr_list:
+            context.logger().error(f"dns resolve {endpoint} is empty")
+            return
+
         for af, _, _, _, sa in addr_list:
             sock = socket.socket(family=af, type=socket.SOCK_STREAM)
             sock_util.set_tcp_no_delay(sock)
@@ -163,7 +172,7 @@ class Connection(IOStream):
 
         :return:
         """
-        self._context.logger().info(f"connection established to {self._endpoint}, fd: {self._sock.fileno()}")
+        self._context.logger().info(f"connection established to {self._endpoint}, fd: {self._fd}")
         self._state = State.CONNECTED
 
         if self._timeout_timer:
@@ -215,15 +224,12 @@ class Connection(IOStream):
         if self._on_connection_failed:
             self._on_connection_failed()
 
-    def connection_failed(self, err_code):
+    def connection_failed(self):
         """
 
         Generally used in client side connection, trigger reconnect
-        :param err_code:
         :return:
         """
-        self._context.logger().error(f"failed to connect {self._endpoint}: {os.strerror(err_code)}")
-
         self._timeout_timer.cancel()
         self._timeout_timer = None
 
@@ -336,7 +342,9 @@ class Connection(IOStream):
         """
         err_code = sock_util.get_sock_error(self._sock)
         if err_code != 0:
-            self.connection_failed(err_code)
+            reason = os.strerror(err_code)
+            self._context.logger().error(f"failed to connect {self._endpoint}: {reason}")
+            self.connection_failed()
             return
 
         self.disable_writing()
@@ -474,13 +482,8 @@ class Connection(IOStream):
 
         self._write_buffer = b""
         self.disable_all()
-        self._async_close()
 
-    def _async_close(self):
-        """
-
-        :return:
-        """
+        # close on next loop
         self._event_loop.call_soon(self._close_force)
 
     def _close_force(self):

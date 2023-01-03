@@ -143,7 +143,7 @@ class Context(object):
         connector.set_on_connection_established(on_connection_established)
         connector.start_connect()
 
-    def listen_stream_unix(self, unix_path):
+    def listen_unix(self, unix_path):
         """
 
         :param unix_path:
@@ -152,8 +152,8 @@ class Context(object):
         unix_server = stream_rpc.UnixServer(unix_path, self)
         unix_server.start()
 
-    def connect_stream_unix(self, unix_file, timeout=10, auto_reconnect=False,
-                            on_connection_failed=None, on_connection_established=None):
+    def connect_unix(self, unix_file, timeout=10, auto_reconnect=False,
+                     on_connection_failed=None, on_connection_established=None):
         """
 
         :param unix_file:
