@@ -23,7 +23,6 @@ class Server(object):
 
         :return:
         """
-        self._context.logger().info("open udp server")
         s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         s.bind(("::", self._endpoint))
 

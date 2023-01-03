@@ -7,16 +7,14 @@ from .connection import Connection
 
 class Client(object):
 
-    def __init__(self, endpoint, context, family=socket.AF_INET):
+    def __init__(self, endpoint, context):
         """
 
         :param endpoint: unused args
         :param context:
-        :param family:
         """
         self._endpoint = endpoint
         self._context = context
-        self._family = family
 
         self._event_loop = context.get_event_loop()
 
@@ -44,7 +42,6 @@ class Client(object):
 
         :return:
         """
-        self._context.logger().info("open udp client")
         host, port = self._endpoint
         addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
         for af, _, _, _, _ in addr_list:

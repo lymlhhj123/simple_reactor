@@ -7,7 +7,8 @@ import errno
 from libreactor.io_stream import IOStream
 from libreactor import utils
 from libreactor import sock_util
-from .state import State
+from libreactor import fd_util
+from .const import State
 from libreactor.status import Status
 
 READ_SIZE = 8192
@@ -27,6 +28,9 @@ class Connection(IOStream):
         :param context:
         """
         super(Connection, self).__init__(sock.fileno(), event_loop)
+
+        fd_util.make_fd_async(sock.fileno())
+        fd_util.close_on_exec(sock.fileno())
 
         self._endpoint = endpoint
         self._sock = sock
@@ -51,31 +55,44 @@ class Connection(IOStream):
         self._on_connection_done = None
 
     @classmethod
-    def try_open(cls, sa, context, event_loop, timeout=10):
+    def try_open_tcp(cls, endpoint, context, event_loop):
         """
 
-        :param sa:
+        :param endpoint:
         :param context:
         :param event_loop:
-        :param timeout:
         :return:
         """
-        raise NotImplementedError
+        host, port = endpoint
+        addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for af, _, _, _, sa in addr_list:
+            sock = socket.socket(family=af, type=socket.SOCK_STREAM)
+            sock_util.set_tcp_no_delay(sock)
+            sock_util.set_tcp_keepalive(sock)
+            return cls(sa, sock, event_loop, context)
 
     @classmethod
-    def _try_open(cls, sock, sa, context, event_loop, timeout):
+    def try_open_unix(cls, endpoint, context, event_loop):
         """
 
-        :param sock:
-        :param sa:
+        :param endpoint:
         :param context:
         :param event_loop:
+        :return:
+        """
+        sock = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
+        return cls(endpoint, sock, event_loop, context)
+
+    def start_connect(self, timeout=10):
+        """
+
         :param timeout:
         :return:
         """
-        sock.setblocking(False)
+        assert self._event_loop.is_in_loop_thread()
+
         try:
-            sock.connect(sa)
+            self._sock.connect(self._endpoint)
         except socket.error as e:
             err_code = e.errno
             if err_code == errno.EISCONN:
@@ -83,28 +100,17 @@ class Connection(IOStream):
             elif err_code in [errno.EINPROGRESS, errno.EALREADY]:
                 state = State.CONNECTING
             else:
-                context.logger().error(f"failed to try connect {sa}: {e}")
+                self._context.logger().error(f"failed to try connect {self._endpoint}: {e}")
                 return
         else:
             state = State.CONNECTED
 
-        conn = cls(sa, sock, event_loop, context)
-        conn._wait_connection_established(state, timeout)
-        return conn
-
-    def _wait_connection_established(self, state, timeout):
-        """
-
-        :param state:
-        :param timeout:
-        :return:
-        """
         if state == State.CONNECTING:
             self._state = state
             self.enable_writing()
             self._timeout_timer = self._event_loop.call_later(timeout, self.connection_timeout)
-        else:  # call next loop, give upper chance to set callback
-            self._event_loop.call_soon(self.connection_established)
+        else:
+            self.connection_established()
 
     def set_on_connection_done(self, callback):
         """

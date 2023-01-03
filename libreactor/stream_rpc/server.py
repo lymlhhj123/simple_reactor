@@ -1,7 +1,6 @@
 # coding: utf-8
 
 from .connection import Connection
-from libreactor import fd_util
 
 
 class Server(object):
@@ -59,7 +58,5 @@ class Server(object):
         :param addr:
         :return:
         """
-        fd_util.make_fd_async(sock.fileno())
-        fd_util.close_on_exec(sock.fileno())
         conn = Connection.from_sock(sock, self._event_loop, self._context)
         self._event_loop.call_soon(conn.connection_made)

@@ -1,19 +1,24 @@
 # coding: utf-8
 
+from .const import ConnectType
+from .connection import Connection
+
 
 class Connector(object):
 
-    def __init__(self, endpoint, context, timeout=10, auto_reconnect=False):
+    def __init__(self, endpoint, context, connect_type, timeout=10, auto_reconnect=False):
         """
 
         :param endpoint:
         :param context:
+        :param connect_type:
         :param timeout:
         :param auto_reconnect:
         """
         self._context = context
         self._event_loop = context.get_event_loop()
         self._endpoint = endpoint
+        self._connect_type = connect_type
         self._timeout = timeout
         self._auto_reconnect = auto_reconnect
 
@@ -118,23 +123,27 @@ class Connector(object):
 
         :return:
         """
-        conn = self._make_connection(self._endpoint, self._context, self._event_loop, self._timeout)
+        conn = self._make_connection(self._endpoint, self._context, self._event_loop)
         if not conn:
             self._context.logger().error(f"failed to open connection to {self._endpoint}")
             return
 
         self._set_callback(conn)
 
-    def _make_connection(self, endpoint, context, event_loop, timeout):
+        self._event_loop.call_soon(conn.start_connect, self._timeout)
+
+    def _make_connection(self, endpoint, context, event_loop):
         """
 
         :param endpoint:
         :param context:
         :param event_loop:
-        :param timeout:
         :return:
         """
-        raise NotImplementedError
+        if self._connect_type == ConnectType.TCP:
+            return Connection.try_open_tcp(endpoint, context, event_loop)
+        else:
+            return Connection.try_open_unix(endpoint, context, event_loop)
 
     def _set_callback(self, conn):
         """
@@ -146,3 +155,29 @@ class Connector(object):
         conn.set_on_connection_lost(self._on_connection_lost)
         conn.set_on_connection_failed(self._on_connection_failed)
         conn.set_on_connection_established(self._on_connection_established)
+        
+        
+class TcpConnector(Connector):
+    
+    def __init__(self, endpoint, context, timeout=10, auto_reconnect=False):
+        """
+        
+        :param endpoint: 
+        :param context: 
+        :param timeout: 
+        :param auto_reconnect: 
+        """
+        super(TcpConnector, self).__init__(endpoint, context, ConnectType.TCP, timeout, auto_reconnect)
+
+
+class UnixConnector(Connector):
+
+    def __init__(self, endpoint, context, timeout=10, auto_reconnect=False):
+        """
+
+        :param endpoint:
+        :param context:
+        :param timeout:
+        :param auto_reconnect:
+        """
+        super(UnixConnector, self).__init__(endpoint, context, ConnectType.UNIX, timeout, auto_reconnect)

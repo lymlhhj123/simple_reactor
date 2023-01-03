@@ -51,7 +51,6 @@ class Connection(IOStream):
         server side udp connection
         :return:
         """
-        self._context.logger().info("open udp server")
         self.enable_reading()
 
         self._protocol = self._context.build_dgram_protocol()
@@ -62,7 +61,6 @@ class Connection(IOStream):
 
         :return:
         """
-        self._context.logger().info("open udp client")
         self.enable_reading()
 
         self._protocol = self._context.build_dgram_protocol()
