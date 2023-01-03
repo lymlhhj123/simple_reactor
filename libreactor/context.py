@@ -4,7 +4,7 @@ from threading import Lock
 
 from .event_loop import EventLoop
 from .event_loop_thread import EventLoopThread
-from . import rpc
+from . import stream_rpc
 from . import _logger
 
 
@@ -122,7 +122,7 @@ class Context(object):
         :param port:
         :return:
         """
-        tcp_server = rpc.TcpServer(port, self)
+        tcp_server = stream_rpc.TcpServer(port, self)
         tcp_server.start()
 
     def connect_tcp(self, host, port, timeout=10, auto_reconnect=False,
@@ -137,22 +137,22 @@ class Context(object):
         :param on_connection_established:
         :return:
         """
-        connector = rpc.TcpConnector((host, port), self, timeout, auto_reconnect)
+        connector = stream_rpc.TcpConnector((host, port), self, timeout, auto_reconnect)
         connector.set_on_connection_failed(on_connection_failed)
         connector.set_on_connection_established(on_connection_established)
         connector.start_connect()
 
-    def listen_unix(self, unix_path):
+    def listen_stream_unix(self, unix_path):
         """
 
         :param unix_path:
         :return:
         """
-        unix_server = rpc.UnixServer(unix_path, self)
+        unix_server = stream_rpc.UnixServer(unix_path, self)
         unix_server.start()
 
-    def connect_unix(self, unix_file, timeout=10, auto_reconnect=False,
-                     on_connection_failed=None, on_connection_established=None):
+    def connect_stream_unix(self, unix_file, timeout=10, auto_reconnect=False,
+                            on_connection_failed=None, on_connection_established=None):
         """
 
         :param unix_file:
@@ -162,7 +162,7 @@ class Context(object):
         :param on_connection_established:
         :return:
         """
-        connector = rpc.UnixConnector(unix_file, self, timeout, auto_reconnect)
+        connector = stream_rpc.UnixConnector(unix_file, self, timeout, auto_reconnect)
         connector.set_on_connection_failed(on_connection_failed)
         connector.set_on_connection_established(on_connection_established)
         connector.start_connect()

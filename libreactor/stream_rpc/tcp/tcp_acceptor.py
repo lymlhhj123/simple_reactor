@@ -9,16 +9,6 @@ from libreactor import fd_util
 
 class TcpAcceptor(Acceptor):
 
-    def __init__(self, context, event_loop, endpoint, backlog=8):
-        """
-
-        :param context:
-        :param event_loop:
-        :param endpoint:
-        :param backlog:
-        """
-        super(TcpAcceptor, self).__init__(context, event_loop, endpoint, backlog)
-
     def _create_listen_sock(self):
         """
 
