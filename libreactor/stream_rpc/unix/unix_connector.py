@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.rpc.connector import Connector
+from ..connector import Connector
 from .unix_connection import UnixConnection
 
 

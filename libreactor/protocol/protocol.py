@@ -57,7 +57,7 @@ class Protocol(object):
 
     def send_data(self, data: bytes):
         """
-
+        stream protocol
         :param data:
         :return:
         """
@@ -65,8 +65,24 @@ class Protocol(object):
 
     def data_received(self, data: bytes):
         """
-
+        stream protocol
         :param data:
+        :return:
+        """
+
+    def send_dgram(self, data, addr):
+        """
+        dgram protocol
+        :param data:
+        :param addr:
+        :return:
+        """
+
+    def dgram_received(self, data, addr):
+        """
+        dgram protocol
+        :param data:
+        :param addr:
         :return:
         """
 

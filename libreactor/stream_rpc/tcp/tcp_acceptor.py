@@ -2,7 +2,7 @@
 
 import socket
 
-from libreactor.rpc.acceptor import Acceptor
+from ..acceptor import Acceptor
 from libreactor import sock_util
 from libreactor import fd_util
 

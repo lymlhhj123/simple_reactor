@@ -12,3 +12,6 @@ class Status(enum.IntEnum):
     CLOSED = 1
     BROKEN_PIPE = 2
     LOST = 3
+
+    # used by udp
+    ERROR = 4

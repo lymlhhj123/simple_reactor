@@ -121,6 +121,8 @@ class IOStream(object):
         :param delay:
         :return:
         """
+        self._event_loop.remove_io_stream(self)
+
         if so_linger is False:
             self.close_fd()
         else:
@@ -134,8 +136,6 @@ class IOStream(object):
         """
         if self._fd == -1:
             return
-
-        self._event_loop.remove_io_stream(self)
 
         fd, self._fd = self._fd, -1
         fd_util.close_fd(self._fd)

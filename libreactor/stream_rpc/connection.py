@@ -8,7 +8,7 @@ from libreactor.io_stream import IOStream
 from libreactor import utils
 from libreactor import sock_util
 from .state import State
-from .status import Status
+from libreactor.status import Status
 
 READ_SIZE = 8192
 
@@ -482,6 +482,8 @@ class Connection(IOStream):
 
         :return:
         """
+        self._event_loop.remove_io_stream(self)
+
         self.close_fd()
 
         self._state = State.DISCONNECTED

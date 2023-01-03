@@ -1,7 +1,7 @@
 # coding: utf-8
 
-from libreactor.rpc.server import Server
-from libreactor.rpc.unix.unix_acceptor import UnixAcceptor
+from ..server import Server
+from .unix_acceptor import UnixAcceptor
 
 
 class UnixServer(Server):
