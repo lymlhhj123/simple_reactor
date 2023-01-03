@@ -44,6 +44,7 @@ class Client(object):
 
         :return:
         """
+        self._context.logger().info("open udp client")
         host, port = self._endpoint
         addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
         for af, _, _, _, _ in addr_list:
