@@ -76,7 +76,7 @@ class Connector(object):
 
     def _on_connection_done(self):
         """
-
+        called when connection closed by peer
         :return:
         """
         assert self._event_loop.is_in_loop_thread()
@@ -89,7 +89,7 @@ class Connector(object):
 
     def _on_connection_lost(self):
         """
-
+        called when connection lost
         :return:
         """
         assert self._event_loop.is_in_loop_thread()
@@ -102,7 +102,7 @@ class Connector(object):
 
     def _on_connection_established(self, protocol):
         """
-
+        called when connection established
         :param protocol:
         :return:
         """
@@ -155,8 +155,8 @@ class Connector(object):
         conn.set_on_connection_lost(self._on_connection_lost)
         conn.set_on_connection_failed(self._on_connection_failed)
         conn.set_on_connection_established(self._on_connection_established)
-        
-        
+
+
 class TcpConnector(Connector):
     
     def __init__(self, endpoint, context, timeout=10, auto_reconnect=False):

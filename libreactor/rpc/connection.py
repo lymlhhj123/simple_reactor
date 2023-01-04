@@ -9,7 +9,7 @@ from libreactor import sock_util
 from libreactor import fd_util
 from libreactor import utils
 from .const import State
-from libreactor.status import Status
+from libreactor.rpc.status import Status
 
 READ_SIZE = 8192
 

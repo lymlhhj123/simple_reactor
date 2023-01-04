@@ -6,7 +6,7 @@ from collections import deque
 
 from libreactor.io_stream import IOStream
 from libreactor.utils import errno_from_ex
-from libreactor.status import Status
+from libreactor.rpc.status import Status
 from libreactor import fd_util
 
 READ_SIZE = 1500
@@ -160,13 +160,8 @@ class Connection(IOStream):
         """
         self._buffer = []
         self.disable_all()
-        self._async_close()
 
-    def _async_close(self):
-        """
-
-        :return:
-        """
+        # close on next loop
         self._event_loop.call_soon(self._close_force)
 
     def _close_force(self):
