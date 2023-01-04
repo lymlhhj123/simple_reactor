@@ -3,18 +3,18 @@
 import zlib
 import struct
 
-from .protocol import Protocol
+from .stream import Stream
 
 VERSION = 1
 HEADER_LEN = 10  # 2 bytes version + 4 bytes crc32 + 4 bytes msg len
 HEADER_FMT = "!HII"
 
 
-class MsgProtocol(Protocol):
+class MessageReceiver(Stream):
 
     def __init__(self):
 
-        super(MsgProtocol, self).__init__()
+        super(MessageReceiver, self).__init__()
 
         self._buffer = b""
         self._header_retrieved = False

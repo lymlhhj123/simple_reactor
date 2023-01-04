@@ -1,12 +1,10 @@
 # coding: utf-8
 
 from libreactor.context import Context
-from libreactor.protocol import Protocol
-
-PONG = b"PONG"
+from libreactor.protocol import Stream
 
 
-class ServerProtocol(Protocol):
+class ServerProtocol(Stream):
 
     def data_received(self, data: bytes):
         """
@@ -14,7 +12,7 @@ class ServerProtocol(Protocol):
         :param data:
         :return:
         """
-        self.send_data(PONG)
+        self.send_data(data)
 
 
 context = Context(stream_protocol_cls=ServerProtocol, log_debug=True)

@@ -48,9 +48,8 @@ class Connection(IOStream):
         # client connect timer
         self._timeout_timer = None
 
-        # callback
+        # error callback
         self._on_connection_failed = None
-        self._on_connection_established = None
         self._on_connection_lost = None
         self._on_connection_done = None
 
@@ -92,13 +91,22 @@ class Connection(IOStream):
         sock = socket.socket(family=socket.AF_UNIX, type=socket.SOCK_STREAM)
         return cls(endpoint, sock, event_loop, context)
 
-    def start_connect(self, timeout=10):
+    def start_connect(self, on_connection_done=None, on_connection_lost=None,
+                      on_connection_failed=None, timeout=10):
         """
 
+        :param on_connection_done:
+        :param on_connection_lost:
+        :param on_connection_failed:
         :param timeout:
         :return:
         """
         assert self._event_loop.is_in_loop_thread()
+
+        # callback
+        self._on_connection_done = on_connection_done
+        self._on_connection_lost = on_connection_lost
+        self._on_connection_failed = on_connection_failed
 
         try:
             self._sock.connect(self._endpoint)
@@ -110,6 +118,7 @@ class Connection(IOStream):
                 state = State.CONNECTING
             else:
                 self._context.logger().error(f"failed to try connect {self._endpoint}: {e}")
+                self.connection_failed()
                 return
         else:
             state = State.CONNECTED
@@ -120,38 +129,6 @@ class Connection(IOStream):
             self._timeout_timer = self._event_loop.call_later(timeout, self.connection_timeout)
         else:
             self.connection_established()
-
-    def set_on_connection_done(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_connection_done = callback
-
-    def set_on_connection_lost(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_connection_lost = callback
-
-    def set_on_connection_failed(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_connection_failed = callback
-
-    def set_on_connection_established(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_connection_established = callback
 
     @classmethod
     def from_sock(cls, sock, event_loop, context):
@@ -186,12 +163,10 @@ class Connection(IOStream):
         self._context.add_connection(conn_id, self)
 
         protocol = self._context.build_stream_protocol()
+        protocol.set_connection_ev_ctx(self, self._event_loop, self._context)
+
         self._protocol = protocol
-
-        protocol.connection_established(self, self._event_loop, self._context)
-
-        if self._on_connection_established:
-            self._on_connection_established(protocol)
+        protocol.connection_established()
 
     def connection_made(self):
         """
@@ -206,9 +181,10 @@ class Connection(IOStream):
         self._context.add_connection(conn_id, self)
 
         protocol = self._context.build_stream_protocol()
-        self._protocol = protocol
+        protocol.set_connection_ev_ctx(self, self._event_loop, self._context)
 
-        protocol.connection_made(self, self._event_loop, self._context)
+        self._protocol = protocol
+        protocol.connection_made()
 
     def connection_timeout(self):
         """
@@ -230,8 +206,9 @@ class Connection(IOStream):
         Generally used in client side connection, trigger reconnect
         :return:
         """
-        self._timeout_timer.cancel()
-        self._timeout_timer = None
+        if self._timeout_timer:
+            self._timeout_timer.cancel()
+            self._timeout_timer = None
 
         self._on_close()
 

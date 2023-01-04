@@ -125,21 +125,16 @@ class Context(object):
         tcp_server = rpc.TcpServer(port, self)
         tcp_server.start()
 
-    def connect_tcp(self, host, port, timeout=10, auto_reconnect=False,
-                    on_connection_failed=None, on_connection_established=None):
+    def connect_tcp(self, host, port, timeout=10, auto_reconnect=False):
         """
 
         :param host:
         :param port:
         :param timeout:
         :param auto_reconnect:
-        :param on_connection_failed:
-        :param on_connection_established:
         :return:
         """
         connector = rpc.TcpConnector((host, port), self, timeout, auto_reconnect)
-        connector.set_on_connection_failed(on_connection_failed)
-        connector.set_on_connection_established(on_connection_established)
         connector.start_connect()
 
     def listen_unix(self, unix_path):
@@ -151,20 +146,15 @@ class Context(object):
         unix_server = rpc.UnixServer(unix_path, self)
         unix_server.start()
 
-    def connect_unix(self, unix_file, timeout=10, auto_reconnect=False,
-                     on_connection_failed=None, on_connection_established=None):
+    def connect_unix(self, unix_file, timeout=10, auto_reconnect=False):
         """
 
         :param unix_file:
         :param timeout:
         :param auto_reconnect:
-        :param on_connection_failed:
-        :param on_connection_established:
         :return:
         """
         connector = rpc.UnixConnector(unix_file, self, timeout, auto_reconnect)
-        connector.set_on_connection_failed(on_connection_failed)
-        connector.set_on_connection_established(on_connection_established)
         connector.start_connect()
 
     def listen_udp(self, port):
@@ -176,16 +166,14 @@ class Context(object):
         server = rpc.UdpServer(port, self)
         server.start()
 
-    def connect_udp(self, host, port, on_connection_established=None):
+    def connect_udp(self, host, port):
         """
 
         :param host:
         :param port:
-        :param on_connection_established:
         :return:
         """
         client = rpc.UdpClient((host, port), self)
-        client.set_on_connection_established(on_connection_established)
         client.start()
 
     def build_stream_protocol(self):

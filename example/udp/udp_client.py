@@ -1,13 +1,13 @@
 # coding: utf-8
 
 from libreactor.context import Context
-from libreactor.protocol import Protocol
+from libreactor.protocol import Dgram
 
 
 SERVER = ("127.0.0.1", 9528)
 
 
-class DgramProtocol(Protocol):
+class DgramProtocol(Dgram):
 
     def dgram_received(self, data, addr):
         """

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from libreactor.context import Context
-from libreactor.protocol import MsgProtocol
+from libreactor.protocol import MessageReceiver
 
 
 def tcp_server(ctx):
@@ -15,6 +15,6 @@ def tcp_server(ctx):
     ctx.main_loop()
 
 
-context = Context(stream_protocol_cls=MsgProtocol, log_debug=True)
+context = Context(stream_protocol_cls=MessageReceiver, log_debug=True)
 
 tcp_server(context)
