@@ -106,7 +106,7 @@ class Connection(IOStream):
         conn_id = self._ctx.add_connection(self)
         self._conn_id = conn_id
 
-        protocol = self._ctx.build_protocol()
+        protocol = self._ctx.build_stream_protocol()
         protocol.set_ctx(self._ctx)
         protocol.set_connection(self)
         protocol.set_event_loop(self._event_loop)
@@ -126,7 +126,7 @@ class Connection(IOStream):
         conn_id = self._ctx.add_connection(self)
         self._conn_id = conn_id
 
-        protocol = self._ctx.build_protocol()
+        protocol = self._ctx.build_stream_protocol()
         protocol.set_ctx(self._ctx)
         protocol.set_connection(self)
         protocol.set_event_loop(self._event_loop)

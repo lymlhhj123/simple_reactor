@@ -26,7 +26,7 @@ class Connector(object):
         :return:
         """
         host, port = self.endpoint
-        self.ctx.logger.info(f"start to dns {self.endpoint}")
+        self.ctx.logger().info(f"start to dns {self.endpoint}")
         try:
             addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
         except Exception as e:
@@ -37,7 +37,7 @@ class Connector(object):
             self.ctx.logger().error(f"dns resolve {self.endpoint} is empty")
             return
 
-        self.ctx.logger.info("end to dns resolve")
+        self.ctx.logger().info("end to dns resolve")
 
         af, _, _, _, sa = addr_list[0]
         self.event_loop.call_soon(self._connect_in_loop, af, sa, timeout)
