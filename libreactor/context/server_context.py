@@ -11,14 +11,15 @@ class ServerContext(Context):
         super(ServerContext, self).__init__()
         self.acceptor = None
 
-    def listen_tcp(self, port, event_loop):
+    def listen_tcp(self, port, event_loop, backlog=8):
         """
 
         :param port:
         :param event_loop:
+        :param backlog:
         :return:
         """
-        self.acceptor = rpc.TcpAcceptor(port, self, event_loop)
+        self.acceptor = rpc.TcpAcceptor(port, self, event_loop, backlog)
         self.acceptor.start_accept()
 
     def on_connection_made(self, protocol):

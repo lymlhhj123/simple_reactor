@@ -12,16 +12,16 @@ from .connection import Connection
 
 class Acceptor(IOStream):
 
-    def __init__(self, ctx, event_loop, endpoint, backlog=8):
+    def __init__(self, port, ctx, event_loop, backlog=8):
         """
 
+        :param port:
         :param ctx:
         :param event_loop:
-        :param endpoint:
         :param backlog:
         """
+        self._port = port
         self._ctx = ctx
-        self._endpoint = endpoint
         self._backlog = backlog
         self._placeholder = open("/dev/null")
 
@@ -39,7 +39,7 @@ class Acceptor(IOStream):
         """
         s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock_util.set_tcp_reuse_addr(s)
-        s.bind(("::", self._endpoint))
+        s.bind(("::", self._port))
         s.listen(self._backlog)
         return s
 
