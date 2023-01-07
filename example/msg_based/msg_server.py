@@ -13,8 +13,7 @@ class MyProtocol(MessageReceiver):
         :param msg:
         :return:
         """
-        self.ctx.logger().info(f"{msg} received")
-        self.send_data(msg)
+        self.send_msg(msg)
 
 
 class MyContext(ServerContext):

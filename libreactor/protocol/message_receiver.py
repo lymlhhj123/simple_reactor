@@ -40,6 +40,13 @@ class Header(object):
         """
         return struct.pack(HEADER_FMT, self.v, self.crc32, self.msg_len)
 
+    def __repr__(self):
+        """
+
+        :return:
+        """
+        return f"{self.v} {self.crc32} {self.msg_len}"
+
 
 class MessageReceiver(Protocol):
 
@@ -103,13 +110,14 @@ class MessageReceiver(Protocol):
         try:
             msg, self._buffer = self._buffer[:msg_len], self._buffer[msg_len:]
             if zlib.crc32(msg) != crc32:
-                self.msg_broken()
+                self.msg_broken(self._header, msg)
             else:
                 self.msg_received(msg)
         except Exception as e:
             self.ctx.logger().error(f"error happened when process msg, {e}")
         finally:
             self._header_received = False
+            self._header = None
 
     def _retrieve_header(self):
         """
@@ -131,11 +139,14 @@ class MessageReceiver(Protocol):
         """
         self._header = header
 
-    def msg_broken(self):
+    def msg_broken(self, header, msg):
         """
 
+        :param header:
+        :param msg:
         :return:
         """
+        self.ctx.logger().error(f"msg broken header: {header}, msg: {msg}")
 
     def msg_received(self, msg):
         """

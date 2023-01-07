@@ -8,8 +8,8 @@ from libreactor.io_stream import IOStream
 from libreactor import sock_util
 from libreactor import fd_util
 from libreactor import utils
-from .const import State
-from .status import Status
+from .const import ConnectionState
+from .const import RWState
 
 READ_SIZE = 8192
 
@@ -31,7 +31,7 @@ class Connection(IOStream):
 
         self._endpoint = endpoint
         self._sock = sock
-        self._state = State.DISCONNECTED
+        self._state = ConnectionState.DISCONNECTED
 
         self._write_buffer = b""
 
@@ -72,17 +72,17 @@ class Connection(IOStream):
         except socket.error as e:
             err_code = e.errno
             if err_code == errno.EISCONN:
-                state = State.CONNECTED
+                state = ConnectionState.CONNECTED
             elif err_code in [errno.EINPROGRESS, errno.EALREADY]:
-                state = State.CONNECTING
+                state = ConnectionState.CONNECTING
             else:
                 self._ctx.logger().error(f"failed to try connect {self._endpoint}: {e}")
                 self._ctx.on_connection_failed(err_code)
                 return
         else:
-            state = State.CONNECTED
+            state = ConnectionState.CONNECTED
 
-        if state == State.CONNECTING:
+        if state == ConnectionState.CONNECTING:
             self._state = state
             self.enable_writing()
             self._timeout_timer = self._event_loop.call_later(timeout, self.connection_timeout)
@@ -95,7 +95,7 @@ class Connection(IOStream):
         :return:
         """
         self._ctx.logger().info(f"connection established to {self._endpoint}, fd: {self._fd}")
-        self._state = State.CONNECTED
+        self._state = ConnectionState.CONNECTED
 
         if self._timeout_timer:
             self._timeout_timer.cancel()
@@ -121,7 +121,7 @@ class Connection(IOStream):
 
         :return:
         """
-        self._state = State.CONNECTED
+        self._state = ConnectionState.CONNECTED
         self.enable_reading()
 
         conn_id = self._ctx.add_connection(self)
@@ -202,11 +202,11 @@ class Connection(IOStream):
         :param bytes_:
         :return:
         """
-        if self._state == State.DISCONNECTED:
+        if self._state == ConnectionState.DISCONNECTED:
             self._ctx.logger().error("connection is already closed, stop write")
             return
 
-        if self._state == State.DISCONNECTING:
+        if self._state == ConnectionState.DISCONNECTING:
             self._ctx.logger().error("connection will be closed, stop write")
             return
 
@@ -217,13 +217,13 @@ class Connection(IOStream):
 
         self._write_buffer += bytes_
 
-        # may be still in connecting
-        if self._state == State.CONNECTING:
+        # still in connecting
+        if self._state == ConnectionState.CONNECTING:
             return
 
         # try to write directly
         status = self._do_write()
-        if status != Status.OK:
+        if status != RWState.OK:
             return
 
         if self._write_buffer and not self.writable():
@@ -234,18 +234,18 @@ class Connection(IOStream):
 
         :return:
         """
-        if self._state == State.DISCONNECTING:
+        if self._state == ConnectionState.DISCONNECTING:
             self._ctx.logger().warning("connection will be closed, ignore write event")
             return
 
         # handle connecting and return directly
-        if self._state == State.CONNECTING:
+        if self._state == ConnectionState.CONNECTING:
             self._handle_connect()
             return
 
         if self._write_buffer:
             status = self._do_write()
-            if status != Status.OK:
+            if status != RWState.OK:
                 return
 
         if self._write_buffer:
@@ -284,29 +284,29 @@ class Connection(IOStream):
         except Exception as e:
             err_code = utils.errno_from_ex(e)
             if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                return Status.OK
+                return RWState.OK
             elif err_code == errno.EPIPE:
                 self._ctx.logger().error("broken pipe on write event")
                 self.connection_done()
-                return Status.BROKEN_PIPE
+                return RWState.BROKEN_PIPE
             else:
                 self._ctx.logger().error(f"error happened on write event, {e}")
                 self.connection_lost(err_code)
-                return Status.LOST
+                return RWState.LOST
 
         if write_size == 0:
             self.connection_done()
-            return Status.CLOSED
+            return RWState.CLOSED
 
         self._write_buffer = self._write_buffer[write_size:]
-        return Status.OK
+        return RWState.OK
 
     def on_read(self):
         """
 
         :return:
         """
-        if self._state == State.DISCONNECTING:
+        if self._state == ConnectionState.DISCONNECTING:
             self._ctx.logger().warning("connection will be closed, ignore read event")
             return
 
@@ -323,19 +323,19 @@ class Connection(IOStream):
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                    return Status.OK
+                    return RWState.OK
                 elif err_code == errno.EPIPE:
                     self._ctx.logger().error("broken pipe on read event")
                     self.connection_done()
-                    return Status.BROKEN_PIPE
+                    return RWState.BROKEN_PIPE
                 else:
                     self._ctx.logger().error(f"error happened on read event, {e}")
                     self.connection_lost(err_code)
-                    return Status.LOST
+                    return RWState.LOST
 
             if not data:
                 self.connection_done()
-                return Status.CLOSED
+                return RWState.CLOSED
 
             self._data_received(data)
 
@@ -385,10 +385,10 @@ class Connection(IOStream):
 
         :return:
         """
-        if self._state == State.DISCONNECTING or self._state == State.DISCONNECTED:
+        if self._state == ConnectionState.DISCONNECTING or self._state == ConnectionState.DISCONNECTED:
             return
 
-        self._state = State.DISCONNECTING
+        self._state = ConnectionState.DISCONNECTING
 
         if self._linger_timer:
             self._linger_timer.cancel()
@@ -409,7 +409,7 @@ class Connection(IOStream):
 
         self.close_fd()
 
-        self._state = State.DISCONNECTED
+        self._state = ConnectionState.DISCONNECTED
         self._sock = None
 
         self._ctx.remove_connection(self._conn_id)
