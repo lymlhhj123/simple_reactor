@@ -8,8 +8,8 @@ from libreactor.io_stream import IOStream
 from libreactor import sock_util
 from libreactor import fd_util
 from libreactor import utils
-from libreactor.rpc.tcp.const import State
-from libreactor.rpc.tcp.status import Status
+from .const import State
+from .status import Status
 
 READ_SIZE = 8192
 
