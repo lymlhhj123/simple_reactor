@@ -6,7 +6,6 @@ from collections import deque
 
 from libreactor.io_stream import IOStream
 from libreactor.utils import errno_from_ex
-from libreactor.rpc.status import Status
 from libreactor import fd_util
 
 READ_SIZE = 1500
@@ -86,13 +85,13 @@ class Connection(IOStream):
             except Exception as e:
                 err_code = errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                    return Status.OK
+                    return
                 else:
                     self._context.logger().error(f"error happened on read event, {e}")
-                    return Status.ERROR
+                    return
 
             if not data:
-                return Status.CLOSED
+                return
 
             self._dgram_received(data, addr)
 
@@ -144,10 +143,10 @@ class Connection(IOStream):
             except Exception as e:
                 err_code = errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                    return Status.OK
+                    return
                 else:
                     self._context.logger().error(f"error happened on write event, {e}")
-                    return Status.ERROR
+                    return
 
             self._buffer.popleft()
 

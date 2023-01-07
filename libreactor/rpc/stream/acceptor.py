@@ -3,28 +3,27 @@
 import errno
 import socket
 
-from ..io_stream import IOStream
-from ..utils import errno_from_ex
-from .. import fd_util
+from libreactor.io_stream import IOStream
+from libreactor.utils import errno_from_ex
+from libreactor import fd_util
+from libreactor import sock_util
+from .connection import Connection
 
 
 class Acceptor(IOStream):
 
-    def __init__(self, context, event_loop, endpoint, backlog=8):
+    def __init__(self, ctx, event_loop, endpoint, backlog=8):
         """
 
-        :param context:
+        :param ctx:
         :param event_loop:
         :param endpoint:
         :param backlog:
         """
-        self._context = context
+        self._ctx = ctx
         self._endpoint = endpoint
         self._backlog = backlog
         self._placeholder = open("/dev/null")
-
-        # called when accept new connection
-        self._on_new_connection = None
 
         self._sock = self._create_listen_sock()
 
@@ -38,22 +37,24 @@ class Acceptor(IOStream):
 
         :return:
         """
-        raise NotImplementedError
-
-    def set_on_new_connection(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_new_connection = callback
+        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock_util.set_tcp_reuse_addr(s)
+        s.bind(("::", self._endpoint))
+        s.listen(self._backlog)
+        return s
 
     def start_accept(self):
         """
 
         :return:
         """
-        assert self._event_loop.is_in_loop_thread()
+        self._event_loop.call_soon(self._start_accept_in_loop)
+
+    def _start_accept_in_loop(self):
+        """
+
+        :return:
+        """
         self.enable_reading()
 
     def on_read(self):
@@ -72,20 +73,35 @@ class Acceptor(IOStream):
                     self._too_many_open_file()
                 else:
                     self.close()
-                    self._context.logger().error(f"error happened on listen sock, {e}")
+                    self._ctx.on_accept_error(err_code)
+                    break
             else:
-                if self._on_new_connection:
-                    self._on_new_connection(sock, addr)
-                else:
-                    sock.close()
+                self._on_new_connection(sock, addr)
 
     def _too_many_open_file(self):
         """
 
         :return:
         """
-        self._context.logger().error(f"too many open file, close socket")
+        self._ctx.logger().error(f"too many open file, close socket")
         self._placeholder.close()
         sock, _ = self._sock.accept()
         sock.close()
         self._placeholder = open("/dev/null")
+
+    def _on_new_connection(self, sock, addr):
+        """
+
+        :param sock:
+        :param addr:
+        :return:
+        """
+        assert self._event_loop.is_in_loop_thread()
+
+        self._ctx.logger().info(f"new connection from {addr}, fd: {sock.fileno()}")
+
+        sock_util.set_tcp_no_delay(sock)
+        sock_util.set_tcp_keepalive(sock)
+
+        conn = Connection.from_sock(sock, self._ctx, self._event_loop)
+        conn.connection_made()

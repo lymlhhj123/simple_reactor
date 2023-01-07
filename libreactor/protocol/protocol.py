@@ -5,22 +5,33 @@ class Protocol(object):
 
     def __init__(self):
 
-        self.context = None
-
+        self.ctx = None
         self.connection = None
         self.event_loop = None
 
-    def set_connection_ev_ctx(self, connection, event_loop, ctx):
+    def set_ctx(self, ctx):
         """
 
-        :param connection:
-        :param event_loop:
         :param ctx:
         :return:
         """
+        self.ctx = ctx
+
+    def set_connection(self, connection):
+        """
+
+        :param connection:
+        :return:
+        """
         self.connection = connection
+
+    def set_event_loop(self, event_loop):
+        """
+
+        :param event_loop:
+        :return:
+        """
         self.event_loop = event_loop
-        self.context = ctx
 
     def connection_made(self):
         """
@@ -48,12 +59,37 @@ class Protocol(object):
         :return:
         """
 
-    def safe_close_connection(self):
+    def send_data(self, data: bytes):
         """
-
+        stream protocol
+        :param data:
         :return:
         """
-        self.event_loop.call_soon(self.close_connection)
+        self.connection.write(data)
+
+    def data_received(self, data: bytes):
+        """
+
+        :param data:
+        :return:
+        """
+
+    def send_dgram(self, data, addr):
+        """
+        dgram protocol
+        :param data:
+        :param addr:
+        :return:
+        """
+        self.connection.write_dgram(data, addr)
+
+    def dgram_received(self, data, addr):
+        """
+        dgram protocol
+        :param data:
+        :param addr:
+        :return:
+        """
 
     def close_connection(self):
         """

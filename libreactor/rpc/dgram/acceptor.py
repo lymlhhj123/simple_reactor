@@ -5,7 +5,7 @@ import socket
 from .connection import Connection
 
 
-class Server(object):
+class Acceptor(object):
 
     def __init__(self, endpoint, context):
         """
@@ -18,7 +18,7 @@ class Server(object):
 
         self._event_loop = context.get_event_loop()
 
-    def start(self):
+    def start_accept(self):
         """
 
         :return:

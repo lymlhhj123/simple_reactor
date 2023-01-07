@@ -3,23 +3,53 @@
 import zlib
 import struct
 
-from .stream import Stream
+from .protocol import Protocol
 
 VERSION = 1
 HEADER_LEN = 10  # 2 bytes version + 4 bytes crc32 + 4 bytes msg len
 HEADER_FMT = "!HII"
 
 
-class MessageReceiver(Stream):
+class Header(object):
+
+    def __init__(self, v, crc32, msg_len):
+        """
+
+        :param v:
+        :param crc32:
+        :param msg_len:
+        """
+        self.v = v
+        self.crc32 = crc32
+        self.msg_len = msg_len
+
+    @classmethod
+    def from_bytes(cls, data_bytes):
+        """
+
+        :param data_bytes:
+        :return:
+        """
+        v, crc32, msg_len = struct.unpack(HEADER_FMT, data_bytes)
+        return Header(v, crc32, msg_len)
+
+    def as_bytes(self):
+        """
+
+        :return:
+        """
+        return struct.pack(HEADER_FMT, self.v, self.crc32, self.msg_len)
+
+
+class MessageReceiver(Protocol):
 
     def __init__(self):
 
         super(MessageReceiver, self).__init__()
 
         self._buffer = b""
-        self._header_retrieved = False
-        self._crc32 = 0
-        self._msg_len = 0
+        self._header = None
+        self._header_received = False
 
     def send_msg(self, msg: bytes):
         """
@@ -31,17 +61,25 @@ class MessageReceiver(Stream):
             msg = msg.encode("utf-8")
 
         if not isinstance(msg, bytes):
-            self.context.logger().error(f"msg type must be str or bytes, not {type(msg)}")
+            self.ctx.logger().error(f"msg type must be str or bytes, not {type(msg)}")
             return
 
         crc32 = zlib.crc32(msg)
         msg_len = len(msg)
 
-        header = struct.pack(HEADER_FMT, VERSION, crc32, msg_len)
+        header = Header(VERSION, crc32, msg_len)
 
-        data = header + msg
+        data = header.as_bytes() + msg
 
         self.send_data(data)
+
+    def send_data(self, data: bytes):
+        """
+        stream protocol
+        :param data:
+        :return:
+        """
+        self.connection.write(data)
 
     def data_received(self, data: bytes):
         """
@@ -51,26 +89,27 @@ class MessageReceiver(Stream):
         """
         self._buffer += data
 
-        if self._header_retrieved is False:
+        if self._header_received is False:
             if self._retrieve_header() is False:
                 return
 
-            self._header_retrieved = True
+            self._header_received = True
 
-        if len(self._buffer) < self._msg_len:
+        msg_len = self._header.msg_len
+        if len(self._buffer) < msg_len:
             return
 
+        crc32 = self._header.crc32
         try:
-            msg, self._buffer = self._buffer[:self._msg_len], self._buffer[self._msg_len:]
-            if zlib.crc32(msg) != self._crc32:
-                self.context.logger().error("msg broken, drop it")
-                return
-
-            self.msg_received(msg)
+            msg, self._buffer = self._buffer[:msg_len], self._buffer[msg_len:]
+            if zlib.crc32(msg) != crc32:
+                self.msg_broken()
+            else:
+                self.msg_received(msg)
         except Exception as e:
-            self.context.logger().error(f"error happened when handle msg, {e}")
+            self.ctx.logger().error(f"error happened when process msg, {e}")
         finally:
-            self._clear_header()
+            self._header_received = False
 
     def _retrieve_header(self):
         """
@@ -80,17 +119,23 @@ class MessageReceiver(Stream):
         if len(self._buffer) < HEADER_LEN:
             return False
 
-        header, self._buffer = self._buffer[:HEADER_LEN], self._buffer[HEADER_LEN:]
-        _, self._crc32, self._msg_len = struct.unpack(HEADER_FMT, header)
+        header_bytes, self._buffer = self._buffer[:HEADER_LEN], self._buffer[HEADER_LEN:]
+        self._header_retrieved(Header.from_bytes(header_bytes))
         return True
 
-    def _clear_header(self):
+    def _header_retrieved(self, header):
+        """
+
+        :param header:
+        :return:
+        """
+        self._header = header
+
+    def msg_broken(self):
         """
 
         :return:
         """
-        self._header_retrieved = False
-        self._crc32, self._msg_len = 0, 0
 
     def msg_received(self, msg):
         """
@@ -98,4 +143,4 @@ class MessageReceiver(Stream):
         :param msg:
         :return:
         """
-        self.context.logger().info(f"{msg}")
+        self.ctx.logger().info(f"{msg}")

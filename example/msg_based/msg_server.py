@@ -1,20 +1,30 @@
 # coding: utf-8
 
-from libreactor.context import Context
-from libreactor.protocol import MessageReceiver
+from libreactor import ServerContext
+from libreactor import MessageReceiver
+from libreactor import EventLoop
 
 
-def tcp_server(ctx):
-    """
+class MyProtocol(MessageReceiver):
 
-    :param ctx:
-    :return:
-    """
-    ctx.listen_tcp(9527)
+    def msg_received(self, msg):
+        """
 
-    ctx.main_loop()
+        :param msg:
+        :return:
+        """
+        self.ctx.logger().info(f"{msg} received")
+        self.send_data(msg)
 
 
-context = Context(stream_protocol_cls=MessageReceiver, log_debug=True)
+class MyContext(ServerContext):
 
-tcp_server(context)
+    stream_protocol_cls = MyProtocol
+
+
+ev = EventLoop()
+
+ctx = MyContext()
+ctx.listen_tcp(9527, ev)
+
+ev.loop()
