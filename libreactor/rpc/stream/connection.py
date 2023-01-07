@@ -111,7 +111,7 @@ class Connection(IOStream):
         protocol.set_connection(self)
         protocol.set_event_loop(self._event_loop)
 
-        protocol.connection_established(self, self._event_loop)
+        protocol.connection_established()
 
         self._ctx.on_connection_established(protocol)
 
@@ -132,7 +132,7 @@ class Connection(IOStream):
         protocol.set_event_loop(self._event_loop)
 
         self._protocol = protocol
-        protocol.connection_made(self, self._event_loop)
+        protocol.connection_made()
 
         self._ctx.on_connection_made(protocol)
 
