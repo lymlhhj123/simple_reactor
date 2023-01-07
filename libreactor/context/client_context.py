@@ -32,6 +32,19 @@ class ClientContext(Context):
         self.connector = rpc.TcpConnector(endpoint, self, event_loop)
         self.connector.start_connect(timeout)
 
+    def dns_resolved_failed(self, ex):
+        """
+
+        :param ex:
+        :return:
+        """
+
+    def dns_resolved_empty(self):
+        """
+
+        :return:
+        """
+
     def on_connection_established(self, protocol):
         """
 

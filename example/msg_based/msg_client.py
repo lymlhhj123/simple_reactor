@@ -27,7 +27,7 @@ def on_established(protocol):
     :param protocol:
     :return:
     """
-    protocol.send_data(b"hello")
+    protocol.send_msg(b"hello")
 
 
 ev = EventLoop()

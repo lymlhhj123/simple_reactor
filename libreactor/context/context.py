@@ -13,7 +13,7 @@ class Context(object):
 
     def __init__(self):
 
-        self._logger = logger.get_logger(False)
+        self._logger = logger.get_logger(True)
 
         self._conn_id = 0
         self._connection_map = {}
