@@ -1,11 +1,11 @@
 # coding: utf-8
 
 from libreactor import ClientContext
-from libreactor import MessageReceiver
+from libreactor import StreamReceiver
 from libreactor import EventLoop
 
 
-class MyProtocol(MessageReceiver):
+class MyProtocol(StreamReceiver):
 
     def __init__(self):
 

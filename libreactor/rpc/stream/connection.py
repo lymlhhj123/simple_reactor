@@ -194,25 +194,17 @@ class Connection(IOStream):
         :param bytes_:
         :return:
         """
-        self._write(bytes_)
-
-    def _write(self, bytes_):
-        """
-
-        :param bytes_:
-        :return:
-        """
         if self._state == ConnectionState.DISCONNECTED:
-            self._ctx.logger().error("connection is already closed, stop write")
+            self._ctx.logger().error("connection is already closed, cannot write")
             return
 
         if self._state == ConnectionState.DISCONNECTING:
-            self._ctx.logger().error("connection will be closed, stop write")
+            self._ctx.logger().error("connection will be closed, cannot write")
             return
 
         # already call close() method, dont accept data
         if self._close_after_write is True:
-            self._ctx.logger().error("close() method is already called, stop write")
+            self._ctx.logger().error("close() method is already called, cannot write")
             return
 
         self._write_buffer += bytes_
@@ -399,6 +391,8 @@ class Connection(IOStream):
 
         # close on next loop
         self._event_loop.call_soon(self._close_force)
+
+        self._ctx.on_connection_close()
 
     def _close_force(self):
         """

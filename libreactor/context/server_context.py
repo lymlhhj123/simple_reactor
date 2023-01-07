@@ -22,13 +22,6 @@ class ServerContext(Context):
         self.acceptor = rpc.TcpAcceptor(port, self, event_loop, backlog)
         self.acceptor.start_accept()
 
-    def on_connection_made(self, protocol):
-        """
-
-        :param protocol:
-        :return:
-        """
-
     def on_accept_error(self, ex):
         """
 

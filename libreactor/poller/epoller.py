@@ -3,7 +3,7 @@
 import select
 
 
-class Epoller(object):
+class EPoller(object):
 
     def __init__(self):
 

@@ -3,12 +3,12 @@
 from libreactor import logger
 
 from ..protocol import Protocol
-from ..protocol import MessageReceiver
+from ..protocol import StreamReceiver
 
 
 class Context(object):
 
-    stream_protocol_cls = MessageReceiver
+    stream_protocol_cls = StreamReceiver
     dgram_protocol_cls = Protocol
 
     def __init__(self):
@@ -58,22 +58,50 @@ class Context(object):
         """
         return self.dgram_protocol_cls()
 
+    def on_connection_made(self, protocol):
+        """
+        used by tcp/udp, called on server side
+        :param protocol:
+        :return:
+        """
+
+    def on_connection_established(self, protocol):
+        """
+
+        used by tcp/udp, called on client side
+        :param protocol:
+        :return:
+        """
+
+    def on_connection_failed(self, error_code):
+        """
+        used by tcp, called on client side
+        :param error_code:
+        :return:
+        """
+
+    def on_connection_timeout(self):
+        """
+        used by tcp, called on client side
+        :return:
+        """
+
     def on_connection_done(self):
         """
-        called when connection closed by peer
+        used by tcp, called on client/server side
         :return:
         """
 
     def on_connection_lost(self, error_code):
         """
-        called when connection lost
+        used by tcp, called on client/server side
         :param error_code:
         :return:
         """
 
     def on_connection_close(self):
         """
-        called when connection closed
+        used by tcp, called on client/server side
         :return:
         """
 

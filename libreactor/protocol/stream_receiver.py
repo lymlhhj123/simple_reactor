@@ -48,11 +48,11 @@ class Header(object):
         return f"{self.v} {self.crc32} {self.msg_len}"
 
 
-class MessageReceiver(Protocol):
+class StreamReceiver(Protocol):
 
     def __init__(self):
 
-        super(MessageReceiver, self).__init__()
+        super(StreamReceiver, self).__init__()
 
         self._buffer = b""
         self._header = None
