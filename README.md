@@ -1,10 +1,16 @@
 # libreactor
 
 - io event notify library based on reactor mode, support epoll and select.
+- current only support linux, kernel >= 4.14.
+- python >= 3.8.5.
+
+## install
+
+coming soon
 
 ## example
 
-### tcp server example
+### tcp server
 
 ```javascript
 # coding: utf-8
@@ -34,7 +40,7 @@ ctx.listen_tcp(9527, ev)
 ev.loop()
 ```
 
-### tcp client example
+### tcp client
 ```javascript
 # coding: utf-8
 
@@ -95,7 +101,15 @@ ctx.connect_tcp(("127.0.0.1", 9527), ev)
 ev.loop()
 ```
 
-### task example
+### udp server
+
+coming soon
+
+## udp client
+
+coming soon
+
+### task
 ```javascript
 # coding: utf-8
 
@@ -141,3 +155,11 @@ ev.call_every_ex("02:00:00", call_event_day_at_2_clock)
 
 ev.loop()
 ```
+
+## context
+
+coming soon
+
+## logger
+
+coming soon
