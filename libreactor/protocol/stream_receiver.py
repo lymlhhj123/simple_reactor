@@ -128,10 +128,25 @@ class StreamReceiver(Protocol):
             return False
 
         header_bytes, self._buffer = self._buffer[:HEADER_LEN], self._buffer[HEADER_LEN:]
-        self._header_retrieved(Header.from_bytes(header_bytes))
+        try:
+            header = Header.from_bytes(header_bytes)
+        except Exception as ex:
+            self.header_broken(ex)
+            return False
+
+        self.header_retrieved(header)
         return True
 
-    def _header_retrieved(self, header):
+    def header_broken(self, ex):
+        """
+
+        :param ex:
+        :return:
+        """
+        self.ctx.logger().error(f"header broken: {ex}, close connection")
+        self.close_connection()
+
+    def header_retrieved(self, header):
         """
 
         :param header:
@@ -146,7 +161,8 @@ class StreamReceiver(Protocol):
         :param msg:
         :return:
         """
-        self.ctx.logger().error(f"msg broken header: {header}, msg: {msg}")
+        self.ctx.logger().error(f"msg broken, header: {header}, msg: {msg}, close connection")
+        self.close_connection()
 
     def msg_received(self, msg):
         """
