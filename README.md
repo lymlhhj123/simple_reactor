@@ -1,8 +1,6 @@
 # libreactor
 
-------------
-
-- based on reactor mode io event notify library, support tcp/udp.
+- io event notify library based on reactor mode, support epoll and select.
 
 ## example
 
