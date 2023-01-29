@@ -38,7 +38,7 @@ class TcpProtocol(object):
         client side connection established
         :return:
         """
-        self.connection.connection_established(self)
+        self.ctx.connection_established(self)
 
     def connection_error(self, error: const.ConnectionErr):
         """
