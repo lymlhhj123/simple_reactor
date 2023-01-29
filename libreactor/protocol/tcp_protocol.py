@@ -14,7 +14,7 @@ class TcpProtocol(object):
     def set_args(self, ctx, conn, ev):
         """
 
-        dont call this function directly, auto called by framework
+        don't call this function directly, auto called by framework
         :param ctx:
         :param conn:
         :param ev:
