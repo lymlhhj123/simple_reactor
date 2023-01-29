@@ -1,8 +1,9 @@
 # coding: utf-8
 
-from libreactor import ClientContext
+from libreactor import Context
 from libreactor import StreamReceiver
 from libreactor import EventLoop
+from libreactor import TcpClient
 
 
 class MyProtocol(StreamReceiver):
@@ -47,9 +48,9 @@ class MyProtocol(StreamReceiver):
         self.ctx.logger().info(f"ops: {ops}")
 
 
-class MyContext(ClientContext):
+class MyContext(Context):
 
-    stream_protocol_cls = MyProtocol
+    protocol_cls = MyProtocol
 
 
 def on_established(protocol):
@@ -65,8 +66,9 @@ def on_established(protocol):
 
 ev = EventLoop()
 
-ctx = MyContext()
-ctx.set_established_callback(on_established)
-ctx.connect_tcp(("127.0.0.1", 9527), ev)
+ctx = MyContext(on_established=on_established)
+
+client = TcpClient("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
+client.start()
 
 ev.loop()

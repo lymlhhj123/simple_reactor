@@ -3,7 +3,10 @@
 import zlib
 import struct
 
-from .protocol import Protocol
+from .tcp_protocol import TcpProtocol
+from libreactor import logging
+
+logger = logging.get_logger()
 
 VERSION = 1
 HEADER_LEN = 10  # 2 bytes version + 4 bytes crc32 + 4 bytes msg len
@@ -48,7 +51,7 @@ class Header(object):
         return f"{self.v} {self.crc32} {self.msg_len}"
 
 
-class StreamReceiver(Protocol):
+class StreamReceiver(TcpProtocol):
 
     def __init__(self):
 
@@ -68,7 +71,7 @@ class StreamReceiver(Protocol):
             msg = msg.encode("utf-8")
 
         if not isinstance(msg, bytes):
-            self.ctx.logger().error(f"msg type must be str or bytes, not {type(msg)}")
+            logger.error(f"msg type must be str or bytes, not {type(msg)}")
             return
 
         crc32 = zlib.crc32(msg)
@@ -79,14 +82,6 @@ class StreamReceiver(Protocol):
         data = header.as_bytes() + msg
 
         self.send_data(data)
-
-    def send_data(self, data: bytes):
-        """
-        stream protocol
-        :param data:
-        :return:
-        """
-        self.connection.write(data)
 
     def data_received(self, data: bytes):
         """
@@ -114,7 +109,7 @@ class StreamReceiver(Protocol):
             else:
                 self.msg_received(msg)
         except Exception as e:
-            self.ctx.logger().error(f"error happened when process msg, {e}")
+            logger.error(f"error happened when process msg, {e}")
         finally:
             self._header_received = False
             self._header = None
@@ -134,6 +129,7 @@ class StreamReceiver(Protocol):
             self.header_broken(ex)
             return False
 
+        self._header = header
         self.header_retrieved(header)
         return True
 
@@ -143,7 +139,7 @@ class StreamReceiver(Protocol):
         :param ex:
         :return:
         """
-        self.ctx.logger().error(f"header broken: {ex}, close connection")
+        logger.error(f"header broken: {ex}, close connection")
         self.close_connection()
 
     def header_retrieved(self, header):
@@ -152,7 +148,6 @@ class StreamReceiver(Protocol):
         :param header:
         :return:
         """
-        self._header = header
 
     def msg_broken(self, header, msg):
         """
@@ -161,7 +156,7 @@ class StreamReceiver(Protocol):
         :param msg:
         :return:
         """
-        self.ctx.logger().error(f"msg broken, header: {header}, msg: {msg}, close connection")
+        logger.error(f"msg broken, header: {header}, msg: {msg}, close connection")
         self.close_connection()
 
     def msg_received(self, msg):
@@ -170,4 +165,3 @@ class StreamReceiver(Protocol):
         :param msg:
         :return:
         """
-        self.ctx.logger().info(f"{msg}")

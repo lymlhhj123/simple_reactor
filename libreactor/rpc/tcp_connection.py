@@ -8,13 +8,16 @@ from libreactor.io_stream import IOStream
 from libreactor import sock_util
 from libreactor import fd_util
 from libreactor import utils
-from .const import ConnectionState
-from .const import RWState
+from libreactor.const import ConnectionState
+from libreactor.const import ConnectionErr
+from libreactor import logging as __logging
+
+logger = __logging.get_logger()
 
 READ_SIZE = 8192
 
 
-class Connection(IOStream):
+class TcpConnection(IOStream):
 
     def __init__(self, endpoint, sock, ctx, event_loop):
         """
@@ -24,7 +27,7 @@ class Connection(IOStream):
         :param ctx:
         :param event_loop:
         """
-        super(Connection, self).__init__(sock.fileno(), event_loop)
+        super(TcpConnection, self).__init__(sock.fileno(), event_loop)
 
         fd_util.make_fd_async(sock.fileno())
         fd_util.close_on_exec(sock.fileno())
@@ -36,7 +39,6 @@ class Connection(IOStream):
         self._write_buffer = b""
 
         self._ctx = ctx
-        self._conn_id = -1
         self._protocol = None
 
         self._close_after_write = False
@@ -44,6 +46,9 @@ class Connection(IOStream):
 
         # client connect timer
         self._timeout_timer = None
+
+        self._closed_callback = None
+        self._err_callback = None
 
     @classmethod
     def from_sock(cls, sock, ctx, event_loop):
@@ -59,7 +64,17 @@ class Connection(IOStream):
         conn = cls(endpoint, sock, ctx, event_loop)
         return conn
 
-    def start_connect(self, timeout=10):
+    def set_callback(self, closed_callback=None, err_callback=None):
+        """
+
+        :param closed_callback:
+        :param err_callback:
+        :return:
+        """
+        self._closed_callback = closed_callback
+        self._err_callback = err_callback
+
+    def try_open(self, timeout=10):
         """
 
         :param timeout:
@@ -73,10 +88,9 @@ class Connection(IOStream):
             err_code = e.errno
             if err_code == errno.EISCONN:
                 state = ConnectionState.CONNECTED
-            elif err_code in [errno.EINPROGRESS, errno.EALREADY]:
+            elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
                 state = ConnectionState.CONNECTING
             else:
-                self._ctx.logger().error(f"failed to try connect {self._endpoint}: {e}")
                 self._ctx.on_connection_failed(err_code)
                 return
         else:
@@ -92,9 +106,10 @@ class Connection(IOStream):
     def connection_established(self):
         """
 
+        client side connection
         :return:
         """
-        self._ctx.logger().info(f"connection established to {self._endpoint}, fd: {self._fd}")
+        logger.info(f"connection established to {self._endpoint}, fd: {self._fd}")
         self._state = ConnectionState.CONNECTED
 
         if self._timeout_timer:
@@ -103,90 +118,61 @@ class Connection(IOStream):
 
         self.enable_reading()
 
-        conn_id = self._ctx.add_connection(self)
-        self._conn_id = conn_id
-
-        protocol = self._ctx.build_stream_protocol()
-        protocol.set_ctx(self._ctx)
-        protocol.set_connection(self)
-        protocol.set_event_loop(self._event_loop)
+        protocol = self._ctx.build_protocol()
+        protocol.set_args(self._ctx, self, self._event_loop)
         self._protocol = protocol
 
         protocol.connection_established()
 
-        self._ctx.on_connection_established(protocol)
-
     def connection_made(self):
         """
 
+        server side connection
         :return:
         """
         self._state = ConnectionState.CONNECTED
         self.enable_reading()
 
-        conn_id = self._ctx.add_connection(self)
-        self._conn_id = conn_id
-
-        protocol = self._ctx.build_stream_protocol()
-        protocol.set_ctx(self._ctx)
-        protocol.set_connection(self)
-        protocol.set_event_loop(self._event_loop)
+        protocol = self._ctx.build_protocol()
+        protocol.set_args(self._ctx, self, self._event_loop)
         self._protocol = protocol
 
         protocol.connection_made()
 
-        self._ctx.on_connection_made(protocol)
-
     def connection_timeout(self):
         """
-        Generally used in client side connection, trigger reconnect
+
+        client establish connection timeout
         :return:
         """
-        self._ctx.logger().error(f"timeout to connect {self._endpoint}")
-
+        logger.error(f"timeout to connect {self._endpoint}")
         self._timeout_timer = None
+        self.connection_error(ConnectionErr.TIMEOUT)
 
-        self._on_close()
-
-        self._ctx.on_connection_timeout()
-
-    def connection_failed(self, err_code):
+    def connection_failed(self):
         """
-
-        Generally used in client side connection, trigger reconnect
-        :param err_code:
+        client failed to establish connection
         :return:
         """
         if self._timeout_timer:
             self._timeout_timer.cancel()
             self._timeout_timer = None
 
-        self._on_close()
+        self.connection_error(ConnectionErr.CONNECT_FAILED)
 
-        self._ctx.on_connection_failed(err_code)
-
-    def connection_lost(self, err_code):
+    def connection_error(self, error):
         """
 
-        Generally used in client side connection, trigger reconnect
-        :param err_code:
+        :param error:
         :return:
         """
-        self._on_close()
-        self._protocol.connection_lost()
+        self._close_connection()
 
-        self._ctx.on_connection_lost(err_code)
+        if self._protocol:
+            self._protocol.connection_error(error)
 
-    def connection_done(self):
-        """
-
-        Generally used in client side connection, trigger reconnect
-        :return:
-        """
-        self._on_close()
-        self._protocol.connection_done()
-
-        self._ctx.on_connection_done()
+        if self._err_callback:
+            self._err_callback(error)
 
     def write(self, bytes_):
         """
@@ -194,17 +180,23 @@ class Connection(IOStream):
         :param bytes_:
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTED:
-            self._ctx.logger().error("connection is already closed, cannot write")
+        if self._event_loop.is_in_loop_thread():
+            self._write_impl(bytes_)
+        else:
+            self._event_loop.call_soon(self._write_impl, bytes_)
+
+    def _write_impl(self, bytes_):
+        """
+
+        :param bytes_:
+        :return:
+        """
+        if self._state in [ConnectionState.DISCONNECTED, ConnectionState.DISCONNECTING]:
             return
 
-        if self._state == ConnectionState.DISCONNECTING:
-            self._ctx.logger().error("connection will be closed, cannot write")
-            return
-
-        # already call close() method, dont accept data
+        # already call close() method, don't write data
         if self._close_after_write is True:
-            self._ctx.logger().error("close() method is already called, cannot write")
+            logger.error("close method is already called, cannot write")
             return
 
         self._write_buffer += bytes_
@@ -214,8 +206,9 @@ class Connection(IOStream):
             return
 
         # try to write directly
-        status = self._do_write()
-        if status != RWState.OK:
+        error = self._do_write()
+        if error != ConnectionErr.OK:
+            self.connection_error(error)
             return
 
         if self._write_buffer and not self.writable():
@@ -226,26 +219,24 @@ class Connection(IOStream):
 
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTING:
-            self._ctx.logger().warning("connection will be closed, ignore write event")
-            return
-
-        # handle connecting and return directly
+        # handle connecting
         if self._state == ConnectionState.CONNECTING:
             self._handle_connect()
+
+        if self._state != ConnectionState.CONNECTED:
             return
 
         if self._write_buffer:
-            status = self._do_write()
-            if status != RWState.OK:
+            error = self._do_write()
+            if error != ConnectionErr.OK:
+                self.connection_error(error)
                 return
 
         if self._write_buffer:
             return
 
         if self._close_after_write is True:
-            self._ctx.logger().warning("write buffer is empty, close connection")
-            self._on_close()
+            self._close_connection()
             return
 
         if self.writable():
@@ -259,8 +250,8 @@ class Connection(IOStream):
         err_code = sock_util.get_sock_error(self._sock)
         if err_code != 0:
             reason = os.strerror(err_code)
-            self._ctx.logger().error(f"failed to connect {self._endpoint}: {reason}")
-            self.connection_failed(err_code)
+            logger.error(f"failed to connect {self._endpoint}: {reason}")
+            self.connection_failed()
             return
 
         self.disable_writing()
@@ -276,30 +267,27 @@ class Connection(IOStream):
         except Exception as e:
             err_code = utils.errno_from_ex(e)
             if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                return RWState.OK
+                return ConnectionErr.OK
             elif err_code == errno.EPIPE:
-                self._ctx.logger().error("broken pipe on write event")
-                self.connection_done()
-                return RWState.BROKEN_PIPE
+                return ConnectionErr.BROKEN_PIPE
             else:
-                self._ctx.logger().error(f"error happened on write event, {e}")
-                self.connection_lost(err_code)
-                return RWState.LOST
+                return ConnectionErr.UNKNOWN
 
         if write_size == 0:
-            self.connection_done()
-            return RWState.CLOSED
+            return ConnectionErr.PEER_CLOSED
 
         self._write_buffer = self._write_buffer[write_size:]
-        return RWState.OK
+        return ConnectionErr.OK
 
     def on_read(self):
         """
 
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTING:
-            self._ctx.logger().warning("connection will be closed, ignore read event")
+        if self._state == ConnectionState.CONNECTING:
+            self._handle_connect()
+
+        if self._state != ConnectionState.CONNECTED:
             return
 
         self._do_read()
@@ -314,20 +302,15 @@ class Connection(IOStream):
                 data = self._sock.recv(READ_SIZE)
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
-                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                    return RWState.OK
+                if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                    return ConnectionErr.OK
                 elif err_code == errno.EPIPE:
-                    self._ctx.logger().error("broken pipe on read event")
-                    self.connection_done()
-                    return RWState.BROKEN_PIPE
+                    return ConnectionErr.BROKEN_PIPE
                 else:
-                    self._ctx.logger().error(f"error happened on read event, {e}")
-                    self.connection_lost(err_code)
-                    return RWState.LOST
+                    return ConnectionErr.UNKNOWN
 
             if not data:
-                self.connection_done()
-                return RWState.CLOSED
+                return ConnectionErr.PEER_CLOSED
 
             self._data_received(data)
 
@@ -339,7 +322,20 @@ class Connection(IOStream):
         """
         self._protocol.data_received(data)
 
-    def close(self, so_linger=False, delay=10):
+    def close(self, so_linger=False, delay=2):
+        """
+
+        :param so_linger: like socket so-linger option
+        :param delay: sec
+        :return:
+        """
+        assert delay > 0
+        if self._event_loop.is_in_loop_thread():
+            self._close_impl(so_linger, delay)
+        else:
+            self._event_loop.call_soon(self._close_impl, so_linger, delay)
+
+    def _close_impl(self, so_linger, delay):
         """
 
         :param so_linger:
@@ -347,19 +343,18 @@ class Connection(IOStream):
         :return:
         """
         if not self._write_buffer:
-            self._on_close()
+            self._close_connection()
             return
 
-        self._ctx.logger().warning("write buffer is not empty, delay to close connection")
+        logger.warning("write buffer is not empty, delay to close connection")
 
-        # wait write buffer empty;
-        # if not set `so_linger`, close connection until write buffer is empty or error happened;
-        # otherwise, delay close connection after `delay` second and drop write buffer if it has.
+        # wait write buffer empty. if not set `so_linger`, close connection until
+        # write buffer is empty or error happened; otherwise, delay close connection
+        # after `delay` second and drop write buffer if it has.
         self._close_after_write = True
         if not so_linger:
             return
 
-        assert delay >= 0
         self._linger_timer = self._event_loop.call_later(delay, self._delay_close)
 
     def _delay_close(self):
@@ -368,16 +363,16 @@ class Connection(IOStream):
         :return:
         """
         if self._write_buffer:
-            self._ctx.logger().warning("write buffer is not empty, drop it and close connection")
+            logger.warning("force close connection and drop write buffer")
 
-        self._on_close()
+        self._close_connection()
 
-    def _on_close(self):
+    def _close_connection(self):
         """
 
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTING or self._state == ConnectionState.DISCONNECTED:
+        if self._state in [ConnectionState.DISCONNECTING, ConnectionState.DISCONNECTED]:
             return
 
         self._state = ConnectionState.DISCONNECTING
@@ -392,7 +387,11 @@ class Connection(IOStream):
         # close on next loop
         self._event_loop.call_soon(self._close_force)
 
-        self._ctx.on_connection_close()
+        if self._closed_callback:
+            self._closed_callback()
+
+        if self._err_callback:
+            self._err_callback(ConnectionErr.USER_CLOSED)
 
     def _close_force(self):
         """
@@ -406,7 +405,5 @@ class Connection(IOStream):
         self._state = ConnectionState.DISCONNECTED
         self._sock = None
 
-        self._ctx.remove_connection(self._conn_id)
-        self._conn_id = -1
         self._protocol = None
         self._ctx = None

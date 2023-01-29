@@ -2,6 +2,8 @@
 
 import heapq
 
+from .timer import Timer
+
 
 class TimerQueue(object):
 
@@ -24,6 +26,7 @@ class TimerQueue(object):
         :param timer:
         :return:
         """
+        assert isinstance(timer, Timer)
         self.cancelled += 1
 
     def first(self):

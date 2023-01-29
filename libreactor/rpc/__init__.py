@@ -1,4 +1,4 @@
 # coding: utf-8
 
-from .stream.acceptor import Acceptor as TcpAcceptor
-from .stream.connector import Connector as TcpConnector
+from .tcp_client import TcpClient
+from .tcp_server import TcpServer

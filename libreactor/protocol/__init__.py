@@ -1,4 +1,4 @@
 # coding: utf-8
 
-from .protocol import Protocol
+from .tcp_protocol import Protocol
 from .stream_receiver import StreamReceiver

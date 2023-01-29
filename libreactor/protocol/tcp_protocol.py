@@ -1,7 +1,9 @@
 # coding: utf-8
 
+from .. import const
 
-class Protocol(object):
+
+class TcpProtocol(object):
 
     def __init__(self):
 
@@ -9,29 +11,18 @@ class Protocol(object):
         self.connection = None
         self.event_loop = None
 
-    def set_ctx(self, ctx):
+    def set_args(self, ctx, conn, ev):
         """
 
+        dont call this function directly, auto called by framework
         :param ctx:
+        :param conn:
+        :param ev:
         :return:
         """
         self.ctx = ctx
-
-    def set_connection(self, connection):
-        """
-
-        :param connection:
-        :return:
-        """
-        self.connection = connection
-
-    def set_event_loop(self, event_loop):
-        """
-
-        :param event_loop:
-        :return:
-        """
-        self.event_loop = event_loop
+        self.connection = conn
+        self.event_loop = ev
 
     def connection_made(self):
         """
@@ -39,6 +30,7 @@ class Protocol(object):
         server side accept new connection
         :return:
         """
+        self.ctx.connection_made(self)
 
     def connection_established(self):
         """
@@ -46,16 +38,12 @@ class Protocol(object):
         client side connection established
         :return:
         """
+        self.connection.connection_established(self)
 
-    def connection_lost(self):
+    def connection_error(self, error: const.ConnectionErr):
         """
 
-        :return:
-        """
-
-    def connection_done(self):
-        """
-
+        :param error:
         :return:
         """
 
@@ -74,22 +62,22 @@ class Protocol(object):
         :return:
         """
 
-    def send_dgram(self, data, addr):
-        """
-        dgram protocol
-        :param data:
-        :param addr:
-        :return:
-        """
-        self.connection.write_dgram(data, addr)
-
-    def dgram_received(self, data, addr):
-        """
-        dgram protocol
-        :param data:
-        :param addr:
-        :return:
-        """
+    # def send_dgram(self, data, addr):
+    #     """
+    #     dgram protocol
+    #     :param data:
+    #     :param addr:
+    #     :return:
+    #     """
+    #     self.connection.write_dgram(data, addr)
+    #
+    # def dgram_received(self, data, addr):
+    #     """
+    #     dgram protocol
+    #     :param data:
+    #     :param addr:
+    #     :return:
+    #     """
 
     def close_connection(self):
         """

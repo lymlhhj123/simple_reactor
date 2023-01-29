@@ -7,30 +7,32 @@ from libreactor.io_stream import IOStream
 from libreactor.utils import errno_from_ex
 from libreactor import fd_util
 from libreactor import sock_util
-from .connection import Connection
+from libreactor import logging
+
+logger = logging.get_logger()
 
 
-class Acceptor(IOStream):
+class TcpAcceptor(IOStream):
 
-    def __init__(self, port, ctx, event_loop, backlog=8):
+    def __init__(self, port, event_loop, backlog=8):
         """
 
         :param port:
-        :param ctx:
         :param event_loop:
         :param backlog:
         """
-        self._port = port
-        self._ctx = ctx
-        self._backlog = backlog
-        self._placeholder = open("/dev/null")
+        self.port = port
+        self.backlog = backlog
+        self.placeholder = open("/dev/null")
 
-        self._sock = self._create_listen_sock()
+        self.sock = self._create_listen_sock()
 
-        fd_util.make_fd_async(self._sock.fileno())
-        fd_util.close_on_exec(self._sock.fileno())
+        fd_util.make_fd_async(self.sock.fileno())
+        fd_util.close_on_exec(self.sock.fileno())
 
-        super(Acceptor, self).__init__(self._sock.fileno(), event_loop)
+        super(TcpAcceptor, self).__init__(self.sock.fileno(), event_loop)
+
+        self._new_connection_callback = None
 
     def _create_listen_sock(self):
         """
@@ -39,9 +41,17 @@ class Acceptor(IOStream):
         """
         s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock_util.set_tcp_reuse_addr(s)
-        s.bind(("::", self._port))
-        s.listen(self._backlog)
+        s.bind(("::", self.port))
+        s.listen(self.backlog)
         return s
+
+    def set_new_connection_callback(self, new_connection_callback=None):
+        """
+
+        :param new_connection_callback:
+        :return:
+        """
+        self._new_connection_callback = new_connection_callback
 
     def start_accept(self):
         """
@@ -64,7 +74,7 @@ class Acceptor(IOStream):
         """
         while True:
             try:
-                sock, addr = self._sock.accept()
+                sock, addr = self.sock.accept()
             except socket.error as e:
                 err_code = errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
@@ -73,7 +83,6 @@ class Acceptor(IOStream):
                     self._too_many_open_file()
                 else:
                     self.close()
-                    self._ctx.on_accept_error(err_code)
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -83,9 +92,9 @@ class Acceptor(IOStream):
 
         :return:
         """
-        self._ctx.logger().error(f"too many open file, close socket")
-        self._placeholder.close()
-        sock, _ = self._sock.accept()
+        logger.error("too many open file, accept and close connection")
+        self.placeholder.close()
+        sock, _ = self.sock.accept()
         sock.close()
         self._placeholder = open("/dev/null")
 
@@ -96,12 +105,7 @@ class Acceptor(IOStream):
         :param addr:
         :return:
         """
-        assert self._event_loop.is_in_loop_thread()
-
-        self._ctx.logger().info(f"new connection from {addr}, fd: {sock.fileno()}")
-
-        sock_util.set_tcp_no_delay(sock)
-        sock_util.set_tcp_keepalive(sock)
-
-        conn = Connection.from_sock(sock, self._ctx, self._event_loop)
-        conn.connection_made()
+        if self._new_connection_callback:
+            self._new_connection_callback(sock, addr)
+        else:
+            sock.close()

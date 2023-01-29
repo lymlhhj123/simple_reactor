@@ -11,7 +11,7 @@ from libreactor import fd_util
 READ_SIZE = 1500
 
 
-class Connection(IOStream):
+class UdpConnection(IOStream):
 
     def __init__(self, sock: socket.socket, event_loop, context):
         """
@@ -20,7 +20,7 @@ class Connection(IOStream):
         :param sock:
         :param event_loop:
         """
-        super(Connection, self).__init__(sock.fileno(), event_loop)
+        super(UdpConnection, self).__init__(sock.fileno(), event_loop)
 
         fd_util.make_fd_async(sock.fileno())
         fd_util.close_on_exec(sock.fileno())
@@ -87,7 +87,7 @@ class Connection(IOStream):
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                     return
                 else:
-                    self._context.logger().error(f"error happened on read event, {e}")
+                    # todo
                     return
 
             if not data:
@@ -145,7 +145,7 @@ class Connection(IOStream):
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                     return
                 else:
-                    self._context.logger().error(f"error happened on write event, {e}")
+                    # todo
                     return
 
             self._buffer.popleft()

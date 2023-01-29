@@ -3,6 +3,9 @@
 import logging
 import threading
 
+LOG_FORMAT = "%(asctime)s [pid]:%(process)d [tid]:%(thread)d [%(filename)s] " \
+             "[%(funcName)s] [lineno:%(lineno)d] [%(levelname)s]: %(message)s"
+
 
 class _ThreadFilter(logging.Filter):
 
@@ -16,24 +19,19 @@ class _ThreadFilter(logging.Filter):
         return True
 
 
-def _get_default_log(debug):
+def _get_default_log():
     """
 
-    :param debug:
     :return:
     """
     default_log = logging.getLogger()
     default_log.setLevel(logging.DEBUG)
 
-    if debug:
-        handler = logging.StreamHandler()
-
-        formatter = logging.Formatter('%(asctime)s [pid]:%(process)d [tid]:%(thread)d [%(filename)s] '
-                                      '[%(funcName)s] [lineno:%(lineno)d] [%(levelname)s]: %(message)s')
-        handler.setFormatter(formatter)
-        handler.addFilter(_ThreadFilter())
-
-        default_log.addHandler(handler)
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(LOG_FORMAT)
+    handler.setFormatter(formatter)
+    handler.addFilter(_ThreadFilter())
+    default_log.addHandler(handler)
 
     handler = logging.NullHandler()
     default_log.addHandler(handler)
@@ -46,14 +44,14 @@ _logger = "logger"
 _logger_record = {}
 
 
-def get_logger(debug=False):
+def get_logger():
     """
 
     :return:
     """
     with _lock:
         if not _logger_record:
-            log = _get_default_log(debug)
+            log = _get_default_log()
             _logger_record[_logger] = log
 
     return _logger_record[_logger]

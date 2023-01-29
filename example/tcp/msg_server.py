@@ -1,8 +1,9 @@
 # coding: utf-8
 
-from libreactor import ServerContext
+from libreactor import Context
 from libreactor import StreamReceiver
 from libreactor import EventLoop
+from libreactor import TcpServer
 
 
 class MyProtocol(StreamReceiver):
@@ -16,14 +17,16 @@ class MyProtocol(StreamReceiver):
         self.send_msg(msg)
 
 
-class MyContext(ServerContext):
+class MyContext(Context):
 
-    stream_protocol_cls = MyProtocol
+    protocol_cls = MyProtocol
 
 
 ev = EventLoop()
 
 ctx = MyContext()
-ctx.listen_tcp(9527, ev)
+
+server = TcpServer(9527, ev, ctx)
+server.start()
 
 ev.loop()

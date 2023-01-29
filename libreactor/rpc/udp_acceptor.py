@@ -2,10 +2,10 @@
 
 import socket
 
-from .connection import Connection
+from .udp_connection import UdpConnection
 
 
-class Acceptor(object):
+class UdpAcceptor(object):
 
     def __init__(self, endpoint, context):
         """
