@@ -24,7 +24,9 @@ class TcpClient(object):
         self.timeout = timeout
         self.auto_reconnect = auto_reconnect
 
-        self.connector = TcpConnector((host, port), event_loop, ctx, is_ipv6)
+        self.endpoint = host, port
+
+        self.connector = TcpConnector(self.endpoint, event_loop, ctx, is_ipv6)
         self.connector.set_err_callback(self._on_connection_error)
 
     def start(self):
@@ -44,4 +46,5 @@ class TcpClient(object):
         logger.error(f"connection broken with server, {readable}")
 
         if self.auto_reconnect:
+            logger.info(f"reconnect to server: {self.endpoint}")
             self.event_loop.call_later(3, self.connector.start_connect, self.timeout)

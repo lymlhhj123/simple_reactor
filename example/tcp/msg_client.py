@@ -45,7 +45,7 @@ class MyProtocol(StreamReceiver):
         end_time = self.event_loop.time()
         self._end = True
         ops = self.ops / (end_time - start_time)
-        self.ctx.logger().info(f"ops: {ops}")
+        print(f"ops: {ops}")
 
 
 class MyContext(Context):

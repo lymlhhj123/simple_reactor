@@ -266,7 +266,7 @@ class TcpConnection(IOStream):
             write_size = self._sock.send(self._write_buffer)
         except Exception as e:
             err_code = utils.errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+            if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
                 return ConnectionErr.OK
             elif err_code == errno.EPIPE:
                 return ConnectionErr.BROKEN_PIPE
@@ -388,7 +388,7 @@ class TcpConnection(IOStream):
         self._event_loop.call_soon(self._close_force)
 
         if self._closed_callback:
-            self._closed_callback()
+            self._closed_callback(self)
 
         if self._err_callback:
             self._err_callback(ConnectionErr.USER_CLOSED)
