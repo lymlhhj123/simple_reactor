@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(
@@ -11,9 +11,9 @@ setup(
     version="1.0.0",
     author="Jun Hu",
     author_email="",
-    packages=["libreactor"],
+    packages=find_packages(exclude=["example"]),
     install_requires=[],
-    python_requires=">= 3.8.5",
+    python_requires=">=3.8",
     classifiers=[
         "Development Status :: 1 - Planning",
         "Environment :: Console",
