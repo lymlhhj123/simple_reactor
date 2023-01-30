@@ -28,15 +28,18 @@ class TcpConnector(object):
         self.ctx = ctx
         self.timeout = timeout
 
-        self._err_callback = None
+        self._on_error = None
+        self._on_close = None
 
-    def set_err_callback(self, err_callback):
+    def set_callback(self, on_error=None, on_close=None):
         """
 
-        :param err_callback:
+        :param on_error:
+        :param on_close:
         :return:
         """
-        self._err_callback = err_callback
+        self._on_error = on_error
+        self._on_close = on_close
 
     def start_connect(self):
         """
@@ -83,5 +86,14 @@ class TcpConnector(object):
         :param error:
         :return:
         """
-        if self._err_callback:
-            self._err_callback(error)
+        if self._on_error:
+            self._on_error(error)
+
+    def _connection_close(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        if self._on_close:
+            self._on_close()

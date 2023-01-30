@@ -27,7 +27,7 @@ class TcpClient(object):
         self.endpoint = host, port
 
         self.connector = TcpConnector(host, port, event_loop, ctx, timeout)
-        self.connector.set_err_callback(self._on_connection_error)
+        self.connector.set_callback(on_error=self._on_error, on_close=self._on_close)
 
     def start(self):
         """
@@ -36,7 +36,7 @@ class TcpClient(object):
         """
         self.connector.start_connect()
 
-    def _on_connection_error(self, error):
+    def _on_error(self, error):
         """
 
         :param error:
@@ -46,6 +46,12 @@ class TcpClient(object):
         logger.error(f"connection broken with server: {self.endpoint}, err: {readable}")
 
         if self.auto_reconnect:
-            delay = random.random() * 3
+            delay = random.random() * 5
             logger.info(f"reconnect to server after {delay} seconds")
             self.event_loop.call_later(delay, self.connector.start_connect)
+
+    def _on_close(self):
+        """
+
+        :return:
+        """
