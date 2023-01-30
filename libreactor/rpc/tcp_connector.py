@@ -29,17 +29,16 @@ class TcpConnector(object):
         self.timeout = timeout
 
         self._on_error = None
-        self._on_close = None
+        # placeholder, current don't used
+        self._on_closed = None
 
-    def set_callback(self, on_error=None, on_close=None):
+    def set_callback(self, on_error=None):
         """
 
         :param on_error:
-        :param on_close:
         :return:
         """
         self._on_error = on_error
-        self._on_close = on_close
 
     def start_connect(self):
         """
@@ -77,7 +76,8 @@ class TcpConnector(object):
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
         conn = TcpConnection(sa, sock, self.ctx, self.event_loop)
-        conn.set_callback(err_callback=self._connection_error)
+        conn.set_callback(err_callback=self._connection_error,
+                          closed_callback=self._connection_closed)
         conn.try_open(timeout)
 
     def _connection_error(self, error: const.ConnectionErr):
@@ -89,11 +89,9 @@ class TcpConnector(object):
         if self._on_error:
             self._on_error(error)
 
-    def _connection_close(self, conn):
+    def _connection_closed(self, conn):
         """
 
         :param conn:
         :return:
         """
-        if self._on_close:
-            self._on_close()

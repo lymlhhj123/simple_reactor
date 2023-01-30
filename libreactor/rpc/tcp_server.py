@@ -40,7 +40,6 @@ class TcpServer(object):
         :param addr:
         :return:
         """
-
         assert self.event_loop.is_in_loop_thread()
 
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")

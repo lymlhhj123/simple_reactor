@@ -160,14 +160,13 @@ class TcpConnection(IOStream):
         :param error:
         :return:
         """
-        self._close_connection()
-
         if self._protocol:
             self._protocol.connection_error(error)
 
         if self._err_callback:
             self._err_callback(error)
-            self._err_callback = None
+
+        self._close_connection()
 
     def write(self, bytes_):
         """
@@ -340,9 +339,8 @@ class TcpConnection(IOStream):
         :param delay: sec
         :return:
         """
-        if self._closed_callback:
-            self._closed_callback(self)
-            self._closed_callback = None
+        if self._err_callback:
+            self._err_callback(ConnectionErr.USER_CLOSED)
 
         if not self._write_buffer:
             self._close_connection()
@@ -381,7 +379,9 @@ class TcpConnection(IOStream):
 
         if self._linger_timer:
             self._linger_timer.cancel()
-            self._linger_timer = None
+
+        if self._closed_callback:
+            self._closed_callback(self)
 
         self._write_buffer = b""
         self.disable_all()
@@ -403,3 +403,7 @@ class TcpConnection(IOStream):
 
         self._protocol = None
         self._ctx = None
+
+        self._linger_timer = None
+        self._err_callback = None
+        self._closed_callback = None

@@ -13,6 +13,7 @@ class MyProtocol(StreamReceiver):
         super(MyProtocol, self).__init__()
         self.ops = 0
         self._end = False
+        self._timer = None
 
     def msg_received(self, msg):
         """
@@ -21,11 +22,22 @@ class MyProtocol(StreamReceiver):
         :return:
         """
         if self._end:
+            self._timer = None
             self.close_connection()
             return
 
         self.ops += 1
         self.send_msg(msg)
+
+    def connection_error(self, error):
+        """
+
+        :param error:
+        :return:
+        """
+        if self._timer:
+            self._timer.cancel()
+            self._timer = None
 
     def start_test(self):
         """
@@ -34,7 +46,7 @@ class MyProtocol(StreamReceiver):
         """
         start_time = self.event_loop.time()
 
-        self.event_loop.call_later(60, self._count_down, start_time)
+        self._timer = self.event_loop.call_later(60, self._count_down, start_time)
 
     def _count_down(self, start_time):
         """
