@@ -10,9 +10,9 @@ from libreactor import fd_util
 from libreactor import utils
 from libreactor.const import ConnectionState
 from libreactor.const import ConnectionErr
-from libreactor import logging as __logging
+from libreactor import logging
 
-logger = __logging.get_logger()
+logger = logging.get_logger()
 
 READ_SIZE = 8192
 
@@ -290,7 +290,10 @@ class TcpConnection(IOStream):
         if self._state != ConnectionState.CONNECTED:
             return
 
-        self._do_read()
+        error = self._do_read()
+        if error != ConnectionErr.OK:
+            self.connection_error(error)
+            return
 
     def _do_read(self):
         """
@@ -384,14 +387,14 @@ class TcpConnection(IOStream):
         self._write_buffer = b""
         self.disable_all()
 
-        # close on next loop
-        self._event_loop.call_soon(self._close_force)
-
         if self._closed_callback:
             self._closed_callback(self)
 
         if self._err_callback:
             self._err_callback(ConnectionErr.USER_CLOSED)
+
+        # maybe still handle events, close on next loop
+        self._event_loop.call_soon(self._close_force)
 
     def _close_force(self):
         """
