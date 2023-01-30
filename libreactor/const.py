@@ -23,7 +23,8 @@ class ConnectionErr(object):
     BROKEN_PIPE = 3
     PEER_CLOSED = 4
     USER_CLOSED = 5
-    UNKNOWN = 6
+    DNS_FAILED = 6
+    UNKNOWN = 7
 
     MAP = {
         TIMEOUT: "timeout",
@@ -31,5 +32,16 @@ class ConnectionErr(object):
         BROKEN_PIPE: "broken pipe",
         PEER_CLOSED: "peer closed",
         USER_CLOSED: "user closed",
+        DNS_FAILED: "dns resolve failed"
         UNKNOWN: "unknown",
     }
+
+
+class DNSResolvStatus(object):
+    """
+    dns resolve status
+    """
+
+    OK = 0
+    FAILED = 1
+    EMPTY = 2

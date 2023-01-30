@@ -118,11 +118,8 @@ class TcpConnection(IOStream):
 
         self.enable_reading()
 
-        protocol = self._ctx.build_protocol()
-        protocol.set_args(self._ctx, self, self._event_loop)
-        self._protocol = protocol
-
-        protocol.connection_established()
+        self._protocol = self._ctx.build_protocol()
+        self._protocol.connection_established(self, self._event_loop, self._ctx)
 
     def connection_made(self):
         """
@@ -133,11 +130,8 @@ class TcpConnection(IOStream):
         self._state = ConnectionState.CONNECTED
         self.enable_reading()
 
-        protocol = self._ctx.build_protocol()
-        protocol.set_args(self._ctx, self, self._event_loop)
-        self._protocol = protocol
-
-        protocol.connection_made()
+        self._protocol = self._ctx.build_protocol()
+        self._protocol.connection_made(self, self._event_loop, self._ctx)
 
     def connection_timeout(self):
         """

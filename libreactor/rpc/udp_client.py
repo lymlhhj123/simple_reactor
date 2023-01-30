@@ -7,17 +7,18 @@ from .udp_connection import UdpConnection
 from libreactor.utils import errno_from_ex
 
 
-class UdpConnector(object):
+class UdpClient(object):
 
-    def __init__(self, endpoint, context):
+    def __init__(self, endpoint, event_loop, ctx):
         """
 
         :param endpoint:
-        :param context:
+        :param event_loop:
+        :param ctx:
         """
         self._endpoint = endpoint
-        self._context = context
-        self._event_loop = context.get_event_loop()
+        self._event_loop = event_loop
+        self._ctx = ctx
 
     def start_connect(self):
         """
@@ -38,5 +39,5 @@ class UdpConnector(object):
 
         af, _, _, _, _ = addr_list[0]
         s = socket.socket(af, socket.SOCK_DGRAM)
-        conn = UdpConnection(s, self._event_loop, self._context)
+        conn = UdpConnection(s, self._event_loop, self._ctx)
         self._event_loop.call_soon(conn.connection_established)

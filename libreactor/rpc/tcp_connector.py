@@ -4,6 +4,7 @@ import socket
 
 from .tcp_connection import TcpConnection
 from libreactor import sock_util
+from libreactor.dns_resolver import DNSResolver
 from libreactor import const
 from libreactor import logging
 
@@ -12,18 +13,20 @@ logger = logging.get_logger()
 
 class TcpConnector(object):
 
-    def __init__(self, endpoint, event_loop, ctx, is_ipv6):
+    def __init__(self, host, port, event_loop, ctx, timeout=10):
         """
 
-        :param endpoint:
+        :param host:
+        :param port:
         :param event_loop:
         :param ctx:
-        :param is_ipv6:
+        :param timeout:
         """
-        self.ctx = ctx
+        self.host = host
+        self.port = port
         self.event_loop = event_loop
-        self.endpoint = endpoint
-        self.is_ipv6 = is_ipv6
+        self.ctx = ctx
+        self.timeout = timeout
 
         self._err_callback = None
 
@@ -35,26 +38,29 @@ class TcpConnector(object):
         """
         self._err_callback = err_callback
 
-    def start_connect(self, timeout=10):
+    def start_connect(self):
         """
 
-        :param timeout:
         :return:
         """
-        host, port = self.endpoint
-        family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
-        try:
-            addr_list = socket.getaddrinfo(host, port, family, socket.SOCK_STREAM)
-        except Exception as ex:
-            logger.error(f"failed to dns resolve {host}, {ex}")
-            return
+        resolver = DNSResolver(self.host, self.port, self.event_loop)
+        resolver.set_callback(on_result=self._dns_result)
+        resolver.start()
 
-        if not addr_list:
-            logger.warn("dns resolve is empty")
-            return
+    def _dns_result(self, status, addr_list):
+        """
 
-        af, _, _, _, sa = addr_list[0]
-        self.event_loop.call_soon(self._connect_in_loop, af, sa, timeout)
+        :param status:
+        :param addr_list:
+        :return:
+        """
+        assert self.event_loop.is_in_loop_thread()
+
+        if status == const.DNSResolvStatus.OK:
+            af, _, _, _, sa = addr_list[0]
+            self._connect_in_loop(af, sa, self.timeout)
+        else:
+            self._connection_error(const.ConnectionErr.DNS_FAILED)
 
     def _connect_in_loop(self, af, sa, timeout):
         """

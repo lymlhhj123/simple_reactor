@@ -13,26 +13,26 @@ READ_SIZE = 1500
 
 class UdpConnection(IOStream):
 
-    def __init__(self, sock: socket.socket, event_loop, context):
+    def __init__(self, sock: socket.socket, event_loop, ctx):
         """
 
-        :param context:
         :param sock:
         :param event_loop:
+        :param ctx:
         """
         super(UdpConnection, self).__init__(sock.fileno(), event_loop)
 
         fd_util.make_fd_async(sock.fileno())
         fd_util.close_on_exec(sock.fileno())
 
-        self._context = context
+        self._ctx = ctx
         self._sock = sock
 
         self._protocol = None
 
         self._on_connection_established = None
 
-        # (data, addr) pair, write buffer
+        # write buffer, (data, addr) pair
         self._buffer = deque()
 
     def connection_made(self):
@@ -43,8 +43,8 @@ class UdpConnection(IOStream):
         """
         self.enable_reading()
 
-        self._protocol = self._context.build_dgram_protocol()
-        self._protocol.connection_made(self, self._event_loop, self._context)
+        self._protocol = self._ctx.build_protocol()
+        self._protocol.connection_made(self, self._event_loop, self._ctx)
 
     def connection_established(self):
         """
@@ -53,19 +53,8 @@ class UdpConnection(IOStream):
         """
         self.enable_reading()
 
-        self._protocol = self._context.build_dgram_protocol()
-        self._protocol.connection_established(self, self._event_loop, self._context)
-
-        if self._on_connection_established:
-            self._on_connection_established(self._protocol)
-
-    def set_on_connection_established(self, callback):
-        """
-
-        :param callback:
-        :return:
-        """
-        self._on_connection_established = callback
+        self._protocol = self._ctx.build_protocol()
+        self._protocol.connection_established(self, self._event_loop, self._ctx)
 
     def on_read(self):
         """
@@ -84,7 +73,7 @@ class UdpConnection(IOStream):
                 data, addr = self._sock.recvfrom(READ_SIZE)
             except Exception as e:
                 err_code = errno_from_ex(e)
-                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     return
                 else:
                     # todo
@@ -105,6 +94,18 @@ class UdpConnection(IOStream):
         self._protocol.dgram_received(data, addr)
 
     def write_dgram(self, data, addr):
+        """
+
+        :param data:
+        :param addr:
+        :return:
+        """
+        if self._event_loop.is_in_loop_thread():
+            self._write_impl(data, addr)
+        else:
+            self._event_loop.call_soon(self._write_impl, data, addr)
+
+    def _write_impl(self, data, addr):
         """
 
         :param data:
@@ -142,7 +143,7 @@ class UdpConnection(IOStream):
                 self._sock.sendto(msg, addr)
             except Exception as e:
                 err_code = errno_from_ex(e)
-                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     return
                 else:
                     # todo
@@ -150,7 +151,19 @@ class UdpConnection(IOStream):
 
             self._buffer.popleft()
 
-    def close(self, so_linger=False, delay=10):
+    def close(self, so_linger=False, delay=2):
+        """
+
+        :param so_linger:
+        :param delay:
+        :return:
+        """
+        if self._event_loop.is_in_loop_thread():
+            self._close_impl(so_linger, delay)
+        else:
+            self._event_loop.call_soon(self._close_impl, so_linger, delay)
+
+    def _close_impl(self, so_linger, delay):
         """
 
         :param so_linger:

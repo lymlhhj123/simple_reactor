@@ -5,18 +5,18 @@ import socket
 from .udp_connection import UdpConnection
 
 
-class UdpAcceptor(object):
+class UdpServer(object):
 
-    def __init__(self, endpoint, context):
+    def __init__(self, endpoint, event_loop, ctx):
         """
 
         :param endpoint:
-        :param context:
+        :param event_loop:
+        :param ctx:
         """
         self._endpoint = endpoint
-        self._context = context
-
-        self._event_loop = context.get_event_loop()
+        self._event_loop = event_loop
+        self._ctx = ctx
 
     def start_accept(self):
         """
@@ -26,5 +26,5 @@ class UdpAcceptor(object):
         s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         s.bind(("::", self._endpoint))
 
-        conn = Connection(s, self._event_loop, self._context)
+        conn = UdpConnection(s, self._event_loop, self._ctx)
         self._event_loop.call_soon(conn.connection_made)
