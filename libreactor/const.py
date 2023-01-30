@@ -32,7 +32,7 @@ class ConnectionErr(object):
         BROKEN_PIPE: "broken pipe",
         PEER_CLOSED: "peer closed",
         USER_CLOSED: "user closed",
-        DNS_FAILED: "dns resolve failed"
+        DNS_FAILED: "dns resolve failed",
         UNKNOWN: "unknown",
     }
 
