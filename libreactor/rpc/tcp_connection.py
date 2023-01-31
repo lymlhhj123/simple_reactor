@@ -101,9 +101,9 @@ class TcpConnection(IOStream):
             self.enable_writing()
             self._timeout_timer = self._event_loop.call_later(timeout, self._connection_timeout)
         else:
-            self._connection_established()
+            self.connection_established()
 
-    def _connection_established(self):
+    def connection_established(self):
         """
 
         client side connection
@@ -121,7 +121,7 @@ class TcpConnection(IOStream):
         self._protocol = self._ctx.build_protocol()
         self._protocol.connection_established(self, self._event_loop, self._ctx)
 
-    def _connection_made(self):
+    def connection_made(self):
         """
 
         server side connection
@@ -253,7 +253,7 @@ class TcpConnection(IOStream):
             return
 
         self.disable_writing()
-        self._connection_established()
+        self.connection_established()
 
     def _do_write(self):
         """
