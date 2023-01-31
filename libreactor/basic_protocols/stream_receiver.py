@@ -3,7 +3,7 @@
 import zlib
 import struct
 
-from .tcp_protocol import TcpProtocol
+from libreactor.protocol import TcpProtocol
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -42,13 +42,6 @@ class Header(object):
         :return:
         """
         return struct.pack(HEADER_FMT, self.v, self.crc32, self.msg_len)
-
-    def __repr__(self):
-        """
-
-        :return:
-        """
-        return f"{self.v} {self.crc32} {self.msg_len}"
 
 
 class StreamReceiver(TcpProtocol):
@@ -105,7 +98,7 @@ class StreamReceiver(TcpProtocol):
         try:
             msg, self._buffer = self._buffer[:msg_len], self._buffer[msg_len:]
             if zlib.crc32(msg) != crc32:
-                self.msg_broken(self._header, msg)
+                self.msg_broken()
             else:
                 self.msg_received(msg)
         except Exception as e:
@@ -126,20 +119,19 @@ class StreamReceiver(TcpProtocol):
         try:
             header = Header.from_bytes(header_bytes)
         except Exception as ex:
-            self.header_broken(ex)
+            logger.error("header broken, %s", ex)
+            self.header_broken()
             return False
 
         self._header = header
         self.header_retrieved(header)
         return True
 
-    def header_broken(self, ex):
+    def header_broken(self):
         """
 
-        :param ex:
         :return:
         """
-        logger.error(f"header broken: {ex}, close connection")
         self.close_connection()
 
     def header_retrieved(self, header):
@@ -149,14 +141,11 @@ class StreamReceiver(TcpProtocol):
         :return:
         """
 
-    def msg_broken(self, header, msg):
+    def msg_broken(self):
         """
 
-        :param header:
-        :param msg:
         :return:
         """
-        logger.error(f"msg broken, header: {header}, msg: {msg}, close connection")
         self.close_connection()
 
     def msg_received(self, msg):

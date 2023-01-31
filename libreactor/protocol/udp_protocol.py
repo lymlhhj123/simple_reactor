@@ -12,9 +12,6 @@ class UdpProtocol(Protocol):
         :param addr:
         :return:
         """
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-
         if not isinstance(data, bytes):
             return
 
