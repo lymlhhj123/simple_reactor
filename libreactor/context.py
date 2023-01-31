@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.protocol import StreamReceiver
+from libreactor import StreamReceiver
 
 
 class Context(object):
