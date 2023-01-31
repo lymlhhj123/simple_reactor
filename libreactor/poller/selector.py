@@ -66,6 +66,8 @@ class Selector(object):
 
         for fd in x:
             ev = ev_map.get(fd, 0)
-            ev_map[fd] = ev | (_ev.POLLOUT | _ev.POLLIN)
+            ev |= _ev.POLLOUT
+            ev |= _ev.POLLIN
+            ev_map[fd] = ev
 
         return ev_map.items()

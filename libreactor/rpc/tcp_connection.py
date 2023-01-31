@@ -99,11 +99,11 @@ class TcpConnection(IOStream):
         if state == ConnectionState.CONNECTING:
             self._state = state
             self.enable_writing()
-            self._timeout_timer = self._event_loop.call_later(timeout, self.connection_timeout)
+            self._timeout_timer = self._event_loop.call_later(timeout, self._connection_timeout)
         else:
-            self.connection_established()
+            self._connection_established()
 
-    def connection_established(self):
+    def _connection_established(self):
         """
 
         client side connection
@@ -121,7 +121,7 @@ class TcpConnection(IOStream):
         self._protocol = self._ctx.build_protocol()
         self._protocol.connection_established(self, self._event_loop, self._ctx)
 
-    def connection_made(self):
+    def _connection_made(self):
         """
 
         server side connection
@@ -133,7 +133,7 @@ class TcpConnection(IOStream):
         self._protocol = self._ctx.build_protocol()
         self._protocol.connection_made(self, self._event_loop, self._ctx)
 
-    def connection_timeout(self):
+    def _connection_timeout(self):
         """
 
         client establish connection timeout
@@ -141,9 +141,11 @@ class TcpConnection(IOStream):
         """
         logger.error(f"timeout to connect {self._endpoint}")
         self._timeout_timer = None
-        self.connection_error(ConnectionErr.TIMEOUT)
+        self._connection_error(ConnectionErr.TIMEOUT)
 
-    def connection_failed(self):
+        self._close_connection()
+
+    def _connection_failed(self):
         """
         client failed to establish connection
         :return:
@@ -152,9 +154,11 @@ class TcpConnection(IOStream):
             self._timeout_timer.cancel()
             self._timeout_timer = None
 
-        self.connection_error(ConnectionErr.CONNECT_FAILED)
+        self._connection_error(ConnectionErr.CONNECT_FAILED)
 
-    def connection_error(self, error):
+        self._close_connection()
+
+    def _connection_error(self, error):
         """
 
         :param error:
@@ -165,8 +169,6 @@ class TcpConnection(IOStream):
 
         if self._err_callback:
             self._err_callback(error)
-
-        self._close_connection()
 
     def write(self, bytes_):
         """
@@ -202,7 +204,8 @@ class TcpConnection(IOStream):
         # try to write directly
         error = self._do_write()
         if error != ConnectionErr.OK:
-            self.connection_error(error)
+            self._connection_error(error)
+            self._close_connection()
             return
 
         if self._write_buffer and not self.writable():
@@ -223,7 +226,8 @@ class TcpConnection(IOStream):
         if self._write_buffer:
             error = self._do_write()
             if error != ConnectionErr.OK:
-                self.connection_error(error)
+                self._connection_error(error)
+                self._close_connection()
                 return
 
         if self._write_buffer:
@@ -245,11 +249,11 @@ class TcpConnection(IOStream):
         if err_code != 0:
             reason = os.strerror(err_code)
             logger.error(f"failed to connect {self._endpoint}: {reason}")
-            self.connection_failed()
+            self._connection_failed()
             return
 
         self.disable_writing()
-        self.connection_established()
+        self._connection_established()
 
     def _do_write(self):
         """
@@ -286,7 +290,8 @@ class TcpConnection(IOStream):
 
         error = self._do_read()
         if error != ConnectionErr.OK:
-            self.connection_error(error)
+            self._connection_error(error)
+            self._close_connection()
             return
 
     def _do_read(self):
@@ -339,22 +344,20 @@ class TcpConnection(IOStream):
         :param delay: sec
         :return:
         """
-        if self._err_callback:
-            self._err_callback(ConnectionErr.USER_CLOSED)
+        self._connection_error(ConnectionErr.USER_CLOSED)
 
         if not self._write_buffer:
             self._close_connection()
             return
 
-        logger.warning("write buffer is not empty, delay to close connection")
-
-        # wait write buffer empty. if not set `so_linger`, close connection until
-        # write buffer is empty or error happened; otherwise, delay close connection
-        # after `delay` second and drop write buffer if it has.
-        self._close_after_write = True
         if not so_linger:
+            # wait write buffer empty. close connection until write buffer
+            # is empty or error happened; otherwise, delay close connection
+            # after `delay` second and drop write buffer if it has.
+            self._close_after_write = True
             return
 
+        logger.warning("write buffer is not empty, delay to close connection")
         self._linger_timer = self._event_loop.call_later(delay, self._delay_close)
 
     def _delay_close(self):
