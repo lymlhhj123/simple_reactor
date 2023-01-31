@@ -1,43 +1,29 @@
 # coding: utf-8
 
-import os
 import socket
 
 from .udp_connection import UdpConnection
-from libreactor.utils import errno_from_ex
 
 
 class UdpClient(object):
 
-    def __init__(self, endpoint, event_loop, ctx):
+    def __init__(self, event_loop, ctx, is_ipv6=False):
         """
 
-        :param endpoint:
         :param event_loop:
         :param ctx:
+        :param is_ipv6:
         """
-        self._endpoint = endpoint
-        self._event_loop = event_loop
-        self._ctx = ctx
+        self.event_loop = event_loop
+        self.ctx = ctx
+        self.is_ipv6 = is_ipv6
 
-    def start_connect(self):
+    def start(self):
         """
 
         :return:
         """
-        host, port = self._endpoint
-        try:
-            addr_list = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
-        except Exception as e:
-            err_code = errno_from_ex(e)
-            # todo
-            return
-
-        if not addr_list:
-            # todo
-            return
-
-        af, _, _, _, _ = addr_list[0]
-        s = socket.socket(af, socket.SOCK_DGRAM)
-        conn = UdpConnection(s, self._event_loop, self._ctx)
-        self._event_loop.call_soon(conn.connection_established)
+        family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
+        s = socket.socket(family, socket.SOCK_DGRAM)
+        conn = UdpConnection(s, self.event_loop, self.ctx)
+        self.event_loop.call_soon(conn.connection_established)

@@ -13,7 +13,7 @@ logger = logging.get_logger()
 
 class TcpConnector(object):
 
-    def __init__(self, host, port, event_loop, ctx, timeout=10):
+    def __init__(self, host, port, event_loop, ctx, timeout=10, is_ipv6=False):
         """
 
         :param host:
@@ -21,15 +21,16 @@ class TcpConnector(object):
         :param event_loop:
         :param ctx:
         :param timeout:
+        :param is_ipv6:
         """
         self.host = host
         self.port = port
         self.event_loop = event_loop
         self.ctx = ctx
         self.timeout = timeout
+        self.is_ipv6 = is_ipv6
 
         self._on_error = None
-        # placeholder, current don't used
         self._on_closed = None
 
     def set_callback(self, on_error=None):
@@ -45,7 +46,7 @@ class TcpConnector(object):
 
         :return:
         """
-        resolver = DNSResolver(self.host, self.port, self.event_loop)
+        resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
         resolver.set_callback(on_result=self._dns_result)
         resolver.start()
 

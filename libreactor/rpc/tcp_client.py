@@ -11,7 +11,7 @@ logger = logging.get_logger()
 
 class TcpClient(object):
 
-    def __init__(self, host, port, event_loop, ctx, timeout=10, auto_reconnect=False):
+    def __init__(self, host, port, event_loop, ctx, timeout=10, is_ipv6=False, auto_reconnect=False):
         """
 
         :param host:
@@ -19,13 +19,14 @@ class TcpClient(object):
         :param event_loop:
         :param ctx:
         :param timeout:
+        :param is_ipv6:
         :param auto_reconnect:
         """
         self.endpoint = host, port
         self.event_loop = event_loop
         self.auto_reconnect = auto_reconnect
 
-        self.connector = TcpConnector(host, port, event_loop, ctx, timeout)
+        self.connector = TcpConnector(host, port, event_loop, ctx, timeout, is_ipv6)
         self.connector.set_callback(on_error=self._on_error)
 
     def start(self):
@@ -49,7 +50,7 @@ class TcpClient(object):
         :return:
         """
         readable = const.ConnectionErr.MAP[error]
-        logger.error(f"connection broken with server: {self.endpoint}, err: {readable}")
+        logger.error(f"connection broken with server: {self.endpoint}, reason: {readable}")
         self._reconnect()
 
     def _reconnect(self):

@@ -7,16 +7,22 @@ class UdpProtocol(Protocol):
 
     def send_dgram(self, data: bytes, addr):
         """
-        dgram protocol
+
         :param data:
         :param addr:
         :return:
         """
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+
+        if not isinstance(data, bytes):
+            return
+
         self.connection.write_dgram(data, addr)
 
     def dgram_received(self, data: bytes, addr):
         """
-        dgram protocol
+
         :param data:
         :param addr:
         :return:
