@@ -3,6 +3,7 @@
 import random
 
 from .tcp_connector import TcpConnector
+from ..dns_resolver import DNSResolver
 from libreactor import const
 from libreactor import logging
 
@@ -22,12 +23,13 @@ class TcpClient(object):
         :param is_ipv6:
         :param auto_reconnect:
         """
-        self.endpoint = host, port
+        self.host = host
+        self.port = port
         self.event_loop = event_loop
+        self.ctx = ctx
+        self.timeout = timeout
+        self.is_ipv6 = is_ipv6
         self.auto_reconnect = auto_reconnect
-
-        self.connector = TcpConnector(host, port, event_loop, ctx, timeout, is_ipv6)
-        self.connector.set_callback(on_error=self._on_error)
 
     def start(self):
         """
@@ -41,16 +43,33 @@ class TcpClient(object):
 
         :return:
         """
-        self.connector.start_connect()
+        resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
+        resolver.set_callback(on_result=self._dns_done)
+        resolver.start()
 
-    def _on_error(self, error):
+    def _dns_done(self, status, addr_list):
         """
 
-        :param error:
+        :param status:
+        :param addr_list:
         :return:
         """
-        readable = const.ConnectionErr.MAP[error]
-        logger.error(f"connection broken with server: {self.endpoint}, reason: {readable}")
+        assert self.event_loop.is_in_loop_thread()
+
+        if status == const.DNSResolvStatus.OK:
+            af, _, _, _, sa = addr_list[0]
+            connector = TcpConnector(af, sa, self.event_loop, self.ctx, self.timeout)
+            connector.set_callback(on_closed=self._on_closed)
+            connector.start_connect()
+        else:
+            self._reconnect()
+
+    def _on_closed(self):
+        """
+
+        :return:
+        """
+        logger.info(f"connection closed with server: {self.host, self.port}")
         self._reconnect()
 
     def _reconnect(self):
@@ -63,4 +82,4 @@ class TcpClient(object):
 
         delay = random.random() * 5
         logger.info(f"reconnect to server after {delay} seconds")
-        self.event_loop.call_later(delay, self.connector.start_connect)
+        self.event_loop.call_later(delay, self._start_in_loop)

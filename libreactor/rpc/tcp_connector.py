@@ -4,8 +4,6 @@ import socket
 
 from .tcp_connection import TcpConnection
 from libreactor import sock_util
-from libreactor.dns_resolver import DNSResolver
-from libreactor import const
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -13,57 +11,39 @@ logger = logging.get_logger()
 
 class TcpConnector(object):
 
-    def __init__(self, host, port, event_loop, ctx, timeout=10, is_ipv6=False):
+    def __init__(self, family, endpoint, event_loop, ctx, timeout=10):
         """
 
-        :param host:
-        :param port:
+        :param family:
+        :param endpoint:
         :param event_loop:
         :param ctx:
         :param timeout:
-        :param is_ipv6:
         """
-        self.host = host
-        self.port = port
+        self.family = family
+        self.endpoint = endpoint
         self.event_loop = event_loop
         self.ctx = ctx
         self.timeout = timeout
-        self.is_ipv6 = is_ipv6
 
-        self._on_error = None
         self._on_closed = None
 
-    def set_callback(self, on_error=None):
+    def set_callback(self, on_closed=None):
         """
 
-        :param on_error:
+        :param on_closed:
         :return:
         """
-        self._on_error = on_error
+        self._on_closed = on_closed
 
     def start_connect(self):
         """
 
         :return:
         """
-        resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
-        resolver.set_callback(on_result=self._dns_result)
-        resolver.start()
-
-    def _dns_result(self, status, addr_list):
-        """
-
-        :param status:
-        :param addr_list:
-        :return:
-        """
         assert self.event_loop.is_in_loop_thread()
 
-        if status == const.DNSResolvStatus.OK:
-            af, _, _, _, sa = addr_list[0]
-            self._connect_in_loop(af, sa, self.timeout)
-        else:
-            self._connection_error(const.ConnectionErr.DNS_FAILED)
+        self._connect_in_loop(self.family, self.endpoint, self.timeout)
 
     def _connect_in_loop(self, af, sa, timeout):
         """
@@ -77,18 +57,8 @@ class TcpConnector(object):
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
         conn = TcpConnection(sa, sock, self.ctx, self.event_loop)
-        conn.set_callback(err_callback=self._connection_error,
-                          closed_callback=self._connection_closed)
+        conn.set_callback(closed_callback=self._connection_closed)
         conn.try_open(timeout)
-
-    def _connection_error(self, error: const.ConnectionErr):
-        """
-
-        :param error:
-        :return:
-        """
-        if self._on_error:
-            self._on_error(error)
 
     def _connection_closed(self, conn):
         """
@@ -96,3 +66,5 @@ class TcpConnector(object):
         :param conn:
         :return:
         """
+        if self._on_closed:
+            self._on_closed()

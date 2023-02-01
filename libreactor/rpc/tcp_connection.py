@@ -48,7 +48,6 @@ class TcpConnection(IOStream):
         self._timeout_timer = None
 
         self._closed_callback = None
-        self._err_callback = None
 
     @classmethod
     def from_sock(cls, sock, ctx, event_loop):
@@ -64,15 +63,13 @@ class TcpConnection(IOStream):
         conn = cls(endpoint, sock, ctx, event_loop)
         return conn
 
-    def set_callback(self, closed_callback=None, err_callback=None):
+    def set_callback(self, closed_callback=None):
         """
 
         :param closed_callback:
-        :param err_callback:
         :return:
         """
         self._closed_callback = closed_callback
-        self._err_callback = err_callback
 
     def try_open(self, timeout=10):
         """
@@ -143,8 +140,6 @@ class TcpConnection(IOStream):
         self._timeout_timer = None
         self._connection_error(ConnectionErr.TIMEOUT)
 
-        self._close_connection()
-
     def _connection_failed(self):
         """
         client failed to establish connection
@@ -156,8 +151,6 @@ class TcpConnection(IOStream):
 
         self._connection_error(ConnectionErr.CONNECT_FAILED)
 
-        self._close_connection()
-
     def _connection_error(self, error):
         """
 
@@ -167,8 +160,7 @@ class TcpConnection(IOStream):
         if self._protocol:
             self._protocol.connection_error(error)
 
-        if self._err_callback:
-            self._err_callback(error)
+        self._close_connection()
 
     def write(self, bytes_):
         """
@@ -205,7 +197,6 @@ class TcpConnection(IOStream):
         error = self._do_write()
         if error != ConnectionErr.OK:
             self._connection_error(error)
-            self._close_connection()
             return
 
         if self._write_buffer and not self.writable():
@@ -216,7 +207,6 @@ class TcpConnection(IOStream):
 
         :return:
         """
-        # handle connecting
         if self._state == ConnectionState.CONNECTING:
             self._handle_connect()
 
@@ -227,7 +217,6 @@ class TcpConnection(IOStream):
             error = self._do_write()
             if error != ConnectionErr.OK:
                 self._connection_error(error)
-                self._close_connection()
                 return
 
         if self._write_buffer:
@@ -291,7 +280,6 @@ class TcpConnection(IOStream):
         error = self._do_read()
         if error != ConnectionErr.OK:
             self._connection_error(error)
-            self._close_connection()
             return
 
     def _do_read(self):
@@ -344,8 +332,6 @@ class TcpConnection(IOStream):
         :param delay: sec
         :return:
         """
-        self._connection_error(ConnectionErr.USER_CLOSED)
-
         if not self._write_buffer:
             self._close_connection()
             return
@@ -408,5 +394,4 @@ class TcpConnection(IOStream):
         self._ctx = None
 
         self._linger_timer = None
-        self._err_callback = None
         self._closed_callback = None
