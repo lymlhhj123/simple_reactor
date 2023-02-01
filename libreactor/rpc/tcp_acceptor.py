@@ -7,6 +7,7 @@ from libreactor.io_stream import IOStream
 from libreactor.utils import errno_from_ex
 from libreactor import fd_util
 from libreactor import sock_util
+from libreactor import const
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -14,15 +15,18 @@ logger = logging.get_logger()
 
 class TcpAcceptor(IOStream):
 
-    def __init__(self, port, event_loop, backlog=8):
+    def __init__(self, port, event_loop, backlog=8, is_ipv6=False):
         """
 
         :param port:
         :param event_loop:
         :param backlog:
+        :param is_ipv6:
         """
         self.port = port
         self.backlog = backlog
+        self.is_ipv6 = is_ipv6
+
         self.placeholder = open("/dev/null")
 
         self.sock = self._create_listen_sock()
@@ -39,9 +43,14 @@ class TcpAcceptor(IOStream):
 
         :return:
         """
-        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        if self.is_ipv6:
+            family, addr_any = socket.AF_INET6, const.IPAny.v6
+        else:
+            family, addr_any = socket.AF_INET, const.IPAny.V4
+
+        s = socket.socket(family, socket.SOCK_STREAM)
         sock_util.set_tcp_reuse_addr(s)
-        s.bind(("::", self.port))
+        s.bind((addr_any, self.port))
         s.listen(self.backlog)
         return s
 

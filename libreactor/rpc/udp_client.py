@@ -7,9 +7,11 @@ from .udp_connection import UdpConnection
 
 class UdpClient(object):
 
-    def __init__(self, event_loop, ctx, is_ipv6=False):
+    def __init__(self, host, port, event_loop, ctx, is_ipv6=False):
         """
 
+        :param host:
+        :param port:
         :param event_loop:
         :param ctx:
         :param is_ipv6:

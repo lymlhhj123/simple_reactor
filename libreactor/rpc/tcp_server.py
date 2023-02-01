@@ -10,18 +10,19 @@ logger = logging.get_logger()
 
 class TcpServer(object):
 
-    def __init__(self, port, event_loop, ctx, backlog=8):
+    def __init__(self, port, event_loop, ctx, backlog=8, is_ipv6=False):
         """
 
         :param port:
         :param event_loop:
         :param ctx:
         :param backlog:
+        :param is_ipv6:
         """
         self.ctx = ctx
         self.event_loop = event_loop
 
-        self.acceptor = TcpAcceptor(port, event_loop, backlog)
+        self.acceptor = TcpAcceptor(port, event_loop, backlog, is_ipv6)
         self.acceptor.set_new_connection_callback(self._on_new_connection)
 
         self._connection_set = set()

@@ -45,3 +45,9 @@ class DNSResolvStatus(object):
     OK = 0
     FAILED = 1
     EMPTY = 2
+
+
+class IPAny(object):
+
+    V4 = "0.0.0.0"
+    v6 = "::"
