@@ -64,6 +64,12 @@ class StreamReceiver(TcpProtocol):
             logger.error(f"msg type must be str or bytes, not {type(msg)}")
             return
 
+        try:
+            msg = self._do_msg_prepare(msg)
+        except Exception as e:
+            logger.error("error happened in do msg prepare, %s", e)
+            return
+
         crc32 = zlib.crc32(msg)
         msg_len = len(msg)
 
@@ -72,6 +78,15 @@ class StreamReceiver(TcpProtocol):
         data = header.as_bytes() + msg
 
         self.send_data(data)
+
+    def _do_msg_prepare(self, msg: bytes):
+        """
+
+        default nothing to do, this method used to encrypt msg
+        :param msg:
+        :return:
+        """
+        return msg
 
     def data_received(self, data: bytes):
         """
