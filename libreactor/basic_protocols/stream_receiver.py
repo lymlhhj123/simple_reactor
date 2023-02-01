@@ -60,9 +60,6 @@ class StreamReceiver(TcpProtocol):
         :param msg:
         :return:
         """
-        if isinstance(msg, str):
-            msg = msg.encode("utf-8")
-
         if not isinstance(msg, bytes):
             logger.error(f"msg type must be str or bytes, not {type(msg)}")
             return
