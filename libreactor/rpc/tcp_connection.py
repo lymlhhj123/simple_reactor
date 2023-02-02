@@ -185,7 +185,7 @@ class TcpConnection(IOStream):
         :param bytes_:
         :return:
         """
-        if self._state in [ConnectionState.DISCONNECTED, ConnectionState.DISCONNECTING]:
+        if self._state == ConnectionState.DISCONNECTED or self._state == ConnectionState.DISCONNECTING:
             return
 
         # already call close() method, don't write data
@@ -234,19 +234,6 @@ class TcpConnection(IOStream):
 
         if self.writable():
             self.disable_writing()
-
-    def _handle_connect(self):
-        """
-
-        :return:
-        """
-        err_code = sock_util.get_sock_error(self._sock)
-        if err_code != 0:
-            self._connection_failed(err_code)
-            return
-
-        self.disable_writing()
-        self.connection_established()
 
     def _do_write(self):
         """
@@ -297,6 +284,19 @@ class TcpConnection(IOStream):
                 return ConnectionErr.PEER_CLOSED
 
             self._data_received(data)
+
+    def _handle_connect(self):
+        """
+
+        :return:
+        """
+        err_code = sock_util.get_sock_error(self._sock)
+        if err_code != 0:
+            self._connection_failed(err_code)
+            return
+
+        self.disable_writing()
+        self.connection_established()
 
     def _handle_read_write_error(self, err_code):
         """
@@ -372,7 +372,7 @@ class TcpConnection(IOStream):
 
         :return:
         """
-        if self._state in [ConnectionState.DISCONNECTING, ConnectionState.DISCONNECTED]:
+        if self._state == ConnectionState.DISCONNECTING or self._state == ConnectionState.DISCONNECTED:
             return
 
         self._state = ConnectionState.DISCONNECTING
