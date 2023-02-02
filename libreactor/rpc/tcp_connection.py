@@ -88,17 +88,19 @@ class TcpConnection(IOStream):
             elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
                 state = ConnectionState.CONNECTING
             else:
-                self._ctx.on_connection_failed(err_code)
-                return
+                state = ConnectionState.DISCONNECTED
         else:
+            err_code = 0
             state = ConnectionState.CONNECTED
 
         if state == ConnectionState.CONNECTING:
             self._state = state
             self.enable_writing()
             self._timeout_timer = self._event_loop.call_later(timeout, self._connection_timeout)
-        else:
+        elif state == ConnectionState.CONNECTED:
             self.connection_established()
+        else:
+            self._connection_failed(err_code)
 
     def connection_established(self):
         """
@@ -140,11 +142,15 @@ class TcpConnection(IOStream):
         self._timeout_timer = None
         self._connection_error(ConnectionErr.TIMEOUT)
 
-    def _connection_failed(self):
+    def _connection_failed(self, err_code):
         """
         client failed to establish connection
+        :param err_code:
         :return:
         """
+        reason = os.strerror(err_code)
+        logger.error(f"failed to connect {self._endpoint}, reason: {reason}")
+
         if self._timeout_timer:
             self._timeout_timer.cancel()
             self._timeout_timer = None
@@ -236,9 +242,7 @@ class TcpConnection(IOStream):
         """
         err_code = sock_util.get_sock_error(self._sock)
         if err_code != 0:
-            reason = os.strerror(err_code)
-            logger.error(f"failed to connect {self._endpoint}: {reason}")
-            self._connection_failed()
+            self._connection_failed(err_code)
             return
 
         self.disable_writing()
