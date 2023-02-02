@@ -257,12 +257,7 @@ class TcpConnection(IOStream):
             write_size = self._sock.send(self._write_buffer)
         except Exception as e:
             err_code = utils.errno_from_ex(e)
-            if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                return ConnectionErr.OK
-            elif err_code == errno.EPIPE:
-                return ConnectionErr.BROKEN_PIPE
-            else:
-                return ConnectionErr.UNKNOWN
+            return self._handle_read_write_error(err_code)
 
         if write_size == 0:
             return ConnectionErr.PEER_CLOSED
@@ -296,17 +291,29 @@ class TcpConnection(IOStream):
                 data = self._sock.recv(READ_SIZE)
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
-                if err_code in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                    return ConnectionErr.OK
-                elif err_code == errno.EPIPE:
-                    return ConnectionErr.BROKEN_PIPE
-                else:
-                    return ConnectionErr.UNKNOWN
+                return self._handle_read_write_error(err_code)
 
             if not data:
                 return ConnectionErr.PEER_CLOSED
 
             self._data_received(data)
+
+    def _handle_read_write_error(self, err_code):
+        """
+
+        :param err_code:
+        :return:
+        """
+        if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+            return ConnectionErr.OK
+
+        reason = os.strerror(err_code)
+        logger.error(f"connection error, reason: {reason}")
+
+        if err_code == errno.EPIPE:
+            return ConnectionErr.BROKEN_PIPE
+        else:
+            return ConnectionErr.UNKNOWN
 
     def _data_received(self, data):
         """
