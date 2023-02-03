@@ -31,15 +31,15 @@ class TcpAcceptor(object):
 
         self.sock = None
         self.channel = None
-        self._new_connection_callback = None
+        self.new_connection_callback = None
 
-    def set_new_connection_callback(self, new_connection_callback=None):
+    def set_new_connection_callback(self, new_connection_callback):
         """
 
         :param new_connection_callback:
         :return:
         """
-        self._new_connection_callback = new_connection_callback
+        self.new_connection_callback = new_connection_callback
 
     def start_accept(self):
         """
@@ -106,8 +106,8 @@ class TcpAcceptor(object):
         :param addr:
         :return:
         """
-        if self._new_connection_callback:
-            self._new_connection_callback(sock, addr)
+        if self.new_connection_callback:
+            self.new_connection_callback(sock, addr)
         else:
             sock.close()
 
