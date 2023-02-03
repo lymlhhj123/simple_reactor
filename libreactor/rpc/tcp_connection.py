@@ -74,7 +74,6 @@ class TcpConnection(object):
         :param timeout:
         :return:
         """
-        print("try open")
         assert self.ev.is_in_loop_thread()
         self.endpoint = endpoint
 
@@ -92,6 +91,7 @@ class TcpConnection(object):
             err_code = 0
             state = ConnectionState.CONNECTED
 
+        print(f"{err_code}, {state}")
         if state == ConnectionState.CONNECTING:
             self.state = state
             self.channel.enable_writing()
@@ -139,7 +139,7 @@ class TcpConnection(object):
         client establish connection timeout
         :return:
         """
-        logger.error(f"timeout to connect {self.endpoint}")
+        logger.error(f"timeout to connect: {self.endpoint}")
         self._timeout_timer = None
         self._connection_error(ConnectionErr.TIMEOUT)
 
