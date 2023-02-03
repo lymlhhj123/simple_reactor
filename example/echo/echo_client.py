@@ -11,8 +11,8 @@ class MyProtocol(Protocol):
     def __init__(self):
 
         super(MyProtocol, self).__init__()
-        self.ops = 0
-        self._end = False
+        self.io_count = 0
+        self.start_time = 0
         self._timer = None
 
     def data_received(self, data: bytes):
@@ -21,12 +21,7 @@ class MyProtocol(Protocol):
         :param data:
         :return:
         """
-        if self._end:
-            self._timer = None
-            self.close_connection()
-            return
-
-        self.ops += 1
+        self.io_count += 1
         self.send_data(data)
 
     def connection_error(self, error):
@@ -44,19 +39,19 @@ class MyProtocol(Protocol):
 
         :return:
         """
-        start_time = self.event_loop.time()
+        self.start_time = self.event_loop.time()
 
-        self._timer = self.event_loop.call_later(60, self._count_down, start_time)
+        self._timer = self.event_loop.call_later(60, self._count_down)
 
-    def _count_down(self, start_time):
+    def _count_down(self):
         """
 
-        :param start_time:
         :return:
         """
-        end_time = self.event_loop.time()
-        self._end = True
-        ops = self.ops / (end_time - start_time)
+        now = self.event_loop.time()
+        start_time, self.start_time = self.start_time, now
+        io_count, self.io_count = self.io_count, 0
+        ops = io_count / (now - start_time)
         print(f"ops: {ops}")
 
 
