@@ -23,15 +23,15 @@ class DNSResolver(object):
         self.ev = ev
         self.is_ipv6 = is_ipv6
 
-        self.on_result = None
+        self.on_done = None
 
-    def set_callback(self, on_result):
+    def set_callback(self, on_done):
         """
 
-        :param on_result:
+        :param on_done:
         :return:
         """
-        self.on_result = on_result
+        self.on_done = on_done
 
     def start(self):
         """
@@ -45,7 +45,7 @@ class DNSResolver(object):
 
         :return:
         """
-        # fixme: use non-block method
+        # fixme: use non-block dns resolve
         family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
         try:
             addr_list = socket.getaddrinfo(self.host, self.port, family, socket.SOCK_STREAM)
@@ -55,5 +55,5 @@ class DNSResolver(object):
             status = const.DNSResolvStatus.FAILED
             logger.error(f"failed to dns resolve {self.host}, {ex}")
 
-        if self.on_result:
-            self.ev.call_soon(self.on_result, status, addr_list)
+        if self.on_done:
+            self.ev.call_soon(self.on_done, status, addr_list)

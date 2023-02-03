@@ -44,7 +44,7 @@ class TcpClient(object):
         :return:
         """
         resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
-        resolver.set_callback(on_result=self._dns_done)
+        resolver.set_callback(on_done=self._dns_done)
         resolver.start()
 
     def _dns_done(self, status, addr_list):
@@ -59,7 +59,7 @@ class TcpClient(object):
         if status == const.DNSResolvStatus.OK:
             af, _, _, _, sa = addr_list[0]
             connector = TcpConnector(af, sa, self.event_loop, self.ctx, self.timeout)
-            connector.set_callback(on_closed=self._on_closed)
+            connector.set_closed_callback(closed_callback=self._on_closed)
             connector.start_connect()
         else:
             self._reconnect()
@@ -70,16 +70,14 @@ class TcpClient(object):
         :return:
         """
         logger.info(f"connection closed with server: {self.host, self.port}")
-        self._reconnect()
+        if self.auto_reconnect:
+            self._reconnect()
 
     def _reconnect(self):
         """
 
         :return:
         """
-        if not self.auto_reconnect:
-            return
-
         delay = random.random() * 5
         logger.info(f"reconnect to server after {delay} seconds")
         self.event_loop.call_later(delay, self._start_in_loop)

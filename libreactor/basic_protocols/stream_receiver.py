@@ -3,7 +3,7 @@
 import zlib
 import struct
 
-from libreactor.protocol import TcpProtocol
+from libreactor.protocol import Protocol
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -44,7 +44,7 @@ class Header(object):
         return struct.pack(HEADER_FMT, self.v, self.crc32, self.msg_len)
 
 
-class StreamReceiver(TcpProtocol):
+class StreamReceiver(Protocol):
 
     def __init__(self):
 

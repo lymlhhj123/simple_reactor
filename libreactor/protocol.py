@@ -54,6 +54,24 @@ class Protocol(object):
         :return:
         """
 
+    def send_data(self, data: bytes):
+        """
+
+        :param data:
+        :return:
+        """
+        if not isinstance(data, bytes):
+            return
+
+        self.connection.write(data)
+
+    def data_received(self, data: bytes):
+        """
+
+        :param data:
+        :return:
+        """
+
     def close_connection(self):
         """
 

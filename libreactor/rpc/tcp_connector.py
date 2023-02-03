@@ -26,15 +26,15 @@ class TcpConnector(object):
         self.ctx = ctx
         self.timeout = timeout
 
-        self._on_closed = None
+        self.closed_callback = None
 
-    def set_callback(self, on_closed=None):
+    def set_closed_callback(self, closed_callback=None):
         """
 
-        :param on_closed:
+        :param closed_callback:
         :return:
         """
-        self._on_closed = on_closed
+        self.closed_callback = closed_callback
 
     def start_connect(self):
         """
@@ -56,9 +56,9 @@ class TcpConnector(object):
         sock = socket.socket(family=af, type=socket.SOCK_STREAM)
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
-        conn = TcpConnection(sa, sock, self.ctx, self.event_loop)
-        conn.set_callback(closed_callback=self._connection_closed)
-        conn.try_open(timeout)
+        conn = TcpConnection(sock, self.ctx, self.event_loop)
+        conn.set_closed_callback(closed_callback=self._connection_closed)
+        conn.try_open(self.endpoint, timeout)
 
     def _connection_closed(self, conn):
         """
@@ -66,5 +66,5 @@ class TcpConnector(object):
         :param conn:
         :return:
         """
-        if self._on_closed:
-            self._on_closed()
+        if self.closed_callback:
+            self.closed_callback()

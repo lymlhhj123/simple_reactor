@@ -4,7 +4,7 @@ import os
 import socket
 import errno
 
-from libreactor.io_stream import IOStream
+from libreactor.channel import Channel
 from libreactor import sock_util
 from libreactor import fd_util
 from libreactor import utils
@@ -17,12 +17,11 @@ logger = logging.get_logger()
 READ_SIZE = 8192
 
 
-class TcpConnection(IOStream):
+class TcpConnection(object):
 
-    def __init__(self, endpoint, sock, ctx, event_loop):
+    def __init__(self, sock, ctx, event_loop):
         """
 
-        :param endpoint:
         :param sock:
         :param ctx:
         :param event_loop:
@@ -32,22 +31,26 @@ class TcpConnection(IOStream):
         fd_util.make_fd_async(sock.fileno())
         fd_util.close_on_exec(sock.fileno())
 
-        self._endpoint = endpoint
-        self._sock = sock
-        self._state = ConnectionState.DISCONNECTED
+        self.sock = sock
+        self.ctx = ctx
+        self.ev = event_loop
 
-        self._write_buffer = b""
+        self.channel = Channel(sock.fileno(), event_loop)
+        self.channel.set_read_callback(self._on_read_event)
+        self.channel.set_write_callback(self._on_write_event)
 
-        self._ctx = ctx
-        self._protocol = None
+        self.endpoint = None
+        self.state = ConnectionState.DISCONNECTED
+        self.write_buffer = b""
+        self.protocol = None
 
-        self._close_after_write = False
-        self._linger_timer = None
+        self.close_after_write = False
+        self.linger_timer = None
 
         # client connect timer
-        self._timeout_timer = None
+        self.timeout_timer = None
 
-        self._closed_callback = None
+        self.closed_callback = None
 
     @classmethod
     def from_sock(cls, sock, ctx, event_loop):
@@ -59,28 +62,29 @@ class TcpConnection(IOStream):
         :param event_loop:
         :return:
         """
-        endpoint = sock_util.get_remote_addr(sock)
-        conn = cls(endpoint, sock, ctx, event_loop)
+        conn = cls(sock, ctx, event_loop)
         return conn
 
-    def set_callback(self, closed_callback=None):
+    def set_closed_callback(self, closed_callback=None):
         """
 
         :param closed_callback:
         :return:
         """
-        self._closed_callback = closed_callback
+        self.closed_callback = closed_callback
 
-    def try_open(self, timeout=10):
+    def try_open(self, endpoint, timeout=10):
         """
 
+        :param endpoint:
         :param timeout:
         :return:
         """
-        assert self._event_loop.is_in_loop_thread()
+        assert self.ev.is_in_loop_thread()
+        self.endpoint = endpoint
 
         try:
-            self._sock.connect(self._endpoint)
+            self._sock.connect(endpoint)
         except socket.error as e:
             err_code = e.errno
             if err_code == errno.EISCONN:
@@ -94,9 +98,9 @@ class TcpConnection(IOStream):
             state = ConnectionState.CONNECTED
 
         if state == ConnectionState.CONNECTING:
-            self._state = state
-            self.enable_writing()
-            self._timeout_timer = self._event_loop.call_later(timeout, self._connection_timeout)
+            self.state = state
+            self.channel.enable_writing()
+            self.timeout_timer = self.ev.call_later(timeout, self._connection_timeout)
         elif state == ConnectionState.CONNECTED:
             self.connection_established()
         else:
@@ -108,17 +112,17 @@ class TcpConnection(IOStream):
         client side connection
         :return:
         """
-        logger.info(f"connection established to {self._endpoint}, fd: {self._fd}")
-        self._state = ConnectionState.CONNECTED
+        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
+        self.state = ConnectionState.CONNECTED
 
-        if self._timeout_timer:
-            self._timeout_timer.cancel()
-            self._timeout_timer = None
+        if self.timeout_timer:
+            self.timeout_timer.cancel()
+            self.timeout_timer = None
 
-        self.enable_reading()
+        self.channel.enable_reading()
 
-        self._protocol = self._ctx.build_protocol()
-        self._protocol.connection_established(self, self._event_loop, self._ctx)
+        self.protocol = self._ctx.build_protocol()
+        self.protocol.connection_established(self, self.ev, self._ctx)
 
     def connection_made(self):
         """
@@ -126,11 +130,13 @@ class TcpConnection(IOStream):
         server side connection
         :return:
         """
-        self._state = ConnectionState.CONNECTED
-        self.enable_reading()
+        self.endpoint = sock_util.get_remote_addr(self.sock)
 
-        self._protocol = self._ctx.build_protocol()
-        self._protocol.connection_made(self, self._event_loop, self._ctx)
+        self.state = ConnectionState.CONNECTED
+        self.channel.enable_reading()
+
+        self.protocol = self._ctx.build_protocol()
+        self.protocol.connection_made(self, self.ev, self._ctx)
 
     def _connection_timeout(self):
         """
@@ -138,7 +144,7 @@ class TcpConnection(IOStream):
         client establish connection timeout
         :return:
         """
-        logger.error(f"timeout to connect {self._endpoint}")
+        logger.error(f"timeout to connect {self.endpoint}")
         self._timeout_timer = None
         self._connection_error(ConnectionErr.TIMEOUT)
 
@@ -149,11 +155,11 @@ class TcpConnection(IOStream):
         :return:
         """
         reason = os.strerror(err_code)
-        logger.error(f"failed to connect {self._endpoint}, reason: {reason}")
+        logger.error(f"failed to connect {self.endpoint}, reason: {reason}")
 
-        if self._timeout_timer:
-            self._timeout_timer.cancel()
-            self._timeout_timer = None
+        if self.timeout_timer:
+            self.timeout_timer.cancel()
+            self.timeout_timer = None
 
         self._connection_error(ConnectionErr.CONNECT_FAILED)
 
@@ -163,8 +169,8 @@ class TcpConnection(IOStream):
         :param error:
         :return:
         """
-        if self._protocol:
-            self._protocol.connection_error(error)
+        if self.protocol:
+            self.protocol.connection_error(error)
 
         self._close_connection()
 
@@ -174,10 +180,10 @@ class TcpConnection(IOStream):
         :param bytes_:
         :return:
         """
-        if self._event_loop.is_in_loop_thread():
+        if self.ev.is_in_loop_thread():
             self._write_impl(bytes_)
         else:
-            self._event_loop.call_soon(self._write_impl, bytes_)
+            self.ev.call_soon(self._write_impl, bytes_)
 
     def _write_impl(self, bytes_):
         """
@@ -205,10 +211,10 @@ class TcpConnection(IOStream):
             self._connection_error(error)
             return
 
-        if self._write_buffer and not self.writable():
-            self.enable_writing()
+        if self._write_buffer and not self.channel.writable():
+            self.channel.enable_writing()
 
-    def on_write(self):
+    def _on_write_event(self):
         """
 
         :return:
@@ -232,8 +238,8 @@ class TcpConnection(IOStream):
             self._close_connection()
             return
 
-        if self.writable():
-            self.disable_writing()
+        if self.channel.writable():
+            self.channel.disable_writing()
 
     def _do_write(self):
         """
@@ -244,7 +250,7 @@ class TcpConnection(IOStream):
             write_size = self._sock.send(self._write_buffer)
         except Exception as e:
             err_code = utils.errno_from_ex(e)
-            return self._handle_read_write_error(err_code)
+            return self._handle_rw_error(err_code)
 
         if write_size == 0:
             return ConnectionErr.PEER_CLOSED
@@ -252,7 +258,7 @@ class TcpConnection(IOStream):
         self._write_buffer = self._write_buffer[write_size:]
         return ConnectionErr.OK
 
-    def on_read(self):
+    def _on_read_event(self):
         """
 
         :return:
@@ -278,7 +284,7 @@ class TcpConnection(IOStream):
                 data = self._sock.recv(READ_SIZE)
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
-                return self._handle_read_write_error(err_code)
+                return self._handle_rw_error(err_code)
 
             if not data:
                 return ConnectionErr.PEER_CLOSED
@@ -295,10 +301,10 @@ class TcpConnection(IOStream):
             self._connection_failed(err_code)
             return
 
-        self.disable_writing()
+        self.channel.disable_writing()
         self.connection_established()
 
-    def _handle_read_write_error(self, err_code):
+    def _handle_rw_error(self, err_code):
         """
 
         :param err_code:
@@ -308,7 +314,7 @@ class TcpConnection(IOStream):
             return ConnectionErr.OK
 
         reason = os.strerror(err_code)
-        logger.error(f"connection error, reason: {reason}")
+        logger.error(f"connection error with {self.endpoint}, reason: {reason}")
 
         if err_code == errno.EPIPE:
             return ConnectionErr.BROKEN_PIPE
@@ -321,7 +327,7 @@ class TcpConnection(IOStream):
         :param data:
         :return:
         """
-        self._protocol.data_received(data)
+        self.protocol.data_received(data)
 
     def close(self, so_linger=False, delay=2):
         """
@@ -331,12 +337,12 @@ class TcpConnection(IOStream):
         :return:
         """
         assert delay > 0
-        if self._event_loop.is_in_loop_thread():
-            self._close_impl(so_linger, delay)
+        if self.ev.is_in_loop_thread():
+            self._close_in_loop(so_linger, delay)
         else:
-            self._event_loop.call_soon(self._close_impl, so_linger, delay)
+            self.ev.call_soon(self._close_in_loop, so_linger, delay)
 
-    def _close_impl(self, so_linger, delay):
+    def _close_in_loop(self, so_linger, delay):
         """
 
         :param so_linger:
@@ -355,7 +361,7 @@ class TcpConnection(IOStream):
             return
 
         logger.warning("write buffer is not empty, delay to close connection")
-        self._linger_timer = self._event_loop.call_later(delay, self._delay_close)
+        self.linger_timer = self.ev.call_later(delay, self._delay_close)
 
     def _delay_close(self):
         """
@@ -384,19 +390,17 @@ class TcpConnection(IOStream):
             self._closed_callback(self)
 
         self._write_buffer = b""
-        self.disable_all()
+        self.channel.disable_all()
 
-        # maybe still handle events, close on next loop
-        self._event_loop.call_soon(self._close_force)
+        # close on next loop
+        self.ev.call_soon(self._close_force)
 
     def _close_force(self):
         """
 
         :return:
         """
-        self._event_loop.remove_io_stream(self)
-
-        self.close_fd()
+        self.channel.close()
 
         self._state = ConnectionState.DISCONNECTED
         self._sock = None

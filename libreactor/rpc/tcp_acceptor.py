@@ -3,7 +3,7 @@
 import errno
 import socket
 
-from libreactor.io_stream import IOStream
+from libreactor.channel import Channel
 from libreactor.utils import errno_from_ex
 from libreactor import fd_util
 from libreactor import sock_util
@@ -13,7 +13,7 @@ from libreactor import logging
 logger = logging.get_logger()
 
 
-class TcpAcceptor(IOStream):
+class TcpAcceptor(object):
 
     def __init__(self, port, event_loop, backlog=8, is_ipv6=False):
         """
@@ -24,21 +24,19 @@ class TcpAcceptor(IOStream):
         :param is_ipv6:
         """
         self.port = port
+        self.ev = event_loop
         self.backlog = backlog
         self.is_ipv6 = is_ipv6
 
         self.placeholder = open("/dev/null")
 
-        self.sock = self._create_listen_sock()
-
-        fd_util.make_fd_async(self.sock.fileno())
-        fd_util.close_on_exec(self.sock.fileno())
-
-        super(TcpAcceptor, self).__init__(self.sock.fileno(), event_loop)
-
+        self.sock = None
+        self.channel = None
         self._new_connection_callback = None
 
-    def _create_listen_sock(self):
+        self._init()
+
+    def _init(self):
         """
 
         :return:
@@ -48,11 +46,17 @@ class TcpAcceptor(IOStream):
         else:
             family, addr_any = socket.AF_INET, const.IPAny.V4
 
-        s = socket.socket(family, socket.SOCK_STREAM)
+        sock = socket.socket(family, socket.SOCK_STREAM)
         sock_util.set_tcp_reuse_addr(s)
-        s.bind((addr_any, self.port))
-        s.listen(self.backlog)
-        return s
+        sock.bind((addr_any, self.port))
+        sock.listen(self.backlog)
+
+        fd_util.make_fd_async(sock.fileno())
+        fd_util.close_on_exec(sock.fileno())
+
+        self.channel = Channel(sock.fileno(), self.ev)
+        self.channel.set_read_callback(self._on_read_event)
+        self.sock = sock
 
     def set_new_connection_callback(self, new_connection_callback=None):
         """
@@ -67,16 +71,16 @@ class TcpAcceptor(IOStream):
 
         :return:
         """
-        self._event_loop.call_soon(self._start_accept_in_loop)
+        self.ev.call_soon(self._start_accept_in_loop)
 
     def _start_accept_in_loop(self):
         """
 
         :return:
         """
-        self.enable_reading()
+        self.channel.enable_reading()
 
-    def on_read(self):
+    def _on_read_event(self):
         """
 
         :return:
@@ -91,7 +95,7 @@ class TcpAcceptor(IOStream):
                 elif err_code == errno.EMFILE:
                     self._too_many_open_file()
                 else:
-                    self.close()
+                    self._close()
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -118,3 +122,15 @@ class TcpAcceptor(IOStream):
             self._new_connection_callback(sock, addr)
         else:
             sock.close()
+
+    def _close(self):
+        """
+
+        :return:
+        """
+        self.channel.close()
+        self.channel = None
+        self.sock = None
+
+        # re-listen
+        self._init()

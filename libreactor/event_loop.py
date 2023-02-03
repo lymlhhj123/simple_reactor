@@ -7,7 +7,8 @@ import threading
 from . import poller
 from .timer import Timer
 from .timer_queue import TimerQueue
-from .io_waker import IOWaker
+from .channel import Channel
+from .signaler import Signaler
 from .callback import Callback
 from . import io_event
 from . import utils
@@ -30,12 +31,13 @@ class EventLoop(object):
         self._callbacks = []
         self._timer_queue = TimerQueue()
 
-        # not thread safe
-        self._stream_map = {}
+        self._channel_map = {}
         self._poller = poller.Poller()
 
-        self._io_waker = IOWaker(self)
-        self._io_waker.enable_reading()
+        self.signaler = Signaler()
+        self.channel = Channel(self.signaler.fileno(), self)
+        self.channel.set_read_callback(self._on_read_event)
+        self.channel.enable_reading()
 
     def time(self):
         """
@@ -137,6 +139,13 @@ class EventLoop(object):
         with self._mutex:
             self._timer_queue.cancel(timer)
 
+    def _on_read_event(self):
+        """
+
+        :return:
+        """
+        self.signaler.read_all()
+
     def wakeup(self):
         """
 
@@ -144,7 +153,7 @@ class EventLoop(object):
         :return:
         """
         if not self.is_in_loop_thread():
-            self._io_waker.wake()
+            self.signaler.write_one()
 
     def is_in_loop_thread(self):
         """
@@ -154,41 +163,41 @@ class EventLoop(object):
         """
         return threading.get_native_id() == self._tid
 
-    def update_io_stream(self, stream):
+    def update_channel(self, channel):
         """
 
-        :param stream:
+        :param channel:
         :return:
         """
         assert self.is_in_loop_thread()
 
         events = 0
-        if stream.readable():
+        if channel.readable():
             events |= poller.POLLIN
 
-        if stream.writable():
+        if channel.writable():
             events |= poller.POLLOUT
 
-        fd = stream.fileno()
-        if fd in self._stream_map:
+        fd = channel.fileno()
+        if fd in self._channel_map:
             self._poller.modify(fd, events)
         else:
-            self._stream_map[fd] = stream
+            self._channel_map[fd] = channel
             self._poller.register(fd, events)
 
-    def remove_io_stream(self, stream):
+    def remove_channel(self, channel):
         """
 
-        :param stream:
+        :param channel:
         :return:
         """
         assert self.is_in_loop_thread()
 
-        fd = stream.fileno()
-        if fd not in self._stream_map:
+        fd = channel.fileno()
+        if fd not in self._channel_map:
             return
 
-        self._stream_map.pop(fd)
+        self._channel_map.pop(fd)
         self._poller.unregister(fd)
 
     def loop(self):
@@ -239,16 +248,16 @@ class EventLoop(object):
         for fd, revents in events:
             ev_mask = 0
             if revents & poller.POLLIN:
-                ev_mask |= io_event.EV_READABLE
+                ev_mask |= io_event.EV_READ
 
             if revents & poller.POLLOUT:
-                ev_mask |= io_event.EV_WRITABLE
+                ev_mask |= io_event.EV_WRITE
 
             if revents & (poller.POLLERR | poller.POLLHUP):
-                ev_mask |= (io_event.EV_WRITABLE | io_event.EV_READABLE)
+                ev_mask |= (io_event.EV_WRITE | io_event.EV_READ)
 
-            io_stream = self._stream_map[fd]
-            io_stream.handle_events(ev_mask)
+            channel = self._channel_map[fd]
+            channel.handle_events(ev_mask)
 
     def _process_timer_event(self):
         """
@@ -260,8 +269,8 @@ class EventLoop(object):
             callbacks, self._callbacks = self._callbacks, []
             timer_list = self._timer_queue.retrieve(now)
 
-            # fixme: may be cost a lot of time
-            self._timer_queue.resize()
+            # may be cost a lot of time
+            # self._timer_queue.resize()
 
         for cb in callbacks:
             cb.run()
