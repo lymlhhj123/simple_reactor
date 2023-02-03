@@ -25,8 +25,6 @@ class TcpConnection(object):
         :param ctx:
         :param event_loop:
         """
-        super(TcpConnection, self).__init__(sock.fileno(), event_loop)
-
         self.sock = sock
         self.ctx = ctx
         self.ev = event_loop
@@ -61,7 +59,7 @@ class TcpConnection(object):
         conn = cls(sock, ctx, event_loop)
         return conn
 
-    def set_closed_callback(self, closed_callback=None):
+    def set_closed_callback(self, closed_callback):
         """
 
         :param closed_callback:

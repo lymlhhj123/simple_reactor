@@ -4,7 +4,7 @@ import socket
 import random
 
 from .tcp_connector import TcpConnector
-from ..dns_resolver import DNSResolver
+# from ..dns_resolver import DNSResolver
 from libreactor import const
 from libreactor import logging
 
@@ -45,7 +45,7 @@ class TcpClient(object):
         :return:
         """
         family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
-        self._open_connection(family, (self.host, self.port))
+        self._try_connect(family, (self.host, self.port))
         # resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
         # resolver.set_callback(on_done=self._dns_done)
         # resolver.start()
@@ -61,13 +61,11 @@ class TcpClient(object):
 
         if status == const.DNSResolvStatus.OK:
             af, _, _, _, sa = addr_list[0]
-            connector = TcpConnector(af, sa, self.event_loop, self.ctx, self.timeout)
-            connector.set_closed_callback(closed_callback=self._on_closed)
-            connector.start_connect()
+            self._try_connect(af, sa)
         else:
             self._reconnect()
 
-    def _open_connection(self, family, endpoint):
+    def _try_connect(self, family, endpoint):
         """
 
         :param family:
