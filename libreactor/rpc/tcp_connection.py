@@ -93,8 +93,6 @@ class TcpConnection(object):
             err_code = 0
             state = ConnectionState.CONNECTED
 
-        logger.info(f"try connect {self.endpoint}")
-
         if state == ConnectionState.CONNECTING:
             self.state = state
             self.channel.enable_writing()

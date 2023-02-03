@@ -43,6 +43,7 @@ class TcpClient(object):
 
         :return:
         """
+        print("dns resolve")
         resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
         resolver.set_callback(on_done=self._dns_done)
         resolver.start()
