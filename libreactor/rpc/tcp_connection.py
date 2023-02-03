@@ -99,16 +99,15 @@ class TcpConnection(object):
         :return:
         """
         logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
-        self.state = ConnectionState.CONNECTED
-
         if self.timeout_timer:
             self.timeout_timer.cancel()
             self.timeout_timer = None
 
+        self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
 
-        self.protocol = self.ctx.build_protocol()
-        self.protocol.connection_established(self, self.ev, self.ctx)
+        self.protocol = self._build_protocol()
+        self.protocol.connection_established()
 
     def connection_made(self):
         """
@@ -121,8 +120,19 @@ class TcpConnection(object):
         self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
 
-        self.protocol = self.ctx.build_protocol()
-        self.protocol.connection_made(self, self.ev, self.ctx)
+        self.protocol = self._build_protocol()
+        self.protocol.connection_made()
+
+    def _build_protocol(self):
+        """
+
+        :return:
+        """
+        protocol = self.ctx.build_protocol()
+        protocol.connection = self
+        protocol.ctx = self.ctx
+        protocol.event_loop = self.ev
+        return protocol
 
     def _connection_timeout(self):
         """
