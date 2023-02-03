@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import socket
 import random
 
 from .tcp_connector import TcpConnector
@@ -43,10 +44,11 @@ class TcpClient(object):
 
         :return:
         """
-        print("dns resolve")
-        resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
-        resolver.set_callback(on_done=self._dns_done)
-        resolver.start()
+        family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
+        self._open_connection(family, (self.host, self.port))
+        # resolver = DNSResolver(self.host, self.port, self.event_loop, self.is_ipv6)
+        # resolver.set_callback(on_done=self._dns_done)
+        # resolver.start()
 
     def _dns_done(self, status, addr_list):
         """
@@ -64,6 +66,17 @@ class TcpClient(object):
             connector.start_connect()
         else:
             self._reconnect()
+
+    def _open_connection(self, family, endpoint):
+        """
+
+        :param family:
+        :param endpoint:
+        :return:
+        """
+        connector = TcpConnector(family, endpoint, self.event_loop, self.ctx, self.timeout)
+        connector.set_closed_callback(closed_callback=self._on_closed)
+        connector.start_connect()
 
     def _on_closed(self):
         """
