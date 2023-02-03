@@ -21,5 +21,6 @@ class Callback(object):
         """
         try:
             self.func(*self.args, **self.kwargs)
-        except (RuntimeError, Exception):
+        except (RuntimeError, Exception) as e:
+            print(e)
             pass
