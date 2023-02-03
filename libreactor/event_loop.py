@@ -209,6 +209,7 @@ class EventLoop(object):
 
         while True:
             timeout = self._calc_timeout()
+            print(f"{timeout}")
             try:
                 events = self._poller.poll(timeout)
             except Exception as e:
