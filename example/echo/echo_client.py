@@ -73,7 +73,7 @@ def on_established(protocol):
     """
     protocol.start_test()
 
-    protocol.send_msg(b"hello")
+    protocol.send_data(b"hello")
 
 
 ev = EventLoop()
