@@ -5,11 +5,9 @@ from libreactor import const
 
 class Protocol(object):
 
-    def __init__(self):
-
-        self.connection = None
-        self.event_loop = None
-        self.ctx = None
+    connection = None
+    event_loop = None
+    ctx = None
 
     def connection_made(self):
         """
@@ -23,24 +21,9 @@ class Protocol(object):
         """
 
         client side connection established
-        :param conn:
-        :param ev:
-        :param ctx:
         :return:
         """
         self.ctx.connection_established(self)
-
-    def _set_args(self, conn, ev, ctx):
-        """
-
-        :param conn:
-        :param ev:
-        :param ctx:
-        :return:
-        """
-        self.connection = conn
-        self.event_loop = ev
-        self.ctx = ctx
 
     def connection_error(self, error: const.ConnectionErr):
         """
