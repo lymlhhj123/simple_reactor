@@ -8,7 +8,7 @@ def call_after_5_sec():
 
     :return:
     """
-    print(f"done: {call_after_5_sec.__name__}")
+    print(f"done, 5 sec")
 
 
 def call_every_10_sec():
@@ -16,7 +16,7 @@ def call_every_10_sec():
 
     :return:
     """
-    print(f"done: {call_every_10_sec.__name__}")
+    print(f"done, 10 sec")
 
 
 def call_at_10_clock():
@@ -24,7 +24,7 @@ def call_at_10_clock():
 
     :return:
     """
-    print(f"done: {call_at_10_clock.__name__}")
+    print(f"done, 10 clock")
 
 
 def call_event_day_at_2_clock():
@@ -32,7 +32,7 @@ def call_event_day_at_2_clock():
 
     :return:
     """
-    print(f"done: {call_event_day_at_2_clock.__name__}")
+    print(f"done, 2 clock")
 
 
 def call_now():
@@ -40,7 +40,7 @@ def call_now():
 
     :return:
     """
-    print(f"done: {call_now.__name__}")
+    print(f"done: call now")
 
 
 ev = EventLoop()

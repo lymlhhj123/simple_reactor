@@ -68,4 +68,4 @@ class TcpConnector(object):
         :return:
         """
         if self.closed_callback:
-            self.closed_callback()
+            self.closed_callback(conn)

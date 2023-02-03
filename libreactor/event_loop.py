@@ -18,12 +18,9 @@ DEFAULT_TIMEOUT = 3.6  # sec
 
 class EventLoop(object):
 
-    def __init__(self, time_func=time.monotonic):
-        """
+    def __init__(self):
 
-        :param time_func:
-        """
-        self._time_func = time_func
+        self._time_func = time.monotonic
 
         self._tid = threading.get_native_id()
 

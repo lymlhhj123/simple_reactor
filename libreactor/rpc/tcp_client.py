@@ -76,12 +76,13 @@ class TcpClient(object):
         connector.set_closed_callback(closed_callback=self._on_closed)
         connector.start_connect()
 
-    def _on_closed(self):
+    def _on_closed(self, conn):
         """
 
+        :param conn:
         :return:
         """
-        logger.info(f"connection closed with server: {self.host, self.port}")
+        logger.info(f"connection closed with server: {self.host, self.port}, fd: {conn.fileno()}")
         if self.auto_reconnect:
             self._reconnect()
 
