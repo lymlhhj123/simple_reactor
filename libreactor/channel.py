@@ -114,6 +114,7 @@ class Channel(object):
         :param ev_mask:
         :return:
         """
+        print(f"events: {ev_mask}")
         if ev_mask & io_event.EV_WRITE:
             self._on_write()
 
