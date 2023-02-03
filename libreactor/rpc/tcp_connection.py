@@ -53,6 +53,13 @@ class TcpConnection(object):
         """
         self.closed_callback = closed_callback
 
+    def fileno(self):
+        """
+
+        :return:
+        """
+        return self.sock.fileno()
+
     @classmethod
     def from_sock(cls, sock, ctx, event_loop):
         """
@@ -90,7 +97,6 @@ class TcpConnection(object):
             err_code = 0
             state = ConnectionState.CONNECTED
 
-        print(f"{err_code}, {state}")
         if state == ConnectionState.CONNECTING:
             self.state = state
             self.channel.enable_writing()
