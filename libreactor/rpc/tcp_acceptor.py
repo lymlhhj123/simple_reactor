@@ -5,7 +5,6 @@ import socket
 
 from libreactor.channel import Channel
 from libreactor.utils import errno_from_ex
-from libreactor import fd_util
 from libreactor import sock_util
 from libreactor import const
 from libreactor import logging
@@ -50,9 +49,6 @@ class TcpAcceptor(object):
         sock_util.set_tcp_reuse_addr(sock)
         sock.bind((addr_any, self.port))
         sock.listen(self.backlog)
-
-        fd_util.make_fd_async(sock.fileno())
-        fd_util.close_on_exec(sock.fileno())
 
         self.channel = Channel(sock.fileno(), self.ev)
         self.channel.set_read_callback(self._on_read_event)

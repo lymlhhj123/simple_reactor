@@ -45,20 +45,20 @@ class TcpConnector(object):
 
         self._connect_in_loop(self.family, self.endpoint, self.timeout)
 
-    def _connect_in_loop(self, af, sa, timeout):
+    def _connect_in_loop(self, family, endpoint, timeout):
         """
 
-        :param af:
-        :param sa:
+        :param family:
+        :param endpoint:
         :param timeout:
         :return:
         """
-        sock = socket.socket(family=af, type=socket.SOCK_STREAM)
+        sock = socket.socket(family=family, type=socket.SOCK_STREAM)
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
         conn = TcpConnection(sock, self.ctx, self.event_loop)
         conn.set_closed_callback(closed_callback=self._connection_closed)
-        conn.try_open(self.endpoint, timeout)
+        conn.try_open(endpoint, timeout)
 
     def _connection_closed(self, conn):
         """

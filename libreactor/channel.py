@@ -12,6 +12,9 @@ class Channel(object):
         :param fd:
         :param event_loop:
         """
+        fd_util.make_fd_async(fd)
+        fd_util.close_on_exec(fd)
+
         self._fd = fd
         self._event_loop = event_loop
         self._events = io_event.EV_NONE

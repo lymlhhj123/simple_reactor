@@ -6,7 +6,6 @@ import errno
 
 from libreactor.channel import Channel
 from libreactor import sock_util
-from libreactor import fd_util
 from libreactor import utils
 from libreactor.const import ConnectionState
 from libreactor.const import ConnectionErr
@@ -27,9 +26,6 @@ class TcpConnection(object):
         :param event_loop:
         """
         super(TcpConnection, self).__init__(sock.fileno(), event_loop)
-
-        fd_util.make_fd_async(sock.fileno())
-        fd_util.close_on_exec(sock.fileno())
 
         self.sock = sock
         self.ctx = ctx
@@ -96,6 +92,8 @@ class TcpConnection(object):
         else:
             err_code = 0
             state = ConnectionState.CONNECTED
+
+        logger.info(f"try connect {self.endpoint}")
 
         if state == ConnectionState.CONNECTING:
             self.state = state
