@@ -40,7 +40,6 @@ class TcpConnection(object):
 
         self.close_after_write = False
         self.linger_timer = None
-
         # client connect timer
         self.timeout_timer = None
 
@@ -229,7 +228,7 @@ class TcpConnection(object):
         if self.write_buffer:
             return
 
-        if self._close_after_write is True:
+        if self.close_after_write is True:
             self._close_connection()
             return
 
