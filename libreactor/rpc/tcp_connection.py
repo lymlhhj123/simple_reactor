@@ -59,19 +59,6 @@ class TcpConnection(object):
         """
         return self.sock.fileno()
 
-    @classmethod
-    def from_sock(cls, sock, ctx, event_loop):
-        """
-
-        server side new connection
-        :param sock:
-        :param ctx:
-        :param event_loop:
-        :return:
-        """
-        conn = cls(sock, ctx, event_loop)
-        return conn
-
     def try_open(self, endpoint, timeout=10):
         """
 
