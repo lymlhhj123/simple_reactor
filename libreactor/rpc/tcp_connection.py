@@ -78,7 +78,7 @@ class TcpConnection(object):
         self.endpoint = endpoint
 
         try:
-            self._sock.connect(endpoint)
+            self.sock.connect(endpoint)
         except socket.error as e:
             err_code = e.errno
             if err_code == errno.EISCONN:
@@ -116,8 +116,8 @@ class TcpConnection(object):
 
         self.channel.enable_reading()
 
-        self.protocol = self._ctx.build_protocol()
-        self.protocol.connection_established(self, self.ev, self._ctx)
+        self.protocol = self.ctx.build_protocol()
+        self.protocol.connection_established(self, self.ev, self.ctx)
 
     def connection_made(self):
         """
@@ -130,8 +130,8 @@ class TcpConnection(object):
         self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
 
-        self.protocol = self._ctx.build_protocol()
-        self.protocol.connection_made(self, self.ev, self._ctx)
+        self.protocol = self.ctx.build_protocol()
+        self.protocol.connection_made(self, self.ev, self.ctx)
 
     def _connection_timeout(self):
         """
@@ -186,7 +186,7 @@ class TcpConnection(object):
         :param bytes_:
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTED or self._state == ConnectionState.DISCONNECTING:
+        if self.state == ConnectionState.DISCONNECTED or self.state == ConnectionState.DISCONNECTING:
             return
 
         # already call close() method, don't write data
@@ -197,7 +197,7 @@ class TcpConnection(object):
         self._write_buffer += bytes_
 
         # still in connecting
-        if self._state == ConnectionState.CONNECTING:
+        if self.state == ConnectionState.CONNECTING:
             return
 
         # try to write directly
@@ -214,10 +214,10 @@ class TcpConnection(object):
 
         :return:
         """
-        if self._state == ConnectionState.CONNECTING:
+        if self.state == ConnectionState.CONNECTING:
             self._handle_connect()
 
-        if self._state != ConnectionState.CONNECTED:
+        if self.state != ConnectionState.CONNECTED:
             return
 
         if self._write_buffer:
@@ -242,7 +242,7 @@ class TcpConnection(object):
         :return:
         """
         try:
-            write_size = self._sock.send(self._write_buffer)
+            write_size = self.sock.send(self.write_buffer)
         except Exception as e:
             err_code = utils.errno_from_ex(e)
             return self._handle_rw_error(err_code)
@@ -250,7 +250,7 @@ class TcpConnection(object):
         if write_size == 0:
             return ConnectionErr.PEER_CLOSED
 
-        self._write_buffer = self._write_buffer[write_size:]
+        self._write_buffer = self.write_buffer[write_size:]
         return ConnectionErr.OK
 
     def _on_read_event(self):
@@ -258,10 +258,10 @@ class TcpConnection(object):
 
         :return:
         """
-        if self._state == ConnectionState.CONNECTING:
+        if self.state == ConnectionState.CONNECTING:
             self._handle_connect()
 
-        if self._state != ConnectionState.CONNECTED:
+        if self.state != ConnectionState.CONNECTED:
             return
 
         error = self._do_read()
@@ -276,7 +276,7 @@ class TcpConnection(object):
         """
         while True:
             try:
-                data = self._sock.recv(READ_SIZE)
+                data = self.sock.recv(READ_SIZE)
             except Exception as e:
                 err_code = utils.errno_from_ex(e)
                 return self._handle_rw_error(err_code)
@@ -291,7 +291,7 @@ class TcpConnection(object):
 
         :return:
         """
-        err_code = sock_util.get_sock_error(self._sock)
+        err_code = sock_util.get_sock_error(self.sock)
         if err_code != 0:
             self._connection_failed(err_code)
             return
@@ -373,18 +373,18 @@ class TcpConnection(object):
 
         :return:
         """
-        if self._state == ConnectionState.DISCONNECTING or self._state == ConnectionState.DISCONNECTED:
+        if self.state == ConnectionState.DISCONNECTING or self.state == ConnectionState.DISCONNECTED:
             return
 
-        self._state = ConnectionState.DISCONNECTING
+        self.state = ConnectionState.DISCONNECTING
 
-        if self._linger_timer:
-            self._linger_timer.cancel()
+        if self.linger_timer:
+            self.linger_timer.cancel()
 
-        if self._closed_callback:
-            self._closed_callback(self)
+        if self.closed_callback:
+            self.closed_callback(self)
 
-        self._write_buffer = b""
+        self.write_buffer = b""
         self.channel.disable_all()
 
         # close on next loop
@@ -397,11 +397,11 @@ class TcpConnection(object):
         """
         self.channel.close()
 
-        self._state = ConnectionState.DISCONNECTED
-        self._sock = None
+        self.state = ConnectionState.DISCONNECTED
+        self.sock = None
 
-        self._protocol = None
-        self._ctx = None
+        self.protocol = None
+        self.ctx = None
 
-        self._linger_timer = None
-        self._closed_callback = None
+        self.linger_timer = None
+        self.closed_callback = None
