@@ -1,5 +1,9 @@
 # coding: utf-8
 
+from .logging import get_logger
+
+logger = get_logger()
+
 
 class Callback(object):
 
@@ -22,5 +26,4 @@ class Callback(object):
         try:
             self.func(*self.args, **self.kwargs)
         except (RuntimeError, Exception) as e:
-            print(e)
-            pass
+            logger.error(e)
