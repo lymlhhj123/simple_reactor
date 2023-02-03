@@ -72,6 +72,7 @@ class TcpClient(object):
         :param endpoint:
         :return:
         """
+        print("start connect")
         connector = TcpConnector(family, endpoint, self.event_loop, self.ctx, self.timeout)
         connector.set_closed_callback(closed_callback=self._on_closed)
         connector.start_connect()

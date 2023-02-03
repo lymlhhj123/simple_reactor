@@ -28,7 +28,7 @@ class TcpConnector(object):
 
         self.closed_callback = None
 
-    def set_closed_callback(self, closed_callback=None):
+    def set_closed_callback(self, closed_callback):
         """
 
         :param closed_callback:
@@ -56,6 +56,7 @@ class TcpConnector(object):
         sock = socket.socket(family=family, type=socket.SOCK_STREAM)
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
+
         conn = TcpConnection(sock, self.ctx, self.event_loop)
         conn.set_closed_callback(closed_callback=self._connection_closed)
         conn.try_open(endpoint, timeout)

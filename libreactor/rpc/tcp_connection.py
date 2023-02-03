@@ -46,19 +46,6 @@ class TcpConnection(object):
 
         self.closed_callback = None
 
-    @classmethod
-    def from_sock(cls, sock, ctx, event_loop):
-        """
-
-        from server side connection
-        :param sock:
-        :param ctx:
-        :param event_loop:
-        :return:
-        """
-        conn = cls(sock, ctx, event_loop)
-        return conn
-
     def set_closed_callback(self, closed_callback):
         """
 
@@ -67,6 +54,19 @@ class TcpConnection(object):
         """
         self.closed_callback = closed_callback
 
+    @classmethod
+    def from_sock(cls, sock, ctx, event_loop):
+        """
+
+        server side new connection
+        :param sock:
+        :param ctx:
+        :param event_loop:
+        :return:
+        """
+        conn = cls(sock, ctx, event_loop)
+        return conn
+
     def try_open(self, endpoint, timeout=10):
         """
 
@@ -74,6 +74,7 @@ class TcpConnection(object):
         :param timeout:
         :return:
         """
+        print("try open")
         assert self.ev.is_in_loop_thread()
         self.endpoint = endpoint
 

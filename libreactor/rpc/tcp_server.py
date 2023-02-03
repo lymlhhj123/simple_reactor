@@ -48,9 +48,9 @@ class TcpServer(object):
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
 
-        conn = TcpConnection.from_sock(sock, self.ctx, self.event_loop)
+        conn = TcpConnection(sock, self.ctx, self.event_loop)
         self._connection_set.add(conn)
-        conn.set_callback(closed_callback=self._connection_closed)
+        conn.set_closed_callback(closed_callback=self._connection_closed)
         conn.connection_made()
 
     def _connection_closed(self, conn):
