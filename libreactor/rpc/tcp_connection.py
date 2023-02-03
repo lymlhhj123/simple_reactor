@@ -190,11 +190,11 @@ class TcpConnection(object):
             return
 
         # already call close() method, don't write data
-        if self._close_after_write is True:
+        if self.close_after_write is True:
             logger.error("close method is already called, cannot write")
             return
 
-        self._write_buffer += bytes_
+        self.write_buffer += bytes_
 
         # still in connecting
         if self.state == ConnectionState.CONNECTING:
@@ -206,7 +206,7 @@ class TcpConnection(object):
             self._connection_error(error)
             return
 
-        if self._write_buffer and not self.channel.writable():
+        if self.write_buffer and not self.channel.writable():
             self.channel.enable_writing()
 
     def _on_write_event(self):
@@ -220,13 +220,13 @@ class TcpConnection(object):
         if self.state != ConnectionState.CONNECTED:
             return
 
-        if self._write_buffer:
+        if self.write_buffer:
             error = self._do_write()
             if error != ConnectionErr.OK:
                 self._connection_error(error)
                 return
 
-        if self._write_buffer:
+        if self.write_buffer:
             return
 
         if self._close_after_write is True:
@@ -250,7 +250,7 @@ class TcpConnection(object):
         if write_size == 0:
             return ConnectionErr.PEER_CLOSED
 
-        self._write_buffer = self.write_buffer[write_size:]
+        self.write_buffer = self.write_buffer[write_size:]
         return ConnectionErr.OK
 
     def _on_read_event(self):
@@ -344,7 +344,7 @@ class TcpConnection(object):
         :param delay: sec
         :return:
         """
-        if not self._write_buffer:
+        if not self.write_buffer:
             self._close_connection()
             return
 
@@ -363,7 +363,7 @@ class TcpConnection(object):
 
         :return:
         """
-        if self._write_buffer:
+        if self.write_buffer:
             logger.warning("force close connection and drop write buffer")
 
         self._close_connection()
