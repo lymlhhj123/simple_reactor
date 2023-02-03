@@ -40,7 +40,6 @@ class TcpConnection(object):
 
         self.close_after_write = False
         self.linger_timer = None
-        # client connect timer
         self.timeout_timer = None
 
         self.closed_callback = None
@@ -357,7 +356,7 @@ class TcpConnection(object):
             # wait write buffer empty. close connection until write buffer
             # is empty or error happened; otherwise, delay close connection
             # after `delay` second and drop write buffer if it has.
-            self._close_after_write = True
+            self.close_after_write = True
             return
 
         logger.warning("write buffer is not empty, delay to close connection")

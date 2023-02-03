@@ -33,27 +33,6 @@ class TcpAcceptor(object):
         self.channel = None
         self._new_connection_callback = None
 
-        self._init()
-
-    def _init(self):
-        """
-
-        :return:
-        """
-        if self.is_ipv6:
-            family, addr_any = socket.AF_INET6, const.IPAny.v6
-        else:
-            family, addr_any = socket.AF_INET, const.IPAny.V4
-
-        sock = socket.socket(family, socket.SOCK_STREAM)
-        sock_util.set_tcp_reuse_addr(sock)
-        sock.bind((addr_any, self.port))
-        sock.listen(self.backlog)
-
-        self.channel = Channel(sock.fileno(), self.ev)
-        self.channel.set_read_callback(self._on_read_event)
-        self.sock = sock
-
     def set_new_connection_callback(self, new_connection_callback=None):
         """
 
@@ -74,6 +53,19 @@ class TcpAcceptor(object):
 
         :return:
         """
+        if self.is_ipv6:
+            family, addr_any = socket.AF_INET6, const.IPAny.v6
+        else:
+            family, addr_any = socket.AF_INET, const.IPAny.V4
+
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        sock_util.set_tcp_reuse_addr(sock)
+        sock.bind((addr_any, self.port))
+        sock.listen(self.backlog)
+        self.sock = sock
+
+        self.channel = Channel(sock.fileno(), self.ev)
+        self.channel.set_read_callback(self._on_read_event)
         self.channel.enable_reading()
 
     def _on_read_event(self):
@@ -129,4 +121,4 @@ class TcpAcceptor(object):
         self.sock = None
 
         # re-listen
-        self._init()
+        self._start_accept_in_loop()

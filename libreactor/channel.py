@@ -148,6 +148,10 @@ class Channel(object):
             return
 
         self._event_loop.remove_channel(self)
+
+        self.read_callback = None
+        self.write_callback = None
+
         fd, self._fd = self._fd, -1
         fd_util.close_fd(fd)
 
