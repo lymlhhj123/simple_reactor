@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from .rpc import *
+from .internet import *
 from .protocol import *
 from .basic_protocols import *
 from .context import Context

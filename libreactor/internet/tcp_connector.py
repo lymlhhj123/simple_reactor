@@ -53,7 +53,7 @@ class TcpConnector(object):
         :param timeout:
         :return:
         """
-        sock = socket.socket(family=family, type=socket.SOCK_STREAM)
+        sock = socket.socket(family, socket.SOCK_STREAM)
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
 
