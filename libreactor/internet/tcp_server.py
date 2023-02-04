@@ -51,7 +51,7 @@ class TcpServer(object):
         conn = TcpConnection(sock, self.ctx, self.event_loop)
         self._connection_set.add(conn)
         conn.set_closed_callback(closed_callback=self._connection_closed)
-        conn.connection_made()
+        conn.connection_made(addr)
 
     def _connection_closed(self, conn):
         """

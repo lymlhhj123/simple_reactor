@@ -109,13 +109,14 @@ class TcpConnection(object):
         self.protocol = self._build_protocol()
         self.protocol.connection_established()
 
-    def connection_made(self):
+    def connection_made(self, addr):
         """
 
         server side connection
+        :param addr:
         :return:
         """
-        self.endpoint = sock_util.get_remote_addr(self.sock)
+        self.endpoint = addr
 
         self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
