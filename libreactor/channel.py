@@ -123,14 +123,6 @@ class Channel(object):
         if ev_mask & io_event.EV_READ:
             self._on_read()
 
-    def _on_read(self):
-        """
-
-        :return:
-        """
-        if self.read_callback:
-            self.read_callback()
-
     def _on_write(self):
         """
 
@@ -138,6 +130,14 @@ class Channel(object):
         """
         if self.write_callback:
             self.write_callback()
+
+    def _on_read(self):
+        """
+
+        :return:
+        """
+        if self.read_callback:
+            self.read_callback()
 
     def close(self):
         """

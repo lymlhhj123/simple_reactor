@@ -34,7 +34,7 @@ class Protocol(object):
 
     def send_data(self, data: bytes):
         """
-
+        used by tcp
         :param data:
         :return:
         """
@@ -45,8 +45,24 @@ class Protocol(object):
 
     def data_received(self, data: bytes):
         """
-
+        used by tcp
         :param data:
+        :return:
+        """
+
+    def send_dgram(self, data, addr):
+        """
+        used by udp
+        :param data:
+        :param addr:
+        :return:
+        """
+
+    def dgram_received(self, data, addr):
+        """
+        used by udp
+        :param data:
+        :param addr:
         :return:
         """
 

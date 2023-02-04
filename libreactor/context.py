@@ -1,11 +1,11 @@
 # coding: utf-8
 
-from libreactor import StreamReceiver
+from libreactor import Protocol
 
 
 class Context(object):
 
-    protocol_cls = StreamReceiver
+    protocol_cls = Protocol
 
     def __init__(self, on_established=None, on_made=None):
         """

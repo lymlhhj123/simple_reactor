@@ -178,11 +178,11 @@ class TcpConnection(object):
         :return:
         """
         if self.ev.is_in_loop_thread():
-            self._write_impl(bytes_)
+            self._write_in_loop(bytes_)
         else:
-            self.ev.call_soon(self._write_impl, bytes_)
+            self.ev.call_soon(self._write_in_loop, bytes_)
 
-    def _write_impl(self, bytes_):
+    def _write_in_loop(self, bytes_):
         """
 
         :param bytes_:

@@ -24,9 +24,7 @@ class MyContext(Context):
 
 ev = EventLoop()
 
-ctx = MyContext()
-
-server = TcpServer(9527, ev, ctx)
+server = TcpServer(9527, ev, MyContext())
 server.start()
 
 ev.loop()

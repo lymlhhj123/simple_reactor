@@ -67,9 +67,9 @@ class TcpAcceptor(object):
 
         :return:
         """
-        self.ev.call_soon(self._start_accept_in_loop)
+        self.ev.call_soon(self._start_in_loop)
 
-    def _start_accept_in_loop(self):
+    def _start_in_loop(self):
         """
 
         :return:
@@ -129,4 +129,4 @@ class TcpAcceptor(object):
         self.sock = None
 
         self._create_sock_channel()
-        self._start_accept_in_loop()
+        self._start_in_loop()
