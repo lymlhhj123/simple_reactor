@@ -69,3 +69,4 @@ class TcpConnector(object):
         """
         if self.closed_callback:
             self.closed_callback(conn)
+            self.closed_callback = None
