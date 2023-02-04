@@ -106,7 +106,7 @@ class EventLoop(object):
         :return:
         """
         cb = Callback(func, *args, **kwargs)
-        return self._create_timer(fixed_time=fixed_time, repeated=True, cb=cb)
+        return self._create_timer(cb, fixed_time=fixed_time, repeated=True)
 
     def _create_timer(self, cb, delay=None, fixed_time=None, repeated=False):
         """
