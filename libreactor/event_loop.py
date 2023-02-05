@@ -2,6 +2,7 @@
 
 import errno
 import time
+import select
 import threading
 
 from . import poller
@@ -170,10 +171,10 @@ class EventLoop(object):
 
         events = 0
         if channel.readable():
-            events |= poller.POLLIN
+            events |= select.POLLIN
 
         if channel.writable():
-            events |= poller.POLLOUT
+            events |= select.POLLOUT
 
         fd = channel.fileno()
         if fd in self._channel_map:
@@ -245,13 +246,13 @@ class EventLoop(object):
         """
         for fd, revents in events:
             ev_mask = 0
-            if revents & poller.POLLIN:
+            if revents & select.POLLIN:
                 ev_mask |= io_event.EV_READ
 
-            if revents & poller.POLLOUT:
+            if revents & select.POLLOUT:
                 ev_mask |= io_event.EV_WRITE
 
-            if revents & (poller.POLLERR | poller.POLLHUP):
+            if revents & (select.POLLERR | select.POLLHUP):
                 ev_mask |= (io_event.EV_WRITE | io_event.EV_READ)
 
             channel = self._channel_map[fd]

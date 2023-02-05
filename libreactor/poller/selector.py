@@ -2,8 +2,6 @@
 
 import select
 
-from . import _ev
-
 
 class Selector(object):
 
@@ -19,10 +17,10 @@ class Selector(object):
         :param event:
         :return:
         """
-        if event & _ev.POLLIN:
+        if event & select.POLLIN:
             self.r_list.add(fd)
 
-        if event & _ev.POLLOUT:
+        if event & select.POLLOUT:
             self.w_list.add(fd)
 
     def unregister(self, fd):
@@ -58,16 +56,16 @@ class Selector(object):
         ev_map = {}
 
         for fd in r:
-            ev_map[fd] = _ev.POLLIN
+            ev_map[fd] = select.POLLIN
 
         for fd in w:
             ev = ev_map.get(fd, 0)
-            ev_map[fd] = ev | _ev.POLLOUT
+            ev_map[fd] = ev | select.POLLOUT
 
         for fd in x:
             ev = ev_map.get(fd, 0)
-            ev |= _ev.POLLOUT
-            ev |= _ev.POLLIN
+            ev |= select.POLLOUT
+            ev |= select.POLLIN
             ev_map[fd] = ev
 
         return ev_map.items()
