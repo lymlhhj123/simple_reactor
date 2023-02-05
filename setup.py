@@ -18,7 +18,7 @@ setup(
     description="io notify based on reactor mode",
     version=get_version(),
     author="Jun Hu",
-    author_email="",
+    author_email="524964426@qq.com",
     packages=find_packages(exclude=["example"]),
     install_requires=[],
     python_requires=">=3.8",
