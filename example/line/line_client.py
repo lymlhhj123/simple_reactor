@@ -23,7 +23,7 @@ class MyProtocol(LineReceiver):
         :return:
         """
         line_no, self.line_no = self.line_no, self.line_no + 1
-        self.send_line(line_format.format(line_no))
+        self.event_loop.call_later(2, self.send_line, line_format.format(line_no))
 
 
 class MyContext(Context):

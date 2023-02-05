@@ -14,7 +14,8 @@ class MyProtocol(LineReceiver):
         :param line:
         :return:
         """
-        print({line})
+        print(f"{line}")
+        self.send_line(line)
 
 
 class MyContext(Context):
