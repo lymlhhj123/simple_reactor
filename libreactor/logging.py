@@ -33,9 +33,6 @@ def _get_default_log():
     handler.addFilter(_ThreadFilter())
     default_log.addHandler(handler)
 
-    handler = logging.NullHandler()
-    default_log.addHandler(handler)
-
     return default_log
 
 

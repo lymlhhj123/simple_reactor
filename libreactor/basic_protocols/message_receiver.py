@@ -44,26 +44,29 @@ class Header(object):
         return struct.pack(HEADER_FMT, self.v, self.crc32, self.msg_len)
 
 
-class StreamReceiver(Protocol):
+class MessageReceiver(Protocol):
 
     def __init__(self):
 
-        super(StreamReceiver, self).__init__()
+        super(MessageReceiver, self).__init__()
 
         self._buffer = b""
         self._header = None
         self._header_received = False
 
-    def send_msg(self, msg: bytes):
+    def send_msg(self, msg: str):
         """
 
         :param msg:
         :return:
         """
-        if not isinstance(msg, bytes):
-            logger.error(f"msg type must be bytes, not {type(msg)}")
+        if not isinstance(msg, str):
+            logger.error(f"msg type must be str, not {type(msg)}")
             return
 
+        msg = msg.encode("utf-8")
+
+        # must bytes like object
         crc32 = zlib.crc32(msg)
         msg_len = len(msg)
 
@@ -97,6 +100,7 @@ class StreamReceiver(Protocol):
             if zlib.crc32(msg) != crc32:
                 self.msg_broken()
             else:
+                msg = msg.decode("utf-8")
                 self.msg_received(msg)
         except Exception as e:
             logger.error(f"error happened when process msg, {e}")

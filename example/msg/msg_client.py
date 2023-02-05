@@ -3,12 +3,12 @@
 import json
 
 from libreactor import Context
-from libreactor import StreamReceiver
+from libreactor import MessageReceiver
 from libreactor import EventLoop
 from libreactor import TcpClient
 
 
-class MyProtocol(StreamReceiver):
+class MyProtocol(MessageReceiver):
 
     def msg_received(self, msg):
         """
@@ -32,7 +32,7 @@ def on_established(protocol):
     :return:
     """
     user_data = {"1": "2", "3": "4"}
-    msg = json.dumps(user_data).encode("utf-8")
+    msg = json.dumps(user_data)
     protocol.send_msg(msg)
 
 

@@ -38,6 +38,9 @@ class Protocol(object):
         :param data:
         :return:
         """
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+
         if not isinstance(data, bytes):
             return
 
