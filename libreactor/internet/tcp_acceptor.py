@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import os
 import errno
 import socket
 
@@ -91,7 +92,7 @@ class TcpAcceptor(object):
                 elif err_code == errno.EMFILE:
                     self._too_many_open_file()
                 else:
-                    self._close()
+                    self._accept_error(err_code)
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -119,11 +120,13 @@ class TcpAcceptor(object):
         else:
             sock.close()
 
-    def _close(self):
+    def _accept_error(self, err_code):
         """
 
+        :param err_code:
         :return:
         """
+        logger.error(f"error happened on accept: {os.strerror(err_code)}")
         self.channel.close()
         self.channel = None
         self.sock = None
