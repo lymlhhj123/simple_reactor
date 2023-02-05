@@ -3,6 +3,7 @@
 - io event notify library based on reactor mode, support epoll and select.
 - current only support linux, kernel >= 4.14.
 - python >= 3.8.5.
+- only support tcp for now.
 - not support dns resolver for now.
 
 ## install
@@ -11,13 +12,21 @@ coming soon
 
 ## example
 
-### tcp server
+### echo server
 
-[tcp server](example/msg_based/msg_server.py)
+[echo server](example/echo/echo_server.py)
 
-### tcp client
+### echo client
 
-[tcp client](example/msg_based/msg_client.py)
+[echo client](example/echo/echo_client.py)
+
+### msg server
+
+[msg server](example/msg/msg_server.py)
+
+### msg client
+
+[msg client](example/msg/msg_client.py)
 
 ### task
 
@@ -25,8 +34,4 @@ coming soon
 
 ## context
 
-use one client one context, one server one context
-
-## logger
-
-coming soon
+one client one context, one server one context.
