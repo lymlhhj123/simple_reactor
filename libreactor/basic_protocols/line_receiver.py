@@ -42,8 +42,8 @@ class LineReceiver(Protocol):
             if idx == -1:
                 break
 
-            # drop `line sep`
-            line, self._buffer = self._buffer[:idx], self._buffer[idx + 1:]
+            idx += len(self.line_sep)
+            line, self._buffer = self._buffer[:idx], self._buffer[idx:]
 
             self.line_received(line)
 
