@@ -27,7 +27,7 @@ class Header(object):
         self.msg_len = msg_len
 
     @classmethod
-    def from_bytes(cls, data_bytes):
+    def from_bytes(cls, data_bytes: bytes):
         """
 
         :param data_bytes:
