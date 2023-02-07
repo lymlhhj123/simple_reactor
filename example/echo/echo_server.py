@@ -14,7 +14,7 @@ class MyProtocol(Protocol):
         :param data:
         :return:
         """
-        self.send_data(data)
+        self.connection.write(data)
 
 
 class MyContext(Context):
