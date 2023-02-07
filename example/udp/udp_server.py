@@ -16,7 +16,6 @@ class MyProtocol(DgramReceiver):
         :return:
         """
         print(f"{data}")
-        self.connection.write(data, addr)
 
 
 class MyContext(Context):
