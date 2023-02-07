@@ -178,6 +178,7 @@ class TcpConnection(object):
         :return:
         """
         if not isinstance(data, bytes):
+            logger.error(f"only accept bytes, not {type(data)}")
             return
 
         if self.ev.is_in_loop_thread():

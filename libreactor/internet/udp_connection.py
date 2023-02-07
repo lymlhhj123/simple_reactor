@@ -83,14 +83,14 @@ class UdpConnection(object):
         :return:
         """
         if not isinstance(data, bytes):
+            logger.error(f"only accept bytes, not {type(data)}")
             return
 
         if self.type == CLIENT_SIDE:
             addr = self.endpoint
         else:
-            # server side write method addr must be specified
             if not addr:
-                logger.error("server side write method addr must be specified")
+                logger.error("addr must be specified on server side write method")
                 return
 
         if self.ev.is_in_loop_thread():
