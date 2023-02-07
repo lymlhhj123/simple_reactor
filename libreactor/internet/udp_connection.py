@@ -88,10 +88,10 @@ class UdpConnection(object):
 
         if self.type == CLIENT_SIDE:
             addr = self.endpoint
-        else:
-            if not addr:
-                logger.error("addr must be specified on server side write method")
-                return
+
+        if not addr:
+            logger.error("addr must be specified on write method")
+            return
 
         if self.ev.is_in_loop_thread():
             self._write_in_loop(data, addr)
