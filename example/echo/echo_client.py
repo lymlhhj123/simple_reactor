@@ -54,6 +54,13 @@ class MyProtocol(Protocol):
         ops = io_count / (now - start_time)
         print(f"ops: {ops}")
 
+    def send_data(self):
+        """
+
+        :return:
+        """
+        self.connection.write(b"hello")
+
 
 class MyContext(Context):
 
@@ -68,7 +75,7 @@ def on_established(protocol):
     """
     protocol.start_test()
 
-    protocol.send_data(b"hello")
+    protocol.send_data()
 
 
 ev = EventLoop()
