@@ -171,21 +171,24 @@ class TcpConnection(object):
 
         self._close_connection()
 
-    def write(self, bytes_):
+    def write(self, data: bytes):
         """
 
-        :param bytes_:
+        :param data:
         :return:
         """
-        if self.ev.is_in_loop_thread():
-            self._write_in_loop(bytes_)
-        else:
-            self.ev.call_soon(self._write_in_loop, bytes_)
+        if not isinstance(data, bytes):
+            return
 
-    def _write_in_loop(self, bytes_):
+        if self.ev.is_in_loop_thread():
+            self._write_in_loop(data)
+        else:
+            self.ev.call_soon(self._write_in_loop, data)
+
+    def _write_in_loop(self, data):
         """
 
-        :param bytes_:
+        :param data:
         :return:
         """
         if self.state == ConnectionState.DISCONNECTED or self.state == ConnectionState.DISCONNECTING:
@@ -196,7 +199,7 @@ class TcpConnection(object):
             logger.error("close method is already called, cannot write")
             return
 
-        self.write_buffer += bytes_
+        self.write_buffer += data
 
         # still in connecting
         if self.state == ConnectionState.CONNECTING:

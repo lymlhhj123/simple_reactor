@@ -82,6 +82,9 @@ class UdpConnection(object):
         :param addr:
         :return:
         """
+        if not isinstance(data, bytes):
+            return
+
         if self.type == CLIENT_SIDE:
             addr = self.endpoint
         else:
