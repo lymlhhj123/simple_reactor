@@ -26,7 +26,7 @@ class MyContext(Context):
 ctx = MyContext()
 ev = EventLoop()
 
-client = UdpServer(9527, ctx, ev)
-client.start()
+server = UdpServer(9527, ctx, ev)
+server.start()
 
 ev.loop()
