@@ -29,3 +29,5 @@ ev = EventLoop()
 
 client = UdpServer(9527, ctx, ev)
 client.start()
+
+ev.loop()

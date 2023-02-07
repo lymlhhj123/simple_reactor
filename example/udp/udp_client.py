@@ -44,3 +44,5 @@ ev = EventLoop()
 
 client = UdpClient("127.0.0.1", 9527, ctx, ev)
 client.start()
+
+ev.loop()
