@@ -15,14 +15,13 @@ class MyProtocol(DgramReceiver):
         :param addr:
         :return:
         """
-        self.event_loop.call_later(1, self.connection.write, data)
 
     def write_dgram(self):
         """
 
         :return:
         """
-        self.connection.write(b"this is dgram")
+        self.event_loop.call_every(1, self.connection.write, b"data")
 
 
 def on_established(protocol):
