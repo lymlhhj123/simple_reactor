@@ -6,6 +6,7 @@ from collections import deque
 
 from libreactor.channel import Channel
 from libreactor import utils
+from libreactor import const
 from libreactor import logging
 
 READ_SIZE = 1500
@@ -31,8 +32,8 @@ class UdpConnection(object):
         self.ev = ev
 
         self.channel = Channel(sock.fileno(), ev)
-        self.channel.set_read_callback(self._read_event)
-        self.channel.set_write_callback(self._write_event)
+        self.channel.set_read_callback(self._do_read_event)
+        self.channel.set_write_callback(self._do_write_event)
         self.channel.enable_reading()
 
         self.type = UNKNOWN
@@ -106,7 +107,7 @@ class UdpConnection(object):
         if self.write_buffer and not self.channel.writable():
             self.channel.enable_writing()
 
-    def _write_event(self):
+    def _do_write_event(self):
         """
 
         :return:
@@ -131,7 +132,7 @@ class UdpConnection(object):
 
             self.write_buffer.popleft()
 
-    def _read_event(self):
+    def _do_read_event(self):
         """
 
         :return:
@@ -154,10 +155,11 @@ class UdpConnection(object):
         """
         err_code = utils.errno_from_ex(ex)
         if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-            return
+            return const.ConnectionErr.OK
 
         readable = os.strerror(err_code)
-        logger.error(f"rw error, reason: {readable}")
+        logger.error(f"sock read/write error, reason: {readable}")
+        return const.ConnectionErr.UNKNOWN
 
     def close(self):
         """

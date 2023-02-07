@@ -245,9 +245,8 @@ class TcpConnection(object):
         """
         try:
             write_size = self.sock.send(self.write_buffer)
-        except Exception as e:
-            err_code = utils.errno_from_ex(e)
-            return self._handle_rw_error(err_code)
+        except Exception as ex:
+            return self._handle_rw_error(ex)
 
         if write_size == 0:
             return ConnectionErr.PEER_CLOSED
@@ -279,9 +278,8 @@ class TcpConnection(object):
         while True:
             try:
                 data = self.sock.recv(READ_SIZE)
-            except Exception as e:
-                err_code = utils.errno_from_ex(e)
-                return self._handle_rw_error(err_code)
+            except Exception as ex:
+                return self._handle_rw_error(ex)
 
             if not data:
                 return ConnectionErr.PEER_CLOSED
@@ -301,12 +299,13 @@ class TcpConnection(object):
         self.channel.disable_writing()
         self.connection_established()
 
-    def _handle_rw_error(self, err_code):
+    def _handle_rw_error(self, ex):
         """
 
-        :param err_code:
+        :param ex:
         :return:
         """
+        err_code = utils.errno_from_ex(ex)
         if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
             return ConnectionErr.OK
 

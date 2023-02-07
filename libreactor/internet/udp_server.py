@@ -46,4 +46,4 @@ class UdpServer(object):
         sock.bind((ip_any, self.port))
 
         conn = UdpConnection(sock, self.ctx, self.ev)
-        conn.connection_established((ip_any, self.port))
+        conn.connection_made((ip_any, self.port))
