@@ -26,7 +26,7 @@ class LineReceiver(Protocol):
             line += self.line_sep
 
         data = line.encode("utf-8")
-        self.send_data(data)
+        self.connection.write(data)
 
     def data_received(self, data: bytes):
         """

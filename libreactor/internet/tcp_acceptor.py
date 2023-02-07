@@ -47,7 +47,7 @@ class TcpAcceptor(object):
             family, addr_any = socket.AF_INET, const.IPAny.V4
 
         sock = socket.socket(family, socket.SOCK_STREAM)
-        sock_util.set_tcp_reuse_addr(sock)
+        sock_util.set_reuse_addr(sock)
         sock.bind((addr_any, self.port))
         sock.listen(self.backlog)
         self.sock = sock

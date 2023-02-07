@@ -3,7 +3,7 @@
 import socket
 
 
-def set_tcp_reuse_addr(sock: socket.socket):
+def set_reuse_addr(sock: socket.socket):
     """
 
     :param sock:

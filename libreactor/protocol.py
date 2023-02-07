@@ -32,32 +32,10 @@ class Protocol(object):
         :return:
         """
 
-    def send_data(self, data: bytes):
-        """
-        used by tcp
-        :param data:
-        :return:
-        """
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-
-        if not isinstance(data, bytes):
-            return
-
-        self.connection.write(data)
-
     def data_received(self, data: bytes):
         """
         used by tcp
         :param data:
-        :return:
-        """
-
-    def send_dgram(self, data, addr):
-        """
-        used by udp
-        :param data:
-        :param addr:
         :return:
         """
 

@@ -74,7 +74,7 @@ class MessageReceiver(Protocol):
 
         data = header.as_bytes() + msg
 
-        self.send_data(data)
+        self.connection.write(data)
 
     def data_received(self, data: bytes):
         """
