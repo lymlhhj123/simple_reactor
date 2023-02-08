@@ -3,6 +3,6 @@
 from libreactor import Protocol
 
 
-class DgramReceiver(Protocol):
+class DgramProtocol(Protocol):
 
     pass

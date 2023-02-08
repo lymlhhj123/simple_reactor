@@ -38,7 +38,8 @@ def on_established(protocol):
 
 ev = EventLoop()
 
-ctx = MyContext(on_established=on_established)
+ctx = MyContext()
+ctx.set_on_established(on_established)
 
 client = TcpClient("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
 client.start()

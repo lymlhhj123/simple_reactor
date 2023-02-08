@@ -7,13 +7,25 @@ class Context(object):
 
     protocol_cls = Protocol
 
-    def __init__(self, on_established=None, on_made=None):
+    def __init__(self):
+
+        self.on_established = None
+        self.on_made = None
+
+    def set_on_established(self, on_established):
         """
 
         :param on_established:
-        :param on_made:
+        :return:
         """
         self.on_established = on_established
+
+    def set_on_made(self, on_made):
+        """
+
+        :param on_made:
+        :return:
+        """
         self.on_made = on_made
 
     def connection_established(self, protocol):

@@ -1,12 +1,12 @@
 # coding: utf-8
 
-from libreactor import DgramReceiver
+from libreactor import DgramProtocol
 from libreactor import Context
 from libreactor import UdpClient
 from libreactor import EventLoop
 
 
-class MyProtocol(DgramReceiver):
+class MyProtocol(DgramProtocol):
 
     def dgram_received(self, data, addr):
         """
@@ -38,7 +38,9 @@ class MyContext(Context):
     protocol_cls = MyProtocol
 
 
-ctx = MyContext(on_established=on_established)
+ctx = MyContext()
+ctx.set_on_established(on_established)
+
 ev = EventLoop()
 
 client = UdpClient("127.0.0.1", 9527, ctx, ev)

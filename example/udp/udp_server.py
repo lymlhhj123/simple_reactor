@@ -1,12 +1,12 @@
 # coding: utf-8
 
-from libreactor import DgramReceiver
+from libreactor import DgramProtocol
 from libreactor import Context
 from libreactor import UdpServer
 from libreactor import EventLoop
 
 
-class MyProtocol(DgramReceiver):
+class MyProtocol(DgramProtocol):
 
     def dgram_received(self, data, addr):
         """
