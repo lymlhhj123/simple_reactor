@@ -2,11 +2,11 @@
 
 import json
 
-from libreactor import Message
 from libreactor import Context
-from libreactor import MessageReceiver
 from libreactor import EventLoop
 from libreactor import TcpClient
+from libreactor.message import Message
+from libreactor.basic_protocols import MessageReceiver
 
 
 class MyProtocol(MessageReceiver):

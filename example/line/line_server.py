@@ -1,9 +1,9 @@
 # coding: utf-8
 
 from libreactor import Context
-from libreactor import LineReceiver
 from libreactor import EventLoop
 from libreactor import TcpServer
+from libreactor.basic_protocols import LineReceiver
 
 
 class MyProtocol(LineReceiver):

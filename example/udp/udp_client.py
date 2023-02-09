@@ -1,9 +1,9 @@
 # coding: utf-8
 
-from libreactor import UdpProtocol
 from libreactor import Context
 from libreactor import UdpClient
 from libreactor import EventLoop
+from libreactor.protocol import UdpProtocol
 
 
 class MyProtocol(UdpProtocol):
