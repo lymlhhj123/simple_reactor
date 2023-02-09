@@ -2,9 +2,9 @@
 
 import json
 
-from libreactor import Context
-from libreactor import EventLoop
-from libreactor import TcpClient
+from libreactor.context import Context
+from libreactor.event_loop import EventLoop
+from libreactor.internet import TcpClient
 from libreactor.message import Message
 from libreactor.basic_protocols import MessageReceiver
 

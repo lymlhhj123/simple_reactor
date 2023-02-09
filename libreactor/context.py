@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor import Protocol
+from .protocol import Protocol
 
 
 class Context(object):

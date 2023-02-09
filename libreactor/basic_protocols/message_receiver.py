@@ -1,13 +1,13 @@
 # coding: utf-8
 
-from libreactor import TcpProtocol
-from libreactor.message import Message, Header
-from libreactor import logging
+from ..protocol import Protocol
+from ..message import Message, Header
+from .. import logging
 
 logger = logging.get_logger()
 
 
-class MessageReceiver(TcpProtocol):
+class MessageReceiver(Protocol):
 
     def __init__(self):
 

@@ -43,22 +43,16 @@ class Protocol(object):
         """
         self.connection.close()
 
-
-class TcpProtocol(Protocol):
-
     def data_received(self, data: bytes):
         """
-
+        tcp
         :param data:
         :return:
         """
 
-
-class UdpProtocol(Protocol):
-
     def dgram_received(self, data, addr):
         """
-
+        udp
         :param data:
         :param addr:
         :return:
