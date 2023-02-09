@@ -2,6 +2,7 @@
 
 import json
 
+from libreactor import Message
 from libreactor import Context
 from libreactor import MessageReceiver
 from libreactor import EventLoop
@@ -32,7 +33,7 @@ def on_established(protocol):
     :return:
     """
     user_data = {"1": "2", "3": "4"}
-    msg = json.dumps(user_data)
+    msg = Message.create(json.dumps(user_data))
     protocol.send_msg(msg)
 
 
