@@ -17,7 +17,7 @@ class MyProtocol(MessageReceiver):
         :param msg:
         :return:
         """
-        print(f"{msg}")
+        print(f"{msg.json()}")
         self.event_loop.call_later(5, self.send_msg, msg)
 
 

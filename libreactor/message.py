@@ -104,4 +104,4 @@ class Message(object):
 
         :return:
         """
-        return json.load(self.context())
+        return json.loads(self.context())
