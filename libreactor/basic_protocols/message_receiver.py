@@ -35,9 +35,8 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
+        self._buffer += data
         while True:
-            self._buffer += data
-
             if self._header_received is False:
                 if self._retrieve_header() is False:
                     return
@@ -75,16 +74,16 @@ class MessageReceiver(Protocol):
         try:
             header = Header.from_bytes(header_bytes)
         except Exception as ex:
-            logger.error("header broken, %s", ex)
-            self.header_broken()
+            self.header_broken(ex)
             return False
 
         self._header = header
         return True
 
-    def header_broken(self):
+    def header_broken(self, ex):
         """
 
+        :param ex:
         :return:
         """
         self.close_connection()
