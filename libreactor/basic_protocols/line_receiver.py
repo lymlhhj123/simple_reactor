@@ -1,9 +1,9 @@
 # coding: utf-8
 
-from libreactor import Protocol
+from libreactor import TcpProtocol
 
 
-class LineReceiver(Protocol):
+class LineReceiver(TcpProtocol):
 
     line_sep = "\n"
 

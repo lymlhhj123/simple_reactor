@@ -3,6 +3,7 @@
 import zlib
 import json
 import struct
+from typing import Optional
 
 
 class Header(object):
@@ -55,13 +56,13 @@ class Message(object):
     VERSION = 1
     CHARSET = "utf-8"
 
-    def __init__(self, header, body):
+    def __init__(self, header: Header, body: bytes):
 
         self.header = header
         self.body = body
 
     @classmethod
-    def create(cls, data):
+    def create(cls, data: Optional[str, bytes]):
         """
 
         :param data:

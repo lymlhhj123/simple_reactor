@@ -13,28 +13,16 @@ class Context(object):
         self.on_made = None
         self.on_error = None
 
-    def set_on_established(self, on_established):
+    def set_callback(self, on_established=None, on_made=None, on_error=None):
         """
 
         :param on_established:
-        :return:
-        """
-        self.on_established = on_established
-
-    def set_on_made(self, on_made):
-        """
-
         :param on_made:
-        :return:
-        """
-        self.on_made = on_made
-
-    def set_on_error(self, on_error):
-        """
-
         :param on_error:
         :return:
         """
+        self.on_established = on_established
+        self.on_made = on_made
         self.on_error = on_error
 
     def connection_established(self, protocol):
@@ -64,6 +52,8 @@ class Context(object):
         :param error:
         :return:
         """
+        if self.on_error:
+            self.on_error(error)
 
     def build_protocol(self):
         """

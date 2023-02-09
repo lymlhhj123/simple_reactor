@@ -1,12 +1,12 @@
 # coding: utf-8
 
 from libreactor import Context
-from libreactor import Protocol
+from libreactor import TcpProtocol
 from libreactor import EventLoop
 from libreactor import TcpServer
 
 
-class MyProtocol(Protocol):
+class MyProtocol(TcpProtocol):
 
     def data_received(self, data: bytes):
         """

@@ -36,24 +36,30 @@ class Protocol(object):
         :return:
         """
 
-    def data_received(self, data: bytes):
-        """
-        used by tcp
-        :param data:
-        :return:
-        """
-
-    def dgram_received(self, data, addr):
-        """
-        used by udp
-        :param data:
-        :param addr:
-        :return:
-        """
-
     def close_connection(self):
         """
 
         :return:
         """
         self.connection.close()
+
+
+class TcpProtocol(Protocol):
+
+    def data_received(self, data: bytes):
+        """
+
+        :param data:
+        :return:
+        """
+
+
+class UdpProtocol(Protocol):
+
+    def dgram_received(self, data, addr):
+        """
+
+        :param data:
+        :param addr:
+        :return:
+        """

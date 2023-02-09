@@ -1,20 +1,19 @@
 # coding: utf-8
 
-from libreactor.protocol import Protocol
+from libreactor import TcpProtocol
 from libreactor.message import Message, Header
 from libreactor import logging
 
 logger = logging.get_logger()
 
 
-class MessageReceiver(Protocol):
+class MessageReceiver(TcpProtocol):
 
     def __init__(self):
 
         super(MessageReceiver, self).__init__()
 
         self._buffer = b""
-        self._header_received = False
         self._header = None
 
     def send_msg(self, msg: Message):
@@ -37,29 +36,25 @@ class MessageReceiver(Protocol):
         """
         self._buffer += data
         while True:
-            if self._header_received is False:
+            if self._header is None:
                 if self._retrieve_header() is False:
                     return
-
-                self._header_received = True
 
             assert self._header is not None
             msg_len = self._header.msg_len
             if len(self._buffer) < msg_len:
                 return
 
+            header, self._header = self._header, None
             try:
                 data, self._buffer = self._buffer[:msg_len], self._buffer[msg_len:]
                 msg = Message.create(data)
-                if msg.header != self._header:
+                if msg.header != header:
                     self.msg_broken()
                 else:
                     self.msg_received(msg)
             except Exception as e:
                 logger.error(f"error happened when process msg, {e}")
-            finally:
-                self._header_received = False
-                self._header = None
 
     def _retrieve_header(self):
         """
@@ -86,6 +81,7 @@ class MessageReceiver(Protocol):
         :param ex:
         :return:
         """
+        logger.error(f"header broken: {ex}")
         self.close_connection()
 
     def msg_broken(self):
