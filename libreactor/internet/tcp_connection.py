@@ -109,6 +109,8 @@ class TcpConnection(object):
         self.protocol = self._build_protocol()
         self.protocol.connection_established()
 
+        self.ctx.connection_established(self.protocol)
+
     def connection_made(self, addr):
         """
 
@@ -123,6 +125,8 @@ class TcpConnection(object):
 
         self.protocol = self._build_protocol()
         self.protocol.connection_made()
+
+        self.ctx.connection_made(self.protocol)
 
     def _build_protocol(self):
         """
@@ -169,7 +173,20 @@ class TcpConnection(object):
         if self.protocol:
             self.protocol.connection_error(error)
 
+        self.ctx.connection_error(error)
+
         self._close_connection()
+
+    def _connection_closed(self):
+        """
+
+        :return:
+        """
+        if self.closed_callback:
+            self.closed_callback(self)
+
+        if self.protocol:
+            self.protocol.connection_closed()
 
     def write(self, data: bytes):
         """
@@ -386,8 +403,7 @@ class TcpConnection(object):
         if self.linger_timer:
             self.linger_timer.cancel()
 
-        if self.closed_callback:
-            self.closed_callback(self)
+        self._connection_closed()
 
         self.write_buffer = b""
         self.channel.disable_all()

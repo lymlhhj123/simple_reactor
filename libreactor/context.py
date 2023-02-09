@@ -11,6 +11,7 @@ class Context(object):
 
         self.on_established = None
         self.on_made = None
+        self.on_error = None
 
     def set_on_established(self, on_established):
         """
@@ -27,6 +28,14 @@ class Context(object):
         :return:
         """
         self.on_made = on_made
+
+    def set_on_error(self, on_error):
+        """
+
+        :param on_error:
+        :return:
+        """
+        self.on_error = on_error
 
     def connection_established(self, protocol):
         """
@@ -47,6 +56,14 @@ class Context(object):
         """
         if self.on_made:
             self.on_made(protocol)
+
+    def connection_error(self, error):
+        """
+
+        auto called when connection error happened
+        :param error:
+        :return:
+        """
 
     def build_protocol(self):
         """

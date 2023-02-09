@@ -12,23 +12,27 @@ class Protocol(object):
     def connection_made(self):
         """
 
-        server side accept new connection
+        auto called when server side accept new connection
         :return:
         """
-        self.ctx.connection_made(self)
 
     def connection_established(self):
         """
 
-        client side connection established
+        auto called when client side connection established
         :return:
         """
-        self.ctx.connection_established(self)
 
     def connection_error(self, error: const.ConnectionErr):
         """
-
+        auto called when connection error happened
         :param error:
+        :return:
+        """
+
+    def connection_closed(self):
+        """
+        auto called when connection closed
         :return:
         """
 

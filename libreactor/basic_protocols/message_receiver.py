@@ -125,7 +125,6 @@ class MessageReceiver(Protocol):
             return False
 
         self._header = header
-        self.header_retrieved(header)
         return True
 
     def header_broken(self):
@@ -134,13 +133,6 @@ class MessageReceiver(Protocol):
         :return:
         """
         self.close_connection()
-
-    def header_retrieved(self, header):
-        """
-
-        :param header:
-        :return:
-        """
 
     def msg_broken(self):
         """

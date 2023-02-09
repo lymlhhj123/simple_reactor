@@ -38,6 +38,7 @@ class UdpConnection(object):
 
         self.type = UNKNOWN
         self.endpoint = None
+        self.closed = False
 
         self.write_buffer = deque()
         self.protocol = None
@@ -105,6 +106,9 @@ class UdpConnection(object):
         :param addr:
         :return:
         """
+        if self.closed:
+            return
+
         self.write_buffer.append((data, addr))
         self._do_write()
 
@@ -116,6 +120,9 @@ class UdpConnection(object):
 
         :return:
         """
+        if self.closed:
+            return
+
         self._do_write()
 
         if not self.write_buffer and self.channel.writable():
@@ -141,6 +148,9 @@ class UdpConnection(object):
 
         :return:
         """
+        if self.closed:
+            return
+
         while True:
             try:
                 data, addr = self.sock.recvfrom(READ_SIZE)
@@ -180,6 +190,10 @@ class UdpConnection(object):
 
         :return:
         """
+        if self.closed:
+            return
+
+        self.closed = True
         self.type = UNKNOWN
         self.write_buffer.clear()
         self.channel.close()
