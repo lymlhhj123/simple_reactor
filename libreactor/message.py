@@ -3,7 +3,7 @@
 import zlib
 import json
 import struct
-from typing import Optional
+from typing import Union
 
 
 class Header(object):
@@ -62,7 +62,7 @@ class Message(object):
         self.body = body
 
     @classmethod
-    def create(cls, data: Optional[str, bytes]):
+    def create(cls, data: Union[str, bytes]):
         """
 
         :param data:
