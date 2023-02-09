@@ -36,9 +36,8 @@ class MessageReceiver(Protocol):
         """
         self._buffer += data
         while True:
-            if self._header is None:
-                if self._retrieve_header() is False:
-                    return
+            if self._retrieve_header() is False:
+                return
 
             assert self._header is not None
             msg_len = self._header.msg_len
@@ -61,6 +60,9 @@ class MessageReceiver(Protocol):
 
         :return:
         """
+        if self._header:
+            return True
+
         header_len = Header.HEADER_LEN
         if len(self._buffer) < header_len:
             return False
