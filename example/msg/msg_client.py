@@ -5,7 +5,7 @@ import json
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
-from libreactor.message_factory import MessageFactory
+from libreactor.models import MessageFactory
 from libreactor.basic_protocols import MessageReceiver
 
 
@@ -33,7 +33,7 @@ def on_established(protocol):
     :return:
     """
     user_data = {"1": "2", "3": "4"}
-    msg = MessageFactory().create(json.dumps(user_data))
+    msg = MessageFactory().from_str(json.dumps(user_data))
     protocol.send_msg(msg)
 
 

@@ -2,9 +2,10 @@
 
 from typing import Union
 
+from ..models import BytesBuffer
 from ..models import Message
+from ..models import MessageFactory
 from ..protocol import Protocol
-from ..message_factory import MessageFactory
 from .. import logging
 
 logger = logging.get_logger()
@@ -16,7 +17,7 @@ class MessageReceiver(Protocol):
 
         super(MessageReceiver, self).__init__()
 
-        self.buffer = b""
+        self.buffer = BytesBuffer()
         self.msg_factory = MessageFactory()
 
     def send_data(self, data: Union[bytes, str]):
@@ -25,7 +26,7 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
-        msg = self.msg_factory.create(data)
+        msg = self.msg_factory.from_str(data)
         self.send_msg(msg)
 
     def send_msg(self, msg: Message):
@@ -46,21 +47,15 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
-        self.buffer += data
+        self.buffer.add(data)
         while True:
             try:
-                read_size = self.msg_factory.from_stream(self.buffer)
+                msg = self.msg_factory.from_buffer(self.buffer)
             except Exception as ex:
                 logger.error(f"header broken: {ex}")
                 self.msg_broken()
                 return
 
-            if read_size == -1:
-                return
-
-            self.buffer = self.buffer[read_size:]
-
-            msg = self.msg_factory.retrieve()
             if not msg:
                 return
 
