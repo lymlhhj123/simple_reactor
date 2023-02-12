@@ -36,7 +36,7 @@ class MessageReceiver(Protocol):
         :return:
         """
         if not isinstance(msg, Message):
-            logger.error(f"must be Message, not {type(msg)}")
+            logger.error(f"must be {type(Message)}, not {type(msg)}")
             return
 
         self.connection.write(msg.as_bytes())
@@ -52,7 +52,7 @@ class MessageReceiver(Protocol):
             try:
                 msg = self.msg_factory.from_buffer(self.buffer)
             except Exception as ex:
-                logger.error(f"header broken: {ex}")
+                logger.error(f"msg broken: {ex}")
                 self.msg_broken()
                 return
 
