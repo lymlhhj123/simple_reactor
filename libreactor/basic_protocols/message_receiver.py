@@ -1,7 +1,10 @@
 # coding: utf-8
 
+from typing import Union
+
+from ..models import Message
 from ..protocol import Protocol
-from ..message import Message, Header
+from ..message_factory import MessageFactory
 from .. import logging
 
 logger = logging.get_logger()
@@ -13,8 +16,17 @@ class MessageReceiver(Protocol):
 
         super(MessageReceiver, self).__init__()
 
-        self._buffer = b""
-        self._header = None
+        self.buffer = b""
+        self.msg_factory = MessageFactory()
+
+    def send_data(self, data: Union[bytes, str]):
+        """
+
+        :param data:
+        :return:
+        """
+        msg = self.msg_factory.create(data)
+        self.send_msg(msg)
 
     def send_msg(self, msg: Message):
         """
@@ -34,57 +46,28 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
-        self._buffer += data
+        self.buffer += data
         while True:
-            if self._retrieve_header() is False:
-                return
-
-            assert self._header is not None
-            msg_len = self._header.msg_len
-            if len(self._buffer) < msg_len:
-                return
-
-            header, self._header = self._header, None
             try:
-                data, self._buffer = self._buffer[:msg_len], self._buffer[msg_len:]
-                msg = Message.create(data)
-                if msg.header != header:
-                    self.msg_broken()
-                else:
-                    self.msg_received(msg)
-            except Exception as e:
-                logger.error(f"error happened when process msg, {e}")
+                read_size = self.msg_factory.from_stream(self.buffer)
+            except Exception as ex:
+                logger.error(f"header broken: {ex}")
+                self.msg_broken()
+                return
 
-    def _retrieve_header(self):
-        """
+            if read_size == -1:
+                return
 
-        :return:
-        """
-        if self._header:
-            return True
+            self.buffer = self.buffer[read_size:]
 
-        header_len = Header.HEADER_LEN
-        if len(self._buffer) < header_len:
-            return False
+            msg = self.msg_factory.retrieve()
+            if not msg:
+                return
 
-        header_bytes, self._buffer = self._buffer[:header_len], self._buffer[header_len:]
-        try:
-            header = Header.from_bytes(header_bytes)
-        except Exception as ex:
-            self.header_broken(ex)
-            return False
-
-        self._header = header
-        return True
-
-    def header_broken(self, ex):
-        """
-
-        :param ex:
-        :return:
-        """
-        logger.error(f"header broken: {ex}")
-        self.close_connection()
+            if msg.is_broken():
+                self.msg_broken()
+            else:
+                self.msg_received(msg)
 
     def msg_broken(self):
         """

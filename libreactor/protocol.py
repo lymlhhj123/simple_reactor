@@ -45,14 +45,14 @@ class Protocol(object):
 
     def data_received(self, data: bytes):
         """
-        tcp
+        used by tcp
         :param data:
         :return:
         """
 
     def dgram_received(self, data, addr):
         """
-        udp
+        used by udp
         :param data:
         :param addr:
         :return:
