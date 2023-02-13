@@ -39,7 +39,7 @@ class MyContext(Context):
 
 
 ctx = MyContext()
-ctx.set_callback(on_established)
+ctx.set_established_callback(on_established)
 
 ev = EventLoop()
 
