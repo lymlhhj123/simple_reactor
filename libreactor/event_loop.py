@@ -61,7 +61,7 @@ class EventLoop(object):
 
     def call_later(self, delay, func, *args, **kwargs):
         """
-        延迟一段时间调用
+
         :param delay:
         :param func:
         :param args:
@@ -69,25 +69,25 @@ class EventLoop(object):
         :return:
         """
         cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, delay=delay)
+        return self._create_timer(cb, delay)
 
-    def call_at(self, fixed_time, func, *args, **kwargs):
+    def call_at(self, when, func, *args, **kwargs):
         """
-        在固定的时间点调用，比如12:00:00
-        :param fixed_time:
+
+        :param when:
         :param func:
         :param args:
         :param kwargs:
         :return:
         """
-        cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, fixed_time=fixed_time)
+        now = self.time()
+        return self.call_later(when - now, func, *args, **kwargs)
 
     call_when = call_at
 
     def call_every(self, interval, func, *args, **kwargs):
         """
-        每隔一段时间调用一次
+
         :param interval:
         :param func:
         :param args:
@@ -95,30 +95,17 @@ class EventLoop(object):
         :return:
         """
         cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, delay=interval, repeated=True)
+        return self._create_timer(cb, interval, repeated=True)
 
-    def call_every_ex(self, fixed_time, func, *args, **kwargs):
-        """
-        在每天的固定时间点调用
-        :param fixed_time:
-        :param func:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, fixed_time=fixed_time, repeated=True)
-
-    def _create_timer(self, cb, delay=None, fixed_time=None, repeated=False):
+    def _create_timer(self, cb, delay, repeated=False):
         """
 
         :param delay:
-        :param fixed_time:
         :param repeated:
         :param cb:
         :return:
         """
-        t = Timer(self, cb, delay, fixed_time, repeated)
+        t = Timer(self, cb, delay, repeated)
         try:
             with self._mutex:
                 self._timer_queue.put(t)
