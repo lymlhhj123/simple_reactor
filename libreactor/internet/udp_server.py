@@ -36,7 +36,7 @@ class UdpServer(object):
         """
         if self.is_ipv6:
             family = socket.AF_INET6
-            ip_any = const.IPAny.v6
+            ip_any = const.IPAny.V6
         else:
             family = socket.AF_INET
             ip_any = const.IPAny.V4

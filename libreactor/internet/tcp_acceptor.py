@@ -34,15 +34,15 @@ class TcpAcceptor(object):
         self.channel = None
         self.new_connection_callback = None
 
-        self._create_sock_channel()
+        self._create_sock_and_channel()
 
-    def _create_sock_channel(self):
+    def _create_sock_and_channel(self):
         """
 
         :return:
         """
         if self.is_ipv6:
-            family, addr_any = socket.AF_INET6, const.IPAny.v6
+            family, addr_any = socket.AF_INET6, const.IPAny.V6
         else:
             family, addr_any = socket.AF_INET, const.IPAny.V4
 
@@ -131,5 +131,5 @@ class TcpAcceptor(object):
         self.channel = None
         self.sock = None
 
-        self._create_sock_channel()
+        self._create_sock_and_channel()
         self._start_in_loop()

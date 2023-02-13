@@ -50,4 +50,4 @@ class DNSResolvStatus(object):
 class IPAny(object):
 
     V4 = "0.0.0.0"
-    v6 = "::"
+    V6 = "::"
