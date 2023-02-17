@@ -18,18 +18,18 @@ READ_SIZE = 8192
 
 class TcpConnection(object):
 
-    def __init__(self, sock, ctx, event_loop):
+    def __init__(self, sock, ctx, ev):
         """
 
         :param sock:
         :param ctx:
-        :param event_loop:
+        :param ev:
         """
         self.sock = sock
         self.ctx = ctx
-        self.ev = event_loop
+        self.ev = ev
 
-        self.channel = Channel(sock.fileno(), event_loop)
+        self.channel = Channel(sock.fileno(), ev)
         self.channel.set_read_callback(self._on_read_event)
         self.channel.set_write_callback(self._on_write_event)
 

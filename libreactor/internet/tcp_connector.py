@@ -11,18 +11,18 @@ logger = logging.get_logger()
 
 class TcpConnector(object):
 
-    def __init__(self, family, endpoint, event_loop, ctx, timeout=10):
+    def __init__(self, family, endpoint, ev, ctx, timeout=10):
         """
 
         :param family:
         :param endpoint:
-        :param event_loop:
+        :param ev:
         :param ctx:
         :param timeout:
         """
         self.family = family
         self.endpoint = endpoint
-        self.event_loop = event_loop
+        self.ev = ev
         self.ctx = ctx
         self.timeout = timeout
 
@@ -59,7 +59,7 @@ class TcpConnector(object):
 
         :return:
         """
-        assert self.event_loop.is_in_loop_thread()
+        assert self.ev.is_in_loop_thread()
 
         self._connect_in_loop(self.family, self.endpoint, self.timeout)
 
@@ -75,7 +75,7 @@ class TcpConnector(object):
         sock_util.set_tcp_no_delay(sock)
         sock_util.set_tcp_keepalive(sock)
 
-        conn = TcpConnection(sock, self.ctx, self.event_loop)
+        conn = TcpConnection(sock, self.ctx, self.ev)
         conn.set_closed_callback(self._connection_closed)
         conn.set_error_callback(self._connection_error)
         conn.set_failure_callback(self._connection_failed)
