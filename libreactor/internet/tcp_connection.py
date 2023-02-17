@@ -184,15 +184,14 @@ class TcpConnection(object):
         if self.on_failure:
             self.on_failure(self)
 
-    def _connection_error(self, error):
+    def _connection_error(self):
         """
         error happened when on read/write
-        :param error:
         :return:
         """
         self._close_connection()
 
-        self.protocol.connection_error(error)
+        self.protocol.connection_error()
 
         if self.on_error:
             self.on_error(self)
@@ -246,7 +245,7 @@ class TcpConnection(object):
         # try to write directly
         error = self._do_write()
         if error != ConnectionErr.OK:
-            self._connection_error(error)
+            self._connection_error()
             return
 
         if self.write_buffer and not self.channel.writable():
@@ -266,7 +265,7 @@ class TcpConnection(object):
         if self.write_buffer:
             error = self._do_write()
             if error != ConnectionErr.OK:
-                self._connection_error(error)
+                self._connection_error()
                 return
 
         if self.write_buffer:
@@ -308,7 +307,7 @@ class TcpConnection(object):
 
         error = self._do_read()
         if error != ConnectionErr.OK:
-            self._connection_error(error)
+            self._connection_error()
             return
 
     def _do_read(self):
