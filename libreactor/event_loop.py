@@ -34,7 +34,7 @@ class EventLoop(object):
 
         self.signaler = Signaler()
         self.channel = Channel(self.signaler.fileno(), self)
-        self.channel.set_read_callback(self._on_read_event)
+        self.channel.set_read_callback(self.signaler.read_all)
         self.channel.enable_reading()
 
     def time(self):
@@ -123,13 +123,6 @@ class EventLoop(object):
         """
         with self._mutex:
             self._timer_queue.cancel(timer)
-
-    def _on_read_event(self):
-        """
-
-        :return:
-        """
-        self.signaler.read_all()
 
     def wakeup(self):
         """

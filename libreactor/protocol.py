@@ -36,9 +36,7 @@ class Protocol(object):
 
         :return:
         """
-        if self.connection:
-            self.connection.close()
-            del self.connection
+        self.connection.close()
 
     def data_received(self, data: bytes):
         """
