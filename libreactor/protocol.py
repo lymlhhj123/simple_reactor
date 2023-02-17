@@ -9,14 +9,12 @@ class Protocol(object):
 
     def connection_made(self):
         """
-
         auto called when server side accept new connection
         :return:
         """
 
     def connection_established(self):
         """
-
         auto called when client side connection established
         :return:
         """

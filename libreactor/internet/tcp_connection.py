@@ -397,17 +397,7 @@ class TcpConnection(object):
             return
 
         logger.warning(f"write buffer is not empty, close connection after {delay} sec")
-        self.linger_timer = self.ev.call_later(delay, self._delay_close)
-
-    def _delay_close(self):
-        """
-
-        :return:
-        """
-        if self.write_buffer:
-            logger.warning("force close connection and drop write buffer")
-
-        self._close_connection()
+        self.linger_timer = self.ev.call_later(delay, self._close_connection)
 
     def _close_connection(self):
         """
@@ -422,13 +412,13 @@ class TcpConnection(object):
         if self.linger_timer:
             self.linger_timer.cancel()
 
-        self._connection_closed()
-
         self.write_buffer = b""
         self.channel.disable_all()
 
         # close on next loop
         self.ev.call_soon(self._close_force)
+
+        self._connection_closed()
 
     def _close_force(self):
         """
