@@ -42,15 +42,33 @@ class TcpConnection(object):
         self.linger_timer = None
         self.timeout_timer = None
 
-        self.closed_callback = None
+        self.on_closed = None
+        self.on_error = None
+        self.on_failure = None
 
-    def set_closed_callback(self, closed_callback):
+    def set_closed_callback(self, callback):
         """
 
-        :param closed_callback:
+        :param callback:
         :return:
         """
-        self.closed_callback = closed_callback
+        self.on_closed = callback
+
+    def set_error_callback(self, callback):
+        """
+
+        :param callback:
+        :return:
+        """
+        self.on_error = callback
+
+    def set_failure_callback(self, callback):
+        """
+
+        :param callback:
+        :return:
+        """
+        self.on_failure = callback
 
     def fileno(self):
         """
@@ -94,8 +112,7 @@ class TcpConnection(object):
 
     def connection_established(self):
         """
-
-        client side connection
+        client side established connection
         :return:
         """
         logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
@@ -113,8 +130,7 @@ class TcpConnection(object):
 
     def connection_made(self, addr):
         """
-
-        server side connection
+        server side accept new connection
         :param addr:
         :return:
         """
@@ -141,13 +157,11 @@ class TcpConnection(object):
 
     def _connection_timeout(self):
         """
-
         client establish connection timeout
         :return:
         """
-        logger.error(f"timeout to connect: {self.endpoint}")
         self._timeout_timer = None
-        self._connection_error(ConnectionErr.TIMEOUT)
+        self._connection_failed(ConnectionErr.TIMEOUT)
 
     def _connection_failed(self, err_code):
         """
@@ -156,34 +170,40 @@ class TcpConnection(object):
         :return:
         """
         reason = os.strerror(err_code)
+        if not reason:
+            reason = ConnectionErr.MAP.get(err_code, "Unknown")
+
         logger.error(f"failed to connect {self.endpoint}, reason: {reason}")
 
         if self.timeout_timer:
             self.timeout_timer.cancel()
             self.timeout_timer = None
 
-        self._connection_error(ConnectionErr.CONNECT_FAILED)
+        self._close_connection()
+
+        if self.on_failure:
+            self.on_failure(self)
 
     def _connection_error(self, error):
         """
-
+        error happened when on read/write
         :param error:
         :return:
         """
-        if self.protocol:
-            self.protocol.connection_error(error)
-
-        self.ctx.connection_error(error)
-
         self._close_connection()
+
+        self.protocol.connection_error(error)
+
+        if self.on_error:
+            self.on_error(self)
 
     def _connection_closed(self):
         """
 
         :return:
         """
-        if self.closed_callback:
-            self.closed_callback(self)
+        if self.on_closed:
+            self.on_closed(self)
 
         if self.protocol:
             self.protocol.connection_closed()
@@ -359,9 +379,12 @@ class TcpConnection(object):
         else:
             self.ev.call_soon(self._close_in_loop, so_linger, delay)
 
-    def _close_in_loop(self, so_linger, delay):
+    def _close_in_loop(self, so_linger: bool, delay: int):
         """
-
+        if `write_buffer` is empty, close connection directly.
+        if `so_linger` is false, close connection until write buffer
+        is empty or error happened; otherwise, delay close connection
+        after `delay` second and drop write buffer if it has.
         :param so_linger:
         :param delay: sec
         :return:
@@ -371,13 +394,10 @@ class TcpConnection(object):
             return
 
         if not so_linger:
-            # wait write buffer empty. close connection until write buffer
-            # is empty or error happened; otherwise, delay close connection
-            # after `delay` second and drop write buffer if it has.
             self.close_after_write = True
             return
 
-        logger.warning("write buffer is not empty, delay to close connection")
+        logger.warning(f"write buffer is not empty, close connection after {delay} sec")
         self.linger_timer = self.ev.call_later(delay, self._delay_close)
 
     def _delay_close(self):
@@ -425,4 +445,6 @@ class TcpConnection(object):
         self.ctx = None
 
         self.linger_timer = None
-        self.closed_callback = None
+        self.on_closed = None
+        self.on_error = None
+        self.on_failure = None

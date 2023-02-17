@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpServer
+from libreactor.internet import TcpV4Server
 from libreactor.protocol import Protocol
 
 
@@ -24,7 +24,7 @@ class MyContext(Context):
 
 ev = EventLoop()
 
-server = TcpServer(9527, ev, MyContext())
+server = TcpV4Server(9527, ev, MyContext())
 server.start()
 
 ev.loop()

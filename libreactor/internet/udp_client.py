@@ -39,3 +39,29 @@ class UdpClient(object):
 
         conn = UdpConnection(sock, self.ctx, self.ev)
         conn.connection_established((self.host, self.port))
+
+
+class UdpV4Client(UdpClient):
+
+    def __init__(self, host, port, ctx, ev):
+        """
+        
+        :param host:
+        :param port:
+        :param ctx:
+        :param ev:
+        """
+        super(UdpV4Client, self).__init__(host, port, ctx, ev, False)
+
+
+class UdpV6Client(UdpClient):
+
+    def __init__(self, host, port, ctx, ev):
+        """
+
+        :param host:
+        :param port:
+        :param ctx:
+        :param ev:
+        """
+        super(UdpV6Client, self).__init__(host, port, ctx, ev, True)

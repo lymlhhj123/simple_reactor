@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import UdpClient
+from libreactor.internet import UdpV6Client
 from libreactor.protocol import Protocol
 
 
@@ -43,7 +43,7 @@ ctx.set_established_callback(on_established)
 
 ev = EventLoop()
 
-client = UdpClient("127.0.0.1", 9527, ctx, ev)
+client = UdpV6Client("::1", 9527, ctx, ev)
 client.start()
 
 ev.loop()

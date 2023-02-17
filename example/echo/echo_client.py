@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpClient
+from libreactor.internet import TcpV4Client
 from libreactor.protocol import Protocol
 
 
@@ -24,10 +24,9 @@ class MyProtocol(Protocol):
         self.io_count += 1
         self.connection.write(data)
 
-    def connection_error(self, error):
+    def connection_error(self):
         """
 
-        :param error:
         :return:
         """
         if self._timer:
@@ -83,7 +82,7 @@ ev = EventLoop()
 ctx = MyContext()
 ctx.set_established_callback(on_established)
 
-client = TcpClient("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
+client = TcpV4Client("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
 client.start()
 
 ev.loop()

@@ -50,7 +50,7 @@ class TcpServer(object):
 
         conn = TcpConnection(sock, self.ctx, self.event_loop)
         self._connection_set.add(conn)
-        conn.set_closed_callback(closed_callback=self._connection_closed)
+        conn.set_closed_callback(self._connection_closed)
         conn.connection_made(addr)
 
     def _connection_closed(self, conn):
@@ -61,3 +61,29 @@ class TcpServer(object):
         """
         logger.info(f"server side connection closed. fileno: {conn.fileno()}")
         self._connection_set.remove(conn)
+        
+        
+class TcpV4Server(TcpServer):
+    
+    def __init__(self, port, event_loop, ctx, backlog=8):
+        """
+        
+        :param port: 
+        :param event_loop: 
+        :param ctx: 
+        :param backlog: 
+        """
+        super(TcpV4Server, self).__init__(port, event_loop, ctx, backlog, False)
+
+
+class TcpV6Server(TcpServer):
+
+    def __init__(self, port, event_loop, ctx, backlog=8):
+        """
+        
+        :param port:
+        :param event_loop:
+        :param ctx:
+        :param backlog:
+        """
+        super(TcpV6Server, self).__init__(port, event_loop, ctx, backlog, True)

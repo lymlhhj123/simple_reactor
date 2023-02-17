@@ -13,12 +13,13 @@ logger = logging.get_logger()
 
 class TcpClient(object):
 
-    def __init__(self, host, port, event_loop, ctx, timeout=10, is_ipv6=False, auto_reconnect=False):
+    def __init__(self, host, port, ev, ctx, timeout=10,
+                 is_ipv6=False, auto_reconnect=False):
         """
 
         :param host:
         :param port:
-        :param event_loop:
+        :param ev:
         :param ctx:
         :param timeout:
         :param is_ipv6:
@@ -26,7 +27,7 @@ class TcpClient(object):
         """
         self.host = host
         self.port = port
-        self.event_loop = event_loop
+        self.ev = ev
         self.ctx = ctx
         self.timeout = timeout
         self.is_ipv6 = is_ipv6
@@ -37,7 +38,7 @@ class TcpClient(object):
 
         :return:
         """
-        self.event_loop.call_soon(self._start_in_loop)
+        self.ev.call_soon(self._start_in_loop)
 
     def _start_in_loop(self):
         """
@@ -57,7 +58,7 @@ class TcpClient(object):
         :param addr_list:
         :return:
         """
-        assert self.event_loop.is_in_loop_thread()
+        assert self.ev.is_in_loop_thread()
 
         if status == const.DNSResolvStatus.OK:
             af, _, _, _, sa = addr_list[0]
@@ -72,19 +73,32 @@ class TcpClient(object):
         :param endpoint:
         :return:
         """
-        connector = TcpConnector(family, endpoint, self.event_loop, self.ctx, self.timeout)
-        connector.set_closed_callback(closed_callback=self._on_closed)
+        connector = TcpConnector(family, endpoint, self.ev, self.ctx, self.timeout)
+        connector.set_error_callback(self._connection_error)
+        connector.set_failure_callback(self._connection_failed)
         connector.start_connect()
 
-    def _on_closed(self, conn):
+    def _connection_error(self, conn):
         """
 
         :param conn:
         :return:
         """
-        logger.info(f"connection closed with server: {self.host, self.port}, fd: {conn.fileno()}")
         if self.auto_reconnect:
             self._reconnect()
+
+        self.ctx.connection_error()
+
+    def _connection_failed(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        if self.auto_reconnect:
+            self._reconnect()
+
+        self.ctx.connection_error()
 
     def _reconnect(self):
         """
@@ -93,4 +107,34 @@ class TcpClient(object):
         """
         delay = random.random() * 5
         logger.info(f"reconnect to server after {delay} seconds")
-        self.event_loop.call_later(delay, self._start_in_loop)
+        self.ev.call_later(delay, self._start_in_loop)
+        
+
+class TcpV4Client(TcpClient):
+    
+    def __init__(self, host, port, ev, ctx, timeout=10, auto_reconnect=False):
+        """
+        
+        :param host: 
+        :param port: 
+        :param ev: 
+        :param ctx: 
+        :param timeout: 
+        :param auto_reconnect: 
+        """
+        super(TcpV4Client, self).__init__(host, port, ev, ctx, timeout, False, auto_reconnect)
+
+
+class TcpV6Client(TcpClient):
+
+    def __init__(self, host, port, ev, ctx, timeout=10, auto_reconnect=False):
+        """
+
+        :param host:
+        :param port:
+        :param ev:
+        :param ctx:
+        :param timeout:
+        :param auto_reconnect:
+        """
+        super(TcpV6Client, self).__init__(host, port, ev, ctx, timeout, True, auto_reconnect)

@@ -22,21 +22,21 @@ class Channel(object):
         self.read_callback = None
         self.write_callback = None
 
-    def set_read_callback(self, read_callback):
+    def set_read_callback(self, callback):
         """
 
-        :param read_callback:
+        :param callback:
         :return:
         """
-        self.read_callback = read_callback
+        self.read_callback = callback
 
-    def set_write_callback(self, write_callback):
+    def set_write_callback(self, callback):
         """
 
-        :param write_callback:
+        :param callback:
         :return:
         """
-        self.write_callback = write_callback
+        self.write_callback = callback
 
     def fileno(self):
         """

@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpClient
+from libreactor.internet import TcpV4Client
 from libreactor.basic_protocols import LineReceiver
 
 line_format = "this is line {}"
@@ -45,7 +45,7 @@ ev = EventLoop()
 ctx = MyContext()
 ctx.set_established_callback(on_established)
 
-client = TcpClient("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
+client = TcpV4Client("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
 client.start()
 
 ev.loop()

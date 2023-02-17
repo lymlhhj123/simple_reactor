@@ -47,3 +47,27 @@ class UdpServer(object):
 
         conn = UdpConnection(sock, self.ctx, self.ev)
         conn.connection_made((ip_any, self.port))
+
+
+class UdpV4Server(UdpServer):
+
+    def __init__(self, port, ctx, ev):
+        """
+
+        :param port:
+        :param ctx:
+        :param ev:
+        """
+        super(UdpV4Server, self).__init__(port, ctx, ev, False)
+
+
+class UdpV6Server(UdpServer):
+
+    def __init__(self, port, ctx, ev):
+        """
+
+        :param port:
+        :param ctx:
+        :param ev:
+        """
+        super(UdpV6Server, self).__init__(port, ctx, ev, True)

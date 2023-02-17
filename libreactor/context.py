@@ -57,15 +57,13 @@ class Context(object):
         if self.on_made:
             self.on_made(protocol)
 
-    def connection_error(self, error):
+    def connection_error(self):
         """
-
         auto called when connection error happened
-        :param error:
         :return:
         """
         if self.on_error:
-            self.on_error(error)
+            self.on_error()
 
     def build_protocol(self):
         """

@@ -1,7 +1,5 @@
 # coding: utf-8
 
-from libreactor import const
-
 
 class Protocol(object):
 
@@ -23,10 +21,9 @@ class Protocol(object):
         :return:
         """
 
-    def connection_error(self, error: const.ConnectionErr):
+    def connection_error(self):
         """
         auto called when connection error happened
-        :param error:
         :return:
         """
 
@@ -41,7 +38,9 @@ class Protocol(object):
 
         :return:
         """
-        self.connection.close()
+        if self.connection:
+            self.connection.close()
+            del self.connection
 
     def data_received(self, data: bytes):
         """
@@ -50,7 +49,7 @@ class Protocol(object):
         :return:
         """
 
-    def dgram_received(self, data, addr):
+    def dgram_received(self, data: bytes, addr: tuple):
         """
         used by udp
         :param data:

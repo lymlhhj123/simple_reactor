@@ -26,15 +26,33 @@ class TcpConnector(object):
         self.ctx = ctx
         self.timeout = timeout
 
-        self.closed_callback = None
+        self.on_closed = None
+        self.on_error = None
+        self.on_failure = None
 
-    def set_closed_callback(self, closed_callback):
+    def set_closed_callback(self, callback):
         """
 
-        :param closed_callback:
+        :param callback:
         :return:
         """
-        self.closed_callback = closed_callback
+        self.on_closed = callback
+
+    def set_error_callback(self, callback):
+        """
+
+        :param callback:
+        :return:
+        """
+        self.on_error = callback
+
+    def set_failure_callback(self, callback):
+        """
+
+        :param callback:
+        :return:
+        """
+        self.on_failure = callback
 
     def start_connect(self):
         """
@@ -58,7 +76,9 @@ class TcpConnector(object):
         sock_util.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.event_loop)
-        conn.set_closed_callback(closed_callback=self._connection_closed)
+        conn.set_closed_callback(self._connection_closed)
+        conn.set_error_callback(self._connection_error)
+        conn.set_failure_callback(self._connection_failed)
         conn.try_open(endpoint, timeout)
 
     def _connection_closed(self, conn):
@@ -67,6 +87,23 @@ class TcpConnector(object):
         :param conn:
         :return:
         """
-        if self.closed_callback:
-            self.closed_callback(conn)
-            self.closed_callback = None
+        if self.on_closed:
+            self.on_closed(conn)
+
+    def _connection_error(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        if self.on_error:
+            self.on_error(conn)
+
+    def _connection_failed(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        if self.on_failure:
+            self.on_failure(conn)
