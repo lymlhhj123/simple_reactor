@@ -3,7 +3,7 @@
 - io event notify library based on reactor mode, support epoll and select.
 - current only support linux, kernel >= 4.14.
 - python >= 3.8.5.
-- only support tcp for now.
+- support tcp udp, not support unix domain for now.
 - not support dns resolver for now.
 
 ## install
