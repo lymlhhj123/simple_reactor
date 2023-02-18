@@ -12,16 +12,15 @@ logger = logging.get_logger()
 
 class TcpClient(object):
 
-    def __init__(self, host, port, ev, ctx, timeout=10,
-                 is_ipv6=False, auto_reconnect=False):
+    def __init__(self, host, port, ev, ctx, is_ipv6, timeout=10, auto_reconnect=False):
         """
 
         :param host:
         :param port:
         :param ev:
         :param ctx:
-        :param timeout:
         :param is_ipv6:
+        :param timeout:
         :param auto_reconnect:
         """
         self.host = host
@@ -120,7 +119,7 @@ class TcpV4Client(TcpClient):
         :param timeout: 
         :param auto_reconnect: 
         """
-        super(TcpV4Client, self).__init__(host, port, ev, ctx, timeout, False, auto_reconnect)
+        super(TcpV4Client, self).__init__(host, port, ev, ctx, False, timeout, auto_reconnect)
 
 
 class TcpV6Client(TcpClient):
@@ -135,4 +134,4 @@ class TcpV6Client(TcpClient):
         :param timeout:
         :param auto_reconnect:
         """
-        super(TcpV6Client, self).__init__(host, port, ev, ctx, timeout, True, auto_reconnect)
+        super(TcpV6Client, self).__init__(host, port, ev, ctx, True, timeout, auto_reconnect)

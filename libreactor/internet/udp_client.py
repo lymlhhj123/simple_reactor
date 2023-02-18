@@ -7,7 +7,7 @@ from .udp_connection import UdpConnection
 
 class UdpClient(object):
 
-    def __init__(self, host, port, ctx, ev, is_ipv6=False):
+    def __init__(self, host, port, ctx, ev, is_ipv6):
         """
 
         :param host:

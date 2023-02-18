@@ -10,7 +10,7 @@ logger = logging.get_logger()
 
 class TcpServer(object):
 
-    def __init__(self, port, ev, ctx, backlog=8, is_ipv6=False):
+    def __init__(self, port, ev, ctx, is_ipv6, backlog):
         """
 
         :param port:
@@ -65,7 +65,7 @@ class TcpServer(object):
         
 class TcpV4Server(TcpServer):
     
-    def __init__(self, port, ev, ctx, backlog=8):
+    def __init__(self, port, ev, ctx, backlog=1024):
         """
         
         :param port: 
@@ -73,12 +73,12 @@ class TcpV4Server(TcpServer):
         :param ctx: 
         :param backlog: 
         """
-        super(TcpV4Server, self).__init__(port, ev, ctx, backlog, False)
+        super(TcpV4Server, self).__init__(port, ev, ctx, False, backlog)
 
 
 class TcpV6Server(TcpServer):
 
-    def __init__(self, port, ev, ctx, backlog=8):
+    def __init__(self, port, ev, ctx, backlog=1024):
         """
         
         :param port:
@@ -86,4 +86,4 @@ class TcpV6Server(TcpServer):
         :param ctx:
         :param backlog:
         """
-        super(TcpV6Server, self).__init__(port, ev, ctx, backlog, True)
+        super(TcpV6Server, self).__init__(port, ev, ctx, True, backlog)

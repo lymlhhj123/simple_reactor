@@ -12,7 +12,7 @@ class Header(object):
 
     CRC32_B = 4
     MSG_B = 4
-    EXT_B = 2  # 2 bytes, so extension len <= 65535
+    EXT_B = 2
     HEADER_LEN = CRC32_B + MSG_B + EXT_B
     HEADER_FMT = "!IIH"  # 4 bytes crc32 + 4 bytes msg len + 2 bytes extension len
 
@@ -63,8 +63,9 @@ class Message(object):
         if not isinstance(header_extension, bytes):
             raise TypeError("header extension must be bytes")
 
+        # 2 bytes, so extension len <= 65535
         if len(header_extension) > 65535:
-            raise TypeError("")
+            raise ValueError("header extension must be <= 65535")
 
         if isinstance(data, str):
             data = data.encode(cls.CHARSET)
