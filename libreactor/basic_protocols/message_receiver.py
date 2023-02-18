@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import json
 from typing import Union
 
 from ..message import Message
@@ -18,6 +19,14 @@ class MessageReceiver(Protocol):
 
         self.buffer = BytesBuffer()
         self.msg = Message()
+
+    def send_json(self, data):
+        """
+
+        :param data:
+        :return:
+        """
+        self.send_data(json.dumps(data))
 
     def send_data(self, data: Union[bytes, str]):
         """
