@@ -5,7 +5,7 @@ import json
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpV6Client
-from libreactor.models import MessageFactory
+from libreactor.message import Message
 from libreactor.basic_protocols import MessageReceiver
 
 
@@ -33,7 +33,7 @@ def on_established(protocol):
     :return:
     """
     user_data = {"1": "2", "3": "4"}
-    msg = MessageFactory().from_str(json.dumps(user_data))
+    msg = Message.create(json.dumps(user_data))
     protocol.send_msg(msg)
 
 

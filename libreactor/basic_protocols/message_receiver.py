@@ -2,9 +2,8 @@
 
 from typing import Union
 
-from ..models import BytesBuffer
-from ..models import Message
-from ..models import MessageFactory
+from ..message import Message
+from ..bytes_buffer import BytesBuffer
 from ..protocol import Protocol
 from .. import logging
 
@@ -18,7 +17,7 @@ class MessageReceiver(Protocol):
         super(MessageReceiver, self).__init__()
 
         self.buffer = BytesBuffer()
-        self.msg_factory = MessageFactory()
+        self.msg = Message()
 
     def send_data(self, data: Union[bytes, str]):
         """
@@ -26,7 +25,7 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
-        msg = self.msg_factory.from_str(data)
+        msg = Message.create(data)
         self.send_msg(msg)
 
     def send_msg(self, msg: Message):
@@ -47,20 +46,23 @@ class MessageReceiver(Protocol):
         :param data:
         :return:
         """
-        self.buffer.add(data)
+        self.buffer.extend(data)
         while True:
             try:
-                msg = self.msg_factory.from_buffer(self.buffer)
+                if self.msg.retrieve_from_buffer(self.buffer) != 0:
+                    break
             except Exception as ex:
                 logger.error(f"msg broken: {ex}")
                 self.msg_broken()
                 return
 
-            if not msg:
-                return
+            msg, self.msg = self.msg, Message()
+
+            assert msg.is_completed()
 
             if msg.is_broken():
                 self.msg_broken()
+                return
             else:
                 self.msg_received(msg)
 
