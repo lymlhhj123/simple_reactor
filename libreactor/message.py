@@ -14,7 +14,7 @@ class Header(object):
     MSG_B = 4
     EXT_B = 2  # 2 bytes, so extension len <= 65535
     HEADER_LEN = CRC32_B + MSG_B + EXT_B
-    HEADER_FMT = "!II"  # 4 bytes crc32 + 4 bytes msg len + 2 bytes extension len
+    HEADER_FMT = "!IIH"  # 4 bytes crc32 + 4 bytes msg len + 2 bytes extension len
 
     def __init__(self, crc32, msg_len, ext_len):
         """

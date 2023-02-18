@@ -38,7 +38,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(1)
-        return struct.unpack("!b", data)
+        return struct.unpack("!b", data)[0]
 
     def retrieve_uint8(self):
         """
@@ -46,7 +46,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(1)
-        return struct.unpack("!B", data)
+        return struct.unpack("!B", data)[0]
 
     def retrieve_int16(self):
         """
@@ -54,7 +54,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(2)
-        return struct.unpack("!h", data)
+        return struct.unpack("!h", data)[0]
 
     def retrieve_uint16(self):
         """
@@ -62,7 +62,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(2)
-        return struct.unpack("!H", data)
+        return struct.unpack("!H", data)[0]
 
     def retrieve_int32(self):
         """
@@ -70,7 +70,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(4)
-        return struct.unpack("!i", data)
+        return struct.unpack("!i", data)[0]
 
     def retrieve_uint32(self):
         """
@@ -78,7 +78,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(4)
-        return struct.unpack("!I", data)
+        return struct.unpack("!I", data)[0]
 
     def retrieve_int64(self):
         """
@@ -86,7 +86,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(8)
-        return struct.unpack("!q", data)
+        return struct.unpack("!q", data)[0]
 
     def retrieve_uint64(self):
         """
@@ -94,7 +94,7 @@ class BytesBuffer(object):
         :return:
         """
         data = self.retrieve(8)
-        return struct.unpack("!Q", data)
+        return struct.unpack("!Q", data)[0]
 
     def retrieve(self, size):
         """
