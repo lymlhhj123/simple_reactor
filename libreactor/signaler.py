@@ -24,7 +24,7 @@ class Signaler(object):
         :return:
         """
         while True:
-            if not self._read():
+            if not self.read():
                 break
 
     def read_one(self):
@@ -32,9 +32,9 @@ class Signaler(object):
         read one byte
         :return:
         """
-        self._read(size=1)
+        self.read(size=1)
 
-    def _read(self, size=4096):
+    def read(self, size=4096):
         """
 
         :param size:
@@ -50,9 +50,9 @@ class Signaler(object):
         write one byte
         :return:
         """
-        self._write(b"1")
+        self.write(b"1")
 
-    def _write(self, bytes_):
+    def write(self, bytes_):
         """
 
         :param bytes_:
