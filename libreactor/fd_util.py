@@ -4,10 +4,9 @@ import os
 import fcntl
 
 
-def make_async_pipe(buffer_size=0):
+def make_async_pipe():
     """
 
-    :param buffer_size:
     :return:
     """
     r, w = os.pipe()
@@ -18,7 +17,7 @@ def make_async_pipe(buffer_size=0):
     close_on_exec(r)
     close_on_exec(w)
 
-    return os.fdopen(r, "rb", buffer_size), os.fdopen(w, "wb", buffer_size)
+    return r, w
 
 
 def make_fd_async(fd):

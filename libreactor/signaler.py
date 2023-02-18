@@ -1,5 +1,7 @@
 # coding: utf-8
 
+import os
+
 from . import fd_util
 
 
@@ -7,14 +9,14 @@ class Signaler(object):
 
     def __init__(self):
 
-        self._reader, self._writer = fd_util.make_async_pipe()
+        self.r_fd, self.w_fd = fd_util.make_async_pipe()
 
     def fileno(self):
         """
 
         :return:
         """
-        return self._reader.fileno()
+        return self.r_fd
 
     def read_all(self):
         """
@@ -39,7 +41,7 @@ class Signaler(object):
         :return:
         """
         try:
-            return self._reader.read(size)
+            return os.read(self.r_fd, size)
         except IOError:
             return ""
 
@@ -57,6 +59,6 @@ class Signaler(object):
         :return:
         """
         try:
-            self._writer.write(bytes_)
+            os.write(self.w_fd, bytes_)
         except IOError:
             pass
