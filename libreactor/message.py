@@ -130,11 +130,11 @@ class Message(object):
         if ext_len == 0:
             return 0
 
-        if bytes_buffer.size() >= ext_len:
-            self.header.extension = bytes_buffer.retrieve(ext_len)
-            return 0
+        if bytes_buffer.size() < ext_len:
+            return -1
 
-        return -1
+        self.header.extension = bytes_buffer.retrieve(ext_len)
+        return 0
 
     def as_bytes(self):
         """
