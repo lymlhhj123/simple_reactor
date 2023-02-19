@@ -7,12 +7,12 @@ import functools
 @functools.total_ordering
 class Timer(object):
 
-    def __init__(self, event_loop, callback, delay: int = None, repeated=False):
+    def __init__(self, event_loop, callback, delay: int, repeated=False):
         """
 
         :param event_loop:
         :param callback:
-        :param delay: int, 固定周期调用，比如每隔5秒
+        :param delay:
         :param repeated:
         """
         self._callback = callback
