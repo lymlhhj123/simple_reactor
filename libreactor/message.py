@@ -76,12 +76,12 @@ class Message(object):
         header = Header(crc32, msg_len, ext_pen)
         header.extension = header_extension
 
-        msg = Message()
+        msg = cls()
         msg.header = header
         msg.data = data
         return msg
 
-    def retrieve_from_buffer(self, bytes_buffer: BytesBuffer):
+    def create_from_buffer(self, bytes_buffer: BytesBuffer):
         """
 
         :param bytes_buffer:

@@ -58,7 +58,7 @@ class MessageReceiver(Protocol):
         self.buffer.extend(data)
         while True:
             try:
-                if self.msg.retrieve_from_buffer(self.buffer) != 0:
+                if self.msg.create_from_buffer(self.buffer) != 0:
                     return
             except Exception as ex:
                 logger.exception(f"msg broken: {ex}")
