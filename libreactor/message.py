@@ -141,9 +141,7 @@ class Message(object):
 
         :return:
         """
-        if not self.is_completed():
-            return b""
-
+        assert self.is_completed()
         return self.header.as_bytes() + self.data
 
     def context(self):
@@ -151,9 +149,7 @@ class Message(object):
         return raw bytes
         :return:
         """
-        if not self.is_completed():
-            return b""
-
+        assert self.is_completed()
         return self.data
 
     def text(self):
@@ -161,9 +157,7 @@ class Message(object):
         return unicode str
         :return:
         """
-        if not self.is_completed():
-            return b""
-
+        assert self.is_completed()
         return self.data.decode(self.CHARSET)
 
     def json(self):
