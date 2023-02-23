@@ -2,7 +2,7 @@
 
 from .tcp_acceptor import TcpAcceptor
 from .tcp_connection import TcpConnection
-from libreactor import sock_util
+from libreactor import sock_helper
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -45,8 +45,8 @@ class TcpServer(object):
 
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
 
-        sock_util.set_tcp_no_delay(sock)
-        sock_util.set_tcp_keepalive(sock)
+        sock_helper.set_tcp_no_delay(sock)
+        sock_helper.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.event_loop)
         self._connection_set.add(conn)

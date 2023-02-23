@@ -2,14 +2,14 @@
 
 import os
 
-from . import fd_util
+from . import fd_helper
 
 
 class Signaler(object):
 
     def __init__(self):
 
-        self.r_fd, self.w_fd = fd_util.make_async_pipe()
+        self.r_fd, self.w_fd = fd_helper.make_async_pipe()
 
     def fileno(self):
         """

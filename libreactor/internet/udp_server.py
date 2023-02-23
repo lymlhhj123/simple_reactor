@@ -2,7 +2,7 @@
 
 import socket
 
-from libreactor import sock_util
+from libreactor import sock_helper
 from libreactor import const
 from .udp_connection import UdpConnection
 
@@ -42,7 +42,7 @@ class UdpServer(object):
             ip_any = const.IPAny.V4
 
         sock = socket.socket(family, socket.SOCK_DGRAM)
-        sock_util.set_reuse_addr(sock)
+        sock_helper.set_reuse_addr(sock)
         sock.bind((ip_any, self.port))
 
         conn = UdpConnection(sock, self.ctx, self.ev)

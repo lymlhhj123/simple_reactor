@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from . import fd_util
+from . import fd_helper
 from . import io_event
 
 
@@ -12,8 +12,8 @@ class Channel(object):
         :param fd:
         :param event_loop:
         """
-        fd_util.make_fd_async(fd)
-        fd_util.close_on_exec(fd)
+        fd_helper.make_fd_async(fd)
+        fd_helper.close_on_exec(fd)
 
         self._fd = fd
         self._event_loop = event_loop
@@ -153,7 +153,7 @@ class Channel(object):
         self.write_callback = None
 
         fd, self._fd = self._fd, -1
-        fd_util.close_fd(fd)
+        fd_helper.close_fd(fd)
 
     def is_closed(self):
         """

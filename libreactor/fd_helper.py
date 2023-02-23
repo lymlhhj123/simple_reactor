@@ -1,7 +1,9 @@
 # coding: utf-8
-
+import errno
 import os
 import fcntl
+
+from .utils import errno_from_ex
 
 
 def make_async_pipe():
@@ -77,3 +79,32 @@ def close_fd(fd):
         os.close(fd)
     except (IOError, OSError):
         pass
+
+
+def read_fd(fd, size):
+    """
+    read non-block fd until buffer is empty
+    :param fd:
+    :param size:
+    :return:
+    """
+    output = b""
+    while True:
+        try:
+            data = os.read(fd, size)
+        except IOError as e:
+            err_code = errno_from_ex(e)
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                code = 0
+            else:
+                code = -1
+
+            break
+
+        if not data:
+            code = -1
+            break
+
+        output += data
+
+    return code, output

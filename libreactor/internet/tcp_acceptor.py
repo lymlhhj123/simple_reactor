@@ -6,7 +6,7 @@ import socket
 
 from libreactor.channel import Channel
 from libreactor.utils import errno_from_ex
-from libreactor import sock_util
+from libreactor import sock_helper
 from libreactor import const
 from libreactor import logging
 
@@ -47,7 +47,7 @@ class TcpAcceptor(object):
             family, addr_any = socket.AF_INET, const.IPAny.V4
 
         sock = socket.socket(family, socket.SOCK_STREAM)
-        sock_util.set_reuse_addr(sock)
+        sock_helper.set_reuse_addr(sock)
         sock.bind((addr_any, self.port))
         sock.listen(self.backlog)
         self.sock = sock

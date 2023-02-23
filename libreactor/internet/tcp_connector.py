@@ -3,7 +3,7 @@
 import socket
 
 from .tcp_connection import TcpConnection
-from libreactor import sock_util
+from libreactor import sock_helper
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -72,8 +72,8 @@ class TcpConnector(object):
         :return:
         """
         sock = socket.socket(family, socket.SOCK_STREAM)
-        sock_util.set_tcp_no_delay(sock)
-        sock_util.set_tcp_keepalive(sock)
+        sock_helper.set_tcp_no_delay(sock)
+        sock_helper.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.ev)
         conn.set_closed_callback(self._connection_closed)

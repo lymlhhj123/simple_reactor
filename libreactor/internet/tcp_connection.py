@@ -5,7 +5,7 @@ import socket
 import errno
 
 from libreactor.channel import Channel
-from libreactor import sock_util
+from libreactor import sock_helper
 from libreactor import utils
 from libreactor.const import ConnectionState
 from libreactor.const import ConnectionErr
@@ -331,7 +331,7 @@ class TcpConnection(object):
 
         :return:
         """
-        err_code = sock_util.get_sock_error(self.sock)
+        err_code = sock_helper.get_sock_error(self.sock)
         if err_code != 0:
             self._connection_failed(err_code)
             return
