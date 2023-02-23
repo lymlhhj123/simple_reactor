@@ -81,7 +81,7 @@ def close_fd(fd):
         pass
 
 
-def read_fd(fd, size):
+def read_fd_all(fd, size):
     """
     read non-block fd until buffer is empty
     :param fd:

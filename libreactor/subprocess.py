@@ -4,7 +4,6 @@ import errno
 import os
 import sys
 import signal
-import shlex
 
 from . import fd_helper
 from . import utils
@@ -13,7 +12,7 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, ev, args, on_result, shell=True, work_dir=os.getcwd(), timeout=60):
+    def __init__(self, ev, args: str, on_result, shell=True, work_dir=os.getcwd(), timeout=60):
         """
 
         :param ev:
@@ -46,15 +45,6 @@ class Popen(object):
 
         :return:
         """
-        args = self.args
-        if isinstance(self.args, str):
-            args = shlex.split(args)
-
-        assert isinstance(args, list)
-
-        if self.shell is True:
-            args = ["/bin/sh", "-c"] + args
-
         # stdin not used for now
         stdin_read, stdin_write = os.pipe()
         stdout_read, stdout_write = os.pipe()
@@ -64,6 +54,10 @@ class Popen(object):
         if pid == 0:
             os.chdir(self.work_dir)
             os.umask(0o22)
+
+            args = [self.args]
+            if self.shell is True:
+                args = ["/bin/sh", "-c"] + args
 
             fd_helper.close_fd(stdin_write)
             fd_helper.close_fd(stdout_read)
@@ -108,12 +102,22 @@ class Popen(object):
 
         self.timeout_timer = self.ev.call_later(self.timeout, self._on_timeout)
 
+    def _on_timeout(self):
+        """
+
+        :return:
+        """
+        try:
+            os.kill(self.child_pid, signal.SIGKILL)
+        except Exception as e:
+            utils.errno_from_ex(e)
+
     def _on_stdout_read(self):
         """
 
         :return:
         """
-        status, data = fd_helper.read_fd(self.stdout_channel.fileno(), 4096)
+        status, data = fd_helper.read_fd_all(self.stdout_channel.fileno(), 4096)
         self.stdout += data
 
         if status != 0:
@@ -128,7 +132,7 @@ class Popen(object):
 
         :return:
         """
-        status, data = fd_helper.read_fd(self.stderr_channel.fileno(), 4096)
+        status, data = fd_helper.read_fd_all(self.stderr_channel.fileno(), 4096)
         self.stderr += data
 
         if status != 0:
@@ -146,13 +150,6 @@ class Popen(object):
         if not self.stdout_channel and not self.stderr_channel:
             self.timeout_timer.cancel()
             self._on_result()
-
-    def _on_timeout(self):
-        """
-
-        :return:
-        """
-        os.kill(self.child_pid, signal.SIGKILL)
 
     def _on_result(self):
         """
