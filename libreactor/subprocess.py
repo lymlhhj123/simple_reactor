@@ -12,7 +12,8 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, ev, args: str, on_result, shell=True, work_dir=os.getcwd(), timeout=60):
+    def __init__(self, ev, args: str, on_result, shell=False,
+                 work_dir=os.getcwd(), umask=0o22, timeout=60):
         """
 
         :param ev:
@@ -20,6 +21,7 @@ class Popen(object):
         :param on_result:
         :param shell:
         :param work_dir:
+        :param umask:
         :param timeout:
         """
         self.ev = ev
@@ -27,6 +29,7 @@ class Popen(object):
         self.shell = shell
         self.on_result = on_result
         self.work_dir = work_dir
+        self.umask = umask
         self.timeout = timeout
 
         self.child_pid = 0
@@ -53,7 +56,7 @@ class Popen(object):
         pid = os.fork()
         if pid == 0:
             os.chdir(self.work_dir)
-            os.umask(0o22)
+            os.umask(self.umask)
 
             args = [self.args]
             if self.shell is True:
@@ -112,6 +115,8 @@ class Popen(object):
         except Exception as e:
             utils.errno_from_ex(e)
 
+        self.timeout_timer = None
+
     def _on_stdout_read(self):
         """
 
@@ -125,7 +130,7 @@ class Popen(object):
             self.stdout_channel.close()
             self.stdout_channel = None
 
-        self._maybe_done()
+            self._maybe_done()
 
     def _on_stderr_read(self):
         """
@@ -140,7 +145,7 @@ class Popen(object):
             self.stderr_channel.close()
             self.stderr_channel = None
 
-        self._maybe_done()
+            self._maybe_done()
 
     def _maybe_done(self):
         """
@@ -148,7 +153,9 @@ class Popen(object):
         :return:
         """
         if not self.stdout_channel and not self.stderr_channel:
-            self.timeout_timer.cancel()
+            if self.timeout_timer:
+                self.timeout_timer.cancel()
+
             self._on_result()
 
     def _on_result(self):
