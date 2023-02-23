@@ -13,19 +13,21 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, ev, args, on_result, shell=True, timeout=60):
+    def __init__(self, ev, args, on_result, shell=True, work_dir=os.getcwd(), timeout=60):
         """
 
         :param ev:
         :param args:
         :param on_result:
         :param shell:
+        :param work_dir:
         :param timeout:
         """
         self.ev = ev
         self.args = args
         self.shell = shell
         self.on_result = on_result
+        self.work_dir = work_dir
         self.timeout = timeout
 
         self.child_pid = -1
@@ -60,7 +62,7 @@ class Popen(object):
 
         pid = os.fork()
         if pid == 0:
-            os.chdir("/")
+            os.chdir(self.work_dir)
             os.umask(0o22)
 
             fd_helper.close_fd(stdin_write)
