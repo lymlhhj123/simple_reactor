@@ -29,7 +29,7 @@ class Popen(object):
         self.work_dir = work_dir
         self.timeout = timeout
 
-        self.child_pid = -1
+        self.child_pid = 0
         self.stdout_channel = None
         self.stderr_channel = None
 
@@ -67,7 +67,7 @@ class Popen(object):
             out_dup = os.dup(stdout_write)
             err_dup = os.dup(stderr_write)
 
-            # make sure 0 1 2 is expected
+            # make sure 0 1 2 is our expected
             os.dup2(in_dup, 0)
             os.dup2(out_dup, 1)
             os.dup2(err_dup, 2)
@@ -164,9 +164,9 @@ class Popen(object):
             if err_code == errno.ECHILD:
                 status = 0
             else:
-                status = -1
+                status = 1
 
-        self.child_pid = -1
+        self.child_pid = 0
         self.timeout_timer = None
 
         stdout, stderr = self.stdout, self.stderr

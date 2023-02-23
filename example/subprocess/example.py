@@ -12,11 +12,11 @@ def on_result(status, stdout, stderr):
     :param stderr:
     :return:
     """
-    print(status, stdout, stderr)
+    print(status, "stdout: ", stdout, "stderr: ", stderr)
 
 
 ev = EventLoop()
 
-Popen(ev, "ls -al", on_result=on_result)
+Popen(ev, "uname -a", on_result=on_result)
 
 ev.loop()
