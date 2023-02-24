@@ -305,7 +305,6 @@ class TcpConnection(object):
         error = self._do_read()
         if error != ConnectionErr.OK:
             self._connection_error()
-            return
 
     def _do_read(self):
         """
@@ -340,6 +339,9 @@ class TcpConnection(object):
         :param err_code:
         :return:
         """
+        if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+            return ConnectionErr.OK
+
         reason = os.strerror(err_code)
         logger.error(f"connection error with {self.endpoint}, reason: {reason}")
 

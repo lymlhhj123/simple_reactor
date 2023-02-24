@@ -113,13 +113,10 @@ def read_fd(fd, chunk_size=8192):
             data = os.read(fd, remain)
         except IOError as e:
             err_code = errno_from_ex(e)
-            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
-                err_code = 0
-
             return err_code, output
 
         if not data:
-            return errno.EPIPE, output
+            return errno.ECONNRESET, output
 
         output += data
         remain -= len(data)
@@ -140,13 +137,10 @@ def write_fd(fd, data: bytes):
             chunk_size = os.write(fd, data[idx:])
         except IOError as e:
             err_code = errno_from_ex(e)
-            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
-                err_code = 0
-
             return err_code, idx
 
         if chunk_size == 0:
-            return errno.EPIPE, idx
+            return errno.ECONNRESET, idx
 
         idx += chunk_size
         if idx == len(data):
