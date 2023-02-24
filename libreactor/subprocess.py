@@ -14,17 +14,9 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, ev, args, on_result, shell=False,
+    def __init__(self, args, ev, on_result, shell=False,
                  cwd=None, timeout=60):
-        """
 
-        :param ev:
-        :param args: str or list
-        :param on_result:
-        :param shell:
-        :param cwd:
-        :param timeout:
-        """
         self.ev = ev
         self.args = args
         self.shell = shell
@@ -85,12 +77,6 @@ class Popen(object):
                        stdout_write, stderr_read, stderr_write):
         """
 
-        :param stdin_read:
-        :param stdin_write:
-        :param stdout_read:
-        :param stdout_write:
-        :param stderr_read:
-        :param stderr_write:
         :return:
         """
         fd_helper.close_fd(stdin_write)

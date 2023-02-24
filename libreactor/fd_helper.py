@@ -81,30 +81,73 @@ def close_fd(fd):
         pass
 
 
-def read_fd_all(fd, size):
+def read_fd_all(fd, chunk_size=8192):
     """
     read non-block fd until buffer is empty
     :param fd:
-    :param size:
+    :param chunk_size:
     :return:
     """
     output = b""
     while True:
-        try:
-            data = os.read(fd, size)
-        except IOError as e:
-            err_code = errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                code = 0
-            else:
-                code = -1
-
-            break
-
-        if not data:
-            code = -1
+        err_code, data = read_fd(fd, chunk_size)
+        if err_code != 0:
             break
 
         output += data
 
-    return code, output
+    return err_code, output
+
+
+def read_fd(fd, chunk_size=8192):
+    """
+    read non-block fd {chunk size} bytes or until buffer is empty
+    :param fd:
+    :param chunk_size:
+    :return:
+    """
+    output = b""
+    remain = chunk_size
+    while True:
+        try:
+            data = os.read(fd, remain)
+        except IOError as e:
+            err_code = errno_from_ex(e)
+            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+                err_code = 0
+
+            return err_code, output
+
+        if not data:
+            return errno.EPIPE, output
+
+        output += data
+        remain -= len(data)
+        if remain == 0:
+            return 0, output
+
+
+def write_fd(fd, data: bytes):
+    """
+
+    :param fd:
+    :param data:
+    :return:
+    """
+    idx = 0
+    while True:
+        try:
+            chunk_size = os.write(fd, data[idx:])
+        except IOError as e:
+            err_code = errno_from_ex(e)
+            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+                err_code = 0
+
+            return err_code, idx
+
+        if chunk_size == 0:
+            return errno.EPIPE, idx
+
+        idx += chunk_size
+        if idx == len(data):
+            return 0, idx

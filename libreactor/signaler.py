@@ -1,7 +1,5 @@
 # coding: utf-8
 
-import os
-
 from . import fd_helper
 
 
@@ -23,42 +21,27 @@ class Signaler(object):
 
         :return:
         """
-        while True:
-            if not self.read():
-                break
+        fd_helper.read_fd_all(self.r_fd)
 
     def read_one(self):
         """
         read one byte
         :return:
         """
-        self.read(size=1)
-
-    def read(self, size=4096):
-        """
-
-        :param size:
-        :return:
-        """
-        try:
-            return os.read(self.r_fd, size)
-        except IOError:
-            return ""
+        fd_helper.read_fd(self.r_fd, 1)
 
     def write_one(self):
         """
         write one byte
         :return:
         """
-        self.write(b"1")
+        fd_helper.write_fd(self.w_fd, b"1")
 
-    def write(self, bytes_):
+    def write(self, data: bytes):
         """
 
-        :param bytes_:
+        :param data:
         :return:
         """
-        try:
-            os.write(self.w_fd, bytes_)
-        except IOError:
-            pass
+        assert isinstance(data, bytes)
+        fd_helper.write_fd(self.w_fd, data)

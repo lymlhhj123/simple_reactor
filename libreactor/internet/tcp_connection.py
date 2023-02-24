@@ -6,7 +6,7 @@ import errno
 
 from libreactor.channel import Channel
 from libreactor import sock_helper
-from libreactor import utils
+from libreactor import fd_helper
 from libreactor.const import ConnectionState
 from libreactor.const import ConnectionErr
 from libreactor import logging
@@ -228,7 +228,7 @@ class TcpConnection(object):
         :param data:
         :return:
         """
-        if self.state == ConnectionState.DISCONNECTED or self.state == ConnectionState.DISCONNECTING:
+        if self._connection_will_be_closed():
             return
 
         # already call close() method, don't write data
@@ -283,15 +283,12 @@ class TcpConnection(object):
 
         :return:
         """
-        try:
-            write_size = self.sock.send(self.write_buffer)
-        except Exception as ex:
-            return self._handle_rw_error(ex)
-
-        if write_size == 0:
-            return ConnectionErr.PEER_CLOSED
-
+        err_code, write_size = fd_helper.write_fd(self.sock.fileno(), self.write_buffer)
         self.write_buffer = self.write_buffer[write_size:]
+
+        if err_code != 0:
+            return self._handle_rw_error(err_code)
+
         return ConnectionErr.OK
 
     def _on_read_event(self):
@@ -315,16 +312,14 @@ class TcpConnection(object):
 
         :return:
         """
-        while True:
-            try:
-                data = self.sock.recv(READ_SIZE)
-            except Exception as ex:
-                return self._handle_rw_error(ex)
+        err_code, data = fd_helper.read_fd_all(self.sock.fileno(), READ_SIZE)
+        if data:
+            self.protocol.data_received(data)
 
-            if not data:
-                return ConnectionErr.PEER_CLOSED
+        if err_code != 0:
+            return self._handle_rw_error(err_code)
 
-            self._data_received(data)
+        return ConnectionErr.OK
 
     def _handle_connect(self):
         """
@@ -339,16 +334,12 @@ class TcpConnection(object):
         self.channel.disable_writing()
         self.connection_established()
 
-    def _handle_rw_error(self, ex):
+    def _handle_rw_error(self, err_code):
         """
 
-        :param ex:
+        :param err_code:
         :return:
         """
-        err_code = utils.errno_from_ex(ex)
-        if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-            return ConnectionErr.OK
-
         reason = os.strerror(err_code)
         logger.error(f"connection error with {self.endpoint}, reason: {reason}")
 
@@ -356,14 +347,6 @@ class TcpConnection(object):
             return ConnectionErr.BROKEN_PIPE
         else:
             return ConnectionErr.UNKNOWN
-
-    def _data_received(self, data):
-        """
-
-        :param data:
-        :return:
-        """
-        self.protocol.data_received(data)
 
     def close(self, so_linger=False, delay=2):
         """
@@ -404,7 +387,7 @@ class TcpConnection(object):
 
         :return:
         """
-        if self.state == ConnectionState.DISCONNECTING or self.state == ConnectionState.DISCONNECTED:
+        if self._connection_will_be_closed():
             return
 
         self.state = ConnectionState.DISCONNECTING
@@ -419,6 +402,13 @@ class TcpConnection(object):
         self.ev.call_soon(self._close_force)
 
         self._connection_closed()
+
+    def _connection_will_be_closed(self):
+        """
+
+        :return:
+        """
+        return self.state in {ConnectionState.DISCONNECTING, ConnectionState.DISCONNECTED}
 
     def _close_force(self):
         """

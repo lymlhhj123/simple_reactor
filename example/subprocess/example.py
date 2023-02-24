@@ -17,6 +17,6 @@ def on_result(status, stdout, stderr):
 
 ev = EventLoop()
 
-Popen(ev, "uname -a", on_result=on_result)
+Popen("uname -a", ev, on_result=on_result)
 
 ev.loop()
