@@ -2,8 +2,10 @@
 
 import errno
 import os
+import shlex
 import sys
 import signal
+import traceback
 
 from . import fd_helper
 from . import utils
@@ -12,12 +14,12 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, ev, args: str, on_result, shell=False,
+    def __init__(self, ev, args, on_result, shell=False,
                  work_dir=os.getcwd(), umask=0o22, timeout=60):
         """
 
         :param ev:
-        :param args:
+        :param args: str or list
         :param on_result:
         :param shell:
         :param work_dir:
@@ -55,36 +57,12 @@ class Popen(object):
 
         pid = os.fork()
         if pid == 0:
-            os.chdir(self.work_dir)
-            os.umask(self.umask)
-
-            args = [self.args]
-            if self.shell is True:
-                args = ["/bin/sh", "-c"] + args
-
-            fd_helper.close_fd(stdin_write)
-            fd_helper.close_fd(stdout_read)
-            fd_helper.close_fd(stderr_read)
-
-            in_dup = os.dup(stdin_read)
-            out_dup = os.dup(stdout_write)
-            err_dup = os.dup(stderr_write)
-
-            # make sure 0 1 2 is our expected
-            os.dup2(in_dup, 0)
-            os.dup2(out_dup, 1)
-            os.dup2(err_dup, 2)
-
-            wait_closed = [stdin_read, stdout_write, stderr_write,
-                           in_dup, out_dup, err_dup]
-            for fd in wait_closed:
-                if fd > 2:
-                    fd_helper.close_fd(fd)
-
-            if os.environ:
-                os.execvpe(args[0], args, os.environ)
-            else:
-                os.execvp(args[0], args)
+            try:
+                self._execute_child(stdin_read, stdin_write, stdout_read,
+                                    stdout_write, stderr_read, stderr_write)
+            except (ValueError, Exception):
+                error = traceback.format_exc()
+                os.write(sys.stderr.fileno(), error.encode("utf-8"))
 
             sys.exit(255)
 
@@ -104,6 +82,69 @@ class Popen(object):
         self.stderr_channel.enable_reading()
 
         self.timeout_timer = self.ev.call_later(self.timeout, self._on_timeout)
+
+    def _execute_child(self, stdin_read, stdin_write, stdout_read,
+                       stdout_write, stderr_read, stderr_write):
+        """
+
+        :param stdin_read:
+        :param stdin_write:
+        :param stdout_read:
+        :param stdout_write:
+        :param stderr_read:
+        :param stderr_write:
+        :return:
+        """
+        os.chdir(self.work_dir)
+        os.umask(self.umask)
+
+        fd_helper.close_fd(stdin_write)
+        fd_helper.close_fd(stdout_read)
+        fd_helper.close_fd(stderr_read)
+
+        in_dup = os.dup(stdin_read)
+        out_dup = os.dup(stdout_write)
+        err_dup = os.dup(stderr_write)
+
+        # make sure 0 1 2 is our expected
+        os.dup2(in_dup, sys.stdin.fileno())
+        os.dup2(out_dup, sys.stdout.fileno())
+        os.dup2(err_dup, sys.stderr.fileno())
+
+        try:
+            max_fd = os.sysconf("SC_OPEN_MAX")
+        except (ValueError, Exception):
+            max_fd = 4096
+
+        os.closerange(3, max_fd)
+
+        args = self._construct_args()
+
+        if os.environ:
+            os.execvpe(args[0], args, os.environ)
+        else:
+            os.execvp(args[0], args)
+
+    def _construct_args(self):
+        """
+
+        :return:
+        """
+        args = self.args
+        if self.shell is True:
+            if isinstance(args, str):
+                args = [args]
+            else:
+                args = " ".join(list(args))
+
+            args = ["/bin/sh", "-c"] + args
+        else:
+            if isinstance(args, str):
+                args = shlex.split(args)
+            else:
+                args = list(args)
+
+        return args
 
     def _on_timeout(self):
         """
