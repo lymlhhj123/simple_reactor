@@ -91,10 +91,10 @@ def read_fd_all(fd, chunk_size=8192):
     output = b""
     while True:
         err_code, data = read_fd(fd, chunk_size)
+        output += data
+
         if err_code != 0:
             break
-
-        output += data
 
     return err_code, output
 
