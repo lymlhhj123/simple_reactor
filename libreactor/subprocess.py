@@ -15,7 +15,7 @@ from .channel import Channel
 class Popen(object):
 
     def __init__(self, ev, args, on_result, shell=False,
-                 cwd=os.getcwd(), timeout=60):
+                 cwd=None, timeout=60):
         """
 
         :param ev:
@@ -93,8 +93,6 @@ class Popen(object):
         :param stderr_write:
         :return:
         """
-        os.chdir(self.cwd)
-
         fd_helper.close_fd(stdin_write)
         fd_helper.close_fd(stdout_read)
         fd_helper.close_fd(stderr_read)
@@ -113,7 +111,11 @@ class Popen(object):
         except (ValueError, Exception):
             max_fd = 4096
 
+        # close all fd
         os.closerange(3, max_fd)
+
+        if self.cwd:
+            os.chdir(self.cwd)
 
         args = self._construct_args()
 
