@@ -90,11 +90,11 @@ def read_fd_all(fd, chunk_size=8192):
     """
     output = b""
     while True:
-        err_code, data = read_fd(fd, chunk_size)
-        output += data
-
+        err_code, data = read_once(fd, chunk_size)
         if err_code != 0:
             break
+
+        output += data
 
     return err_code, output
 
@@ -109,19 +109,33 @@ def read_fd(fd, chunk_size=8192):
     output = b""
     remain = chunk_size
     while True:
-        try:
-            data = os.read(fd, remain)
-        except IOError as e:
-            err_code = errno_from_ex(e)
+        err_code, data = read_once(fd, remain)
+        if err_code != 0:
             return err_code, output
-
-        if not data:
-            return errno.ECONNRESET, output
 
         output += data
         remain -= len(data)
         if remain == 0:
             return 0, output
+
+
+def read_once(fd, chunk_size=8192):
+    """
+    read non-block fd once
+    :param fd:
+    :param chunk_size:
+    :return:
+    """
+    try:
+        data = os.read(fd, chunk_size)
+    except IOError as e:
+        err_code = errno_from_ex(e)
+        return err_code, b""
+
+    if not data:
+        return errno.ECONNRESET, b""
+
+    return 0, data
 
 
 def write_fd(fd, data: bytes):
