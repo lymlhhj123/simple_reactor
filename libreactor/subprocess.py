@@ -15,23 +15,21 @@ from .channel import Channel
 class Popen(object):
 
     def __init__(self, ev, args, on_result, shell=False,
-                 work_dir=os.getcwd(), umask=0o22, timeout=60):
+                 cwd=os.getcwd(), timeout=60):
         """
 
         :param ev:
         :param args: str or list
         :param on_result:
         :param shell:
-        :param work_dir:
-        :param umask:
+        :param cwd:
         :param timeout:
         """
         self.ev = ev
         self.args = args
         self.shell = shell
         self.on_result = on_result
-        self.work_dir = work_dir
-        self.umask = umask
+        self.cwd = cwd
         self.timeout = timeout
 
         self.child_pid = 0
@@ -62,7 +60,7 @@ class Popen(object):
                                     stdout_write, stderr_read, stderr_write)
             except (ValueError, Exception):
                 error = traceback.format_exc()
-                os.write(sys.stderr.fileno(), error.encode("utf-8"))
+                os.write(2, error.encode("utf-8"))
 
             sys.exit(255)
 
@@ -95,8 +93,7 @@ class Popen(object):
         :param stderr_write:
         :return:
         """
-        os.chdir(self.work_dir)
-        os.umask(self.umask)
+        os.chdir(self.cwd)
 
         fd_helper.close_fd(stdin_write)
         fd_helper.close_fd(stdout_read)
@@ -107,9 +104,9 @@ class Popen(object):
         err_dup = os.dup(stderr_write)
 
         # make sure 0 1 2 is our expected
-        os.dup2(in_dup, sys.stdin.fileno())
-        os.dup2(out_dup, sys.stdout.fileno())
-        os.dup2(err_dup, sys.stderr.fileno())
+        os.dup2(in_dup, 0)
+        os.dup2(out_dup, 1)
+        os.dup2(err_dup, 2)
 
         try:
             max_fd = os.sysconf("SC_OPEN_MAX")
