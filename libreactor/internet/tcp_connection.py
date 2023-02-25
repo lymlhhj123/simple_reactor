@@ -6,7 +6,7 @@ import errno
 from libreactor.channel import Channel
 from libreactor import sock_helper
 from libreactor import fd_helper
-from libreactor.const import Error
+from libreactor.const import ErrorCode
 from libreactor.const import ConnectionState
 from libreactor import logging
 
@@ -160,7 +160,7 @@ class TcpConnection(object):
         :return:
         """
         self._timeout_timer = None
-        self._connection_failed(Error.TIMEOUT)
+        self._connection_failed(ErrorCode.TIMEOUT)
 
     def _connection_failed(self, err_code):
         """
@@ -168,7 +168,7 @@ class TcpConnection(object):
         :param err_code:
         :return:
         """
-        reason = Error.str_error(err_code)
+        reason = ErrorCode.str_error(err_code)
         logger.error(f"failed to connect {self.endpoint}, reason: {reason}")
 
         if self.timeout_timer:
@@ -240,7 +240,7 @@ class TcpConnection(object):
 
         # try to write directly
         err_code = self._do_write()
-        if err_code != Error.OK:
+        if ErrorCode.is_error(err_code):
             self._connection_error()
             return
 
@@ -260,7 +260,7 @@ class TcpConnection(object):
 
         if self.write_buffer:
             err_code = self._do_write()
-            if Error.is_error(err_code):
+            if ErrorCode.is_error(err_code):
                 self._connection_error()
                 return
 
@@ -295,7 +295,7 @@ class TcpConnection(object):
             return
 
         err_code = self._do_read()
-        if Error.is_error(err_code):
+        if ErrorCode.is_error(err_code):
             self._connection_error()
 
     def _do_read(self):

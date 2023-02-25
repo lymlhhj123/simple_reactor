@@ -14,7 +14,7 @@ class ConnectionState(object):
     DISCONNECTED = 3
 
 
-class Error(object):
+class ErrorCode(object):
 
     OK = 0
     TIMEOUT = 65536
@@ -37,7 +37,7 @@ class Error(object):
         :param err_code:
         :return:
         """
-        return err_code not in {Error.OK, Error.DO_AGAIN}
+        return err_code not in {cls.OK, cls.DO_AGAIN}
 
     @classmethod
     def str_error(cls, err_code):
@@ -48,7 +48,7 @@ class Error(object):
         """
         reason = os.strerror(err_code)
         if not reason:
-            reason = Error.STR_ERROR.get(err_code, "Unknown error")
+            reason = cls.STR_ERROR.get(err_code, "Unknown error")
 
         return reason
 

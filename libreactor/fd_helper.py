@@ -1,9 +1,10 @@
 # coding: utf-8
+
 import errno
 import os
 import fcntl
 
-from .const import Error
+from .const import ErrorCode
 from .utils import errno_from_ex
 
 
@@ -92,7 +93,7 @@ def read_fd_all(fd, chunk_size=8192):
     output = b""
     while True:
         err_code, data = read_once(fd, chunk_size)
-        if err_code != Error.OK:
+        if err_code != ErrorCode.OK:
             break
 
         output += data
@@ -111,13 +112,13 @@ def read_fd(fd, chunk_size=8192):
     remain = chunk_size
     while True:
         err_code, data = read_once(fd, remain)
-        if err_code != Error.OK:
+        if err_code != ErrorCode.OK:
             return err_code, output
 
         output += data
         remain -= len(data)
         if remain == 0:
-            return Error.OK, output
+            return ErrorCode.OK, output
 
 
 def read_once(fd, chunk_size=8192):
@@ -132,14 +133,14 @@ def read_once(fd, chunk_size=8192):
     except IOError as e:
         err_code = errno_from_ex(e)
         if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
-            err_code = Error.DO_AGAIN
+            err_code = ErrorCode.DO_AGAIN
 
         return err_code, b""
 
     if not data:
-        return Error.CLOSED, b""
+        return ErrorCode.CLOSED, b""
 
-    return Error.OK, data
+    return ErrorCode.OK, data
 
 
 def write_fd(fd, data: bytes):
@@ -156,13 +157,13 @@ def write_fd(fd, data: bytes):
         except IOError as e:
             err_code = errno_from_ex(e)
             if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
-                err_code = Error.DO_AGAIN
+                err_code = ErrorCode.DO_AGAIN
 
             return err_code, idx
 
         if chunk_size == 0:
-            return Error.CLOSED, idx
+            return ErrorCode.CLOSED, idx
 
         idx += chunk_size
         if idx == len(data):
-            return Error.OK, idx
+            return ErrorCode.OK, idx
