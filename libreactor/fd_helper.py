@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import errno
 import os
 import fcntl
 
@@ -131,6 +131,9 @@ def read_once(fd, chunk_size=8192):
         data = os.read(fd, chunk_size)
     except IOError as e:
         err_code = errno_from_ex(e)
+        if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+            err_code = Error.DO_AGAIN
+
         return err_code, b""
 
     if not data:
@@ -141,7 +144,7 @@ def read_once(fd, chunk_size=8192):
 
 def write_fd(fd, data: bytes):
     """
-
+    write non-block fd
     :param fd:
     :param data:
     :return:
@@ -152,6 +155,9 @@ def write_fd(fd, data: bytes):
             chunk_size = os.write(fd, data[idx:])
         except IOError as e:
             err_code = errno_from_ex(e)
+            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+                err_code = Error.DO_AGAIN
+
             return err_code, idx
 
         if chunk_size == 0:

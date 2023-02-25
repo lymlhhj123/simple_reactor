@@ -20,24 +20,35 @@ class Error(object):
     TIMEOUT = 65536
     CLOSED = 65537
     DNS_RESOLVE_FAILED = 65538
+    DO_AGAIN = 65539
 
     STR_ERROR: dict = {
-        OK: "ok",
-        TIMEOUT: "timeout",
-        CLOSED: "connection closed",
-        DNS_RESOLVE_FAILED: "failed to resolve dns",
+        OK: "OK",
+        TIMEOUT: "Timeout",
+        CLOSED: "Connection closed",
+        DNS_RESOLVE_FAILED: "Failed to resolve dns",
+        DO_AGAIN: "Resource temporarily unavailable"
     }
 
     @classmethod
-    def str_error(cls, error_code):
+    def is_error(cls, err_code):
         """
 
-        :param error_code:
+        :param err_code:
         :return:
         """
-        reason = os.strerror(error_code)
+        return err_code not in {Error.OK, Error.DO_AGAIN}
+
+    @classmethod
+    def str_error(cls, err_code):
+        """
+
+        :param err_code:
+        :return:
+        """
+        reason = os.strerror(err_code)
         if not reason:
-            reason = Error.STR_ERROR.get(error_code, "Unknown error")
+            reason = Error.STR_ERROR.get(err_code, "Unknown error")
 
         return reason
 

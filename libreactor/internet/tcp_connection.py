@@ -260,7 +260,7 @@ class TcpConnection(object):
 
         if self.write_buffer:
             err_code = self._do_write()
-            if err_code != Error.OK:
+            if Error.is_error(err_code):
                 self._connection_error()
                 return
 
@@ -295,7 +295,7 @@ class TcpConnection(object):
             return
 
         err_code = self._do_read()
-        if err_code != Error.OK:
+        if Error.is_error(err_code):
             self._connection_error()
 
     def _do_read(self):
