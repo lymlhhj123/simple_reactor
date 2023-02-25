@@ -1,5 +1,7 @@
 # coding: utf-8
 
+import os
+
 
 class ConnectionState(object):
     """
@@ -12,29 +14,32 @@ class ConnectionState(object):
     DISCONNECTED = 3
 
 
-class ConnectionErr(object):
-    """
-    tcp connection error
-    """
+class Error(object):
 
     OK = 0
-    TIMEOUT = 1
-    CONNECT_FAILED = 2
-    BROKEN_PIPE = 3
-    PEER_CLOSED = 4
-    USER_CLOSED = 5
-    DNS_FAILED = 6
-    UNKNOWN = 7
+    TIMEOUT = 65536
+    CLOSED = 65537
+    DNS_RESOLVE_FAILED = 65538
 
-    MAP = {
+    STR_ERROR: dict = {
+        OK: "ok",
         TIMEOUT: "timeout",
-        CONNECT_FAILED: "connect failed",
-        BROKEN_PIPE: "broken pipe",
-        PEER_CLOSED: "peer closed",
-        USER_CLOSED: "user closed",
-        DNS_FAILED: "dns resolve failed",
-        UNKNOWN: "unknown",
+        CLOSED: "connection closed",
+        DNS_RESOLVE_FAILED: "failed to resolve dns",
     }
+
+    @classmethod
+    def str_error(cls, error_code):
+        """
+
+        :param error_code:
+        :return:
+        """
+        reason = os.strerror(error_code)
+        if not reason:
+            reason = Error.STR_ERROR.get(error_code, "Unknown error")
+
+        return reason
 
 
 class IPAny(object):

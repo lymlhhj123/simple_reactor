@@ -1,8 +1,9 @@
 # coding: utf-8
-import errno
+
 import os
 import fcntl
 
+from .const import Error
 from .utils import errno_from_ex
 
 
@@ -91,7 +92,7 @@ def read_fd_all(fd, chunk_size=8192):
     output = b""
     while True:
         err_code, data = read_once(fd, chunk_size)
-        if err_code != 0:
+        if err_code != Error.OK:
             break
 
         output += data
@@ -110,13 +111,13 @@ def read_fd(fd, chunk_size=8192):
     remain = chunk_size
     while True:
         err_code, data = read_once(fd, remain)
-        if err_code != 0:
+        if err_code != Error.OK:
             return err_code, output
 
         output += data
         remain -= len(data)
         if remain == 0:
-            return 0, output
+            return Error.OK, output
 
 
 def read_once(fd, chunk_size=8192):
@@ -133,9 +134,9 @@ def read_once(fd, chunk_size=8192):
         return err_code, b""
 
     if not data:
-        return errno.ECONNRESET, b""
+        return Error.CLOSED, b""
 
-    return 0, data
+    return Error.OK, data
 
 
 def write_fd(fd, data: bytes):
@@ -154,8 +155,8 @@ def write_fd(fd, data: bytes):
             return err_code, idx
 
         if chunk_size == 0:
-            return errno.ECONNRESET, idx
+            return Error.CLOSED, idx
 
         idx += chunk_size
         if idx == len(data):
-            return 0, idx
+            return Error.OK, idx

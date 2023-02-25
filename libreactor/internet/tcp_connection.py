@@ -1,14 +1,13 @@
 # coding: utf-8
 
-import os
 import socket
 import errno
 
 from libreactor.channel import Channel
 from libreactor import sock_helper
 from libreactor import fd_helper
+from libreactor.const import Error
 from libreactor.const import ConnectionState
-from libreactor.const import ConnectionErr
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -161,7 +160,7 @@ class TcpConnection(object):
         :return:
         """
         self._timeout_timer = None
-        self._connection_failed(ConnectionErr.TIMEOUT)
+        self._connection_failed(Error.TIMEOUT)
 
     def _connection_failed(self, err_code):
         """
@@ -169,10 +168,7 @@ class TcpConnection(object):
         :param err_code:
         :return:
         """
-        reason = os.strerror(err_code)
-        if not reason:
-            reason = ConnectionErr.MAP.get(err_code, "Unknown")
-
+        reason = Error.str_error(err_code)
         logger.error(f"failed to connect {self.endpoint}, reason: {reason}")
 
         if self.timeout_timer:
@@ -243,8 +239,8 @@ class TcpConnection(object):
             return
 
         # try to write directly
-        error = self._do_write()
-        if error != ConnectionErr.OK:
+        err_code = self._do_write()
+        if err_code != Error.OK:
             self._connection_error()
             return
 
@@ -263,8 +259,8 @@ class TcpConnection(object):
             return
 
         if self.write_buffer:
-            error = self._do_write()
-            if error != ConnectionErr.OK:
+            err_code = self._do_write()
+            if err_code != Error.OK:
                 self._connection_error()
                 return
 
@@ -285,11 +281,7 @@ class TcpConnection(object):
         """
         err_code, write_size = fd_helper.write_fd(self.sock.fileno(), self.write_buffer)
         self.write_buffer = self.write_buffer[write_size:]
-
-        if err_code != 0:
-            return self._handle_rw_error(err_code)
-
-        return ConnectionErr.OK
+        return err_code
 
     def _on_read_event(self):
         """
@@ -302,8 +294,8 @@ class TcpConnection(object):
         if self.state != ConnectionState.CONNECTED:
             return
 
-        error = self._do_read()
-        if error != ConnectionErr.OK:
+        err_code = self._do_read()
+        if err_code != Error.OK:
             self._connection_error()
 
     def _do_read(self):
@@ -315,10 +307,7 @@ class TcpConnection(object):
         if data:
             self.protocol.data_received(data)
 
-        if err_code != 0:
-            return self._handle_rw_error(err_code)
-
-        return ConnectionErr.OK
+        return err_code
 
     def _handle_connect(self):
         """
@@ -332,23 +321,6 @@ class TcpConnection(object):
 
         self.channel.disable_writing()
         self.connection_established()
-
-    def _handle_rw_error(self, err_code):
-        """
-
-        :param err_code:
-        :return:
-        """
-        if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
-            return ConnectionErr.OK
-
-        reason = os.strerror(err_code)
-        logger.error(f"connection error with {self.endpoint}, reason: {reason}")
-
-        if err_code == errno.EPIPE:
-            return ConnectionErr.BROKEN_PIPE
-        else:
-            return ConnectionErr.UNKNOWN
 
     def close(self, so_linger=False, delay=2):
         """
@@ -366,9 +338,9 @@ class TcpConnection(object):
     def _close_in_loop(self, so_linger: bool, delay: int):
         """
         if `write_buffer` is empty, close connection directly.
-        if `so_linger` is false, close connection until write buffer
+        else, if `so_linger` is false, close connection until write buffer
         is empty or error happened; otherwise, delay close connection
-        after `delay` second and drop write buffer if it has.
+        after `delay` second and drop write buffer if it has, then close connection.
         :param so_linger:
         :param delay: sec
         :return:

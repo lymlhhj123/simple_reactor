@@ -1,12 +1,9 @@
 # coding: utf-8
 
-import errno
-import os
 from collections import deque
 
 from libreactor.channel import Channel
 from libreactor import utils
-from libreactor import const
 from libreactor import logging
 
 READ_SIZE = 1500
@@ -150,7 +147,7 @@ class UdpConnection(object):
             try:
                 self.sock.sendto(data, addr)
             except Exception as ex:
-                self._handle_rw_error(ex)
+                utils.errno_from_ex(ex)
                 break
 
             self.write_buffer.popleft()
@@ -167,25 +164,10 @@ class UdpConnection(object):
             try:
                 data, addr = self.sock.recvfrom(READ_SIZE)
             except Exception as ex:
-                self._handle_rw_error(ex)
+                utils.errno_from_ex(ex)
                 break
 
             self.protocol.dgram_received(data, addr)
-
-    @staticmethod
-    def _handle_rw_error(ex):
-        """
-
-        :param ex:
-        :return:
-        """
-        err_code = utils.errno_from_ex(ex)
-        if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-            return const.ConnectionErr.OK
-
-        readable = os.strerror(err_code)
-        logger.error(f"sock read/write error, reason: {readable}")
-        return const.ConnectionErr.UNKNOWN
 
     def close(self):
         """

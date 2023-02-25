@@ -16,6 +16,13 @@ class Signaler(object):
         """
         return self.r_fd
 
+    def write_fd(self):
+        """
+
+        :return:
+        """
+        return self.w_fd
+
     def read_all(self):
         """
 
@@ -28,7 +35,7 @@ class Signaler(object):
         read one byte
         :return:
         """
-        fd_helper.read_fd(self.r_fd, 1)
+        fd_helper.read_once(self.r_fd, 1)
 
     def write_one(self):
         """
