@@ -382,7 +382,7 @@ class TcpConnection(object):
 
         :return:
         """
-        return self.state in {ConnectionState.DISCONNECTING, ConnectionState.DISCONNECTED}
+        return self.state == ConnectionState.DISCONNECTING or self.state == ConnectionState.DISCONNECTED
 
     def _close_force(self):
         """

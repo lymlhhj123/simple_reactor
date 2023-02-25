@@ -132,7 +132,7 @@ def read_once(fd, chunk_size=8192):
         data = os.read(fd, chunk_size)
     except IOError as e:
         err_code = errno_from_ex(e)
-        if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+        if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
             err_code = ErrorCode.DO_AGAIN
 
         return err_code, b""
@@ -156,7 +156,7 @@ def write_fd(fd, data: bytes):
             chunk_size = os.write(fd, data[idx:])
         except IOError as e:
             err_code = errno_from_ex(e)
-            if err_code in {errno.EAGAIN, errno.EWOULDBLOCK}:
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                 err_code = ErrorCode.DO_AGAIN
 
             return err_code, idx

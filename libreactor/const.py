@@ -30,17 +30,17 @@ class ErrorCode(object):
         DO_AGAIN: "Resource temporarily unavailable"
     }
 
-    @classmethod
-    def is_error(cls, err_code):
+    @staticmethod
+    def is_error(err_code):
         """
 
         :param err_code:
         :return:
         """
-        return err_code not in {cls.OK, cls.DO_AGAIN}
+        return not (err_code == ErrorCode.OK or err_code == ErrorCode.DO_AGAIN)
 
-    @classmethod
-    def str_error(cls, err_code):
+    @staticmethod
+    def str_error(err_code):
         """
 
         :param err_code:
@@ -48,7 +48,7 @@ class ErrorCode(object):
         """
         reason = os.strerror(err_code)
         if not reason:
-            reason = cls.STR_ERROR.get(err_code, "Unknown error")
+            reason = ErrorCode.STR_ERROR.get(err_code, "Unknown error")
 
         return reason
 
