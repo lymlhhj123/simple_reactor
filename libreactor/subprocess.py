@@ -9,6 +9,7 @@ import traceback
 
 from . import fd_helper
 from . import utils
+from .const import ErrorCode
 from .channel import Channel
 
 
@@ -148,10 +149,10 @@ class Popen(object):
 
         :return:
         """
-        status, data = fd_helper.read_fd_all(self.stdout_channel.fileno(), 4096)
+        err_code, data = fd_helper.read_fd_all(self.stdout_channel.fileno(), 4096)
         self.stdout += data
 
-        if status != 0:
+        if ErrorCode.is_error(err_code):
             self.stdout_channel.disable_reading()
             self.stdout_channel.close()
             self.stdout_channel = None
@@ -163,10 +164,10 @@ class Popen(object):
 
         :return:
         """
-        status, data = fd_helper.read_fd_all(self.stderr_channel.fileno(), 4096)
+        err_code, data = fd_helper.read_fd_all(self.stderr_channel.fileno(), 4096)
         self.stderr += data
 
-        if status != 0:
+        if ErrorCode.is_error(err_code):
             self.stderr_channel.disable_reading()
             self.stderr_channel.close()
             self.stderr_channel = None
