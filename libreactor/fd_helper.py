@@ -52,7 +52,7 @@ def lock_file(fd, blocking=True):
     :return:
     """
     flags = fcntl.LOCK_EX
-    if blocking:
+    if blocking is False:
         flags |= fcntl.LOCK_NB
 
     try:
