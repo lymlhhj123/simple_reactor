@@ -37,7 +37,9 @@ class ErrorCode(object):
         :param err_code:
         :return:
         """
-        return not (err_code == ErrorCode.OK or err_code == ErrorCode.DO_AGAIN)
+        return not (err_code == ErrorCode.OK or
+                    err_code == ErrorCode.DO_AGAIN or
+                    err_code == ErrorCode.CLOSED)
 
     @staticmethod
     def str_error(err_code):
