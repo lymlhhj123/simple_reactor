@@ -22,10 +22,10 @@ class ErrorCode(object):
     DNS_RESOLVE_FAILED = 65538
     DO_AGAIN = 65539
 
-    STR_ERROR: dict = {
+    MAP = {
         OK: "OK",
         TIMEOUT: "Timeout",
-        CLOSED: "Connection closed",
+        CLOSED: "Connection closed by peer",
         DNS_RESOLVE_FAILED: "Failed to resolve dns",
         DO_AGAIN: "Resource temporarily unavailable"
     }
@@ -49,7 +49,7 @@ class ErrorCode(object):
         """
         reason = os.strerror(err_code)
         if not reason:
-            reason = ErrorCode.STR_ERROR.get(err_code, "Unknown error")
+            reason = ErrorCode.MAP.get(err_code, "Unknown error")
 
         return reason
 

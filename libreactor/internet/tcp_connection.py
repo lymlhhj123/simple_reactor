@@ -6,6 +6,7 @@ import errno
 from libreactor.channel import Channel
 from libreactor import sock_helper
 from libreactor import fd_helper
+from libreactor import utils
 from libreactor.const import ErrorCode
 from libreactor.const import ConnectionState
 from libreactor import logging
@@ -89,25 +90,25 @@ class TcpConnection(object):
         try:
             self.sock.connect(endpoint)
         except socket.error as e:
-            err_code = e.errno
-            if err_code == errno.EISCONN:
-                state = ConnectionState.CONNECTED
-            elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
-                state = ConnectionState.CONNECTING
-            else:
-                state = ConnectionState.DISCONNECTED
+            err_code = utils.errno_from_ex(e)
         else:
-            err_code = 0
-            state = ConnectionState.CONNECTED
+            err_code = ErrorCode.OK
 
-        if state == ConnectionState.CONNECTING:
-            self.state = state
-            self.channel.enable_writing()
-            self.timeout_timer = self.ev.call_later(timeout, self._connection_timeout)
-        elif state == ConnectionState.CONNECTED:
+        if err_code == errno.EISCONN or err_code == ErrorCode.OK:
             self.connection_established()
+        elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
+            self._wait_connection_established(timeout)
         else:
             self._connection_failed(err_code)
+
+    def _wait_connection_established(self, timeout):
+        """
+
+        :return:
+        """
+        self.state = ConnectionState.CONNECTING
+        self.channel.enable_writing()
+        self.timeout_timer = self.ev.call_later(timeout, self._connection_timeout)
 
     def connection_established(self):
         """
