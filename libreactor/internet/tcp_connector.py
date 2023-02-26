@@ -90,20 +90,18 @@ class TcpConnector(object):
         if self.on_closed:
             self.on_closed(conn)
 
-    def _connection_error(self, conn):
+    def _connection_error(self, err_code):
         """
 
-        :param conn:
         :return:
         """
         if self.on_error:
-            self.on_error(conn)
+            self.on_error(err_code)
 
-    def _connection_failed(self, conn):
+    def _connection_failed(self, err_code):
         """
 
-        :param conn:
         :return:
         """
         if self.on_failure:
-            self.on_failure(conn)
+            self.on_failure(err_code)

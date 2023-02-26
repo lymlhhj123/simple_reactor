@@ -168,9 +168,6 @@ class TcpConnection(object):
         :param err_code:
         :return:
         """
-        reason = ErrorCode.str_error(err_code)
-        logger.error(f"failed to connect {self.endpoint}, reason: {reason}")
-
         if self.timeout_timer:
             self.timeout_timer.cancel()
             self.timeout_timer = None
@@ -178,19 +175,19 @@ class TcpConnection(object):
         self._close_connection()
 
         if self.on_failure:
-            self.on_failure(self)
+            self.on_failure(err_code)
 
-    def _connection_error(self):
+    def _connection_error(self, err_code):
         """
         error happened when on read/write
         :return:
         """
         self._close_connection()
 
-        self.protocol.connection_error()
+        self.protocol.connection_error(err_code)
 
         if self.on_error:
-            self.on_error(self)
+            self.on_error(err_code)
 
     def _connection_closed(self):
         """
@@ -241,7 +238,7 @@ class TcpConnection(object):
         # try to write directly
         err_code = self._do_write()
         if ErrorCode.is_error(err_code):
-            self._connection_error()
+            self._connection_error(err_code)
             return
 
         if self.write_buffer and not self.channel.writable():
@@ -261,7 +258,7 @@ class TcpConnection(object):
         if self.write_buffer:
             err_code = self._do_write()
             if ErrorCode.is_error(err_code):
-                self._connection_error()
+                self._connection_error(err_code)
                 return
 
         if self.write_buffer:
@@ -297,7 +294,7 @@ class TcpConnection(object):
 
         err_code = self._do_read()
         if ErrorCode.is_error(err_code):
-            self._connection_error()
+            self._connection_error(err_code)
 
     def _do_read(self):
         """

@@ -24,7 +24,7 @@ class MyProtocol(Protocol):
         self.io_count += 1
         self.connection.write(data)
 
-    def connection_error(self):
+    def connection_error(self, err_code):
         """
 
         :return:

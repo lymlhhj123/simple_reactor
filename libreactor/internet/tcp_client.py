@@ -3,6 +3,7 @@
 import socket
 import random
 
+from ..const import ErrorCode
 from .tcp_connector import TcpConnector
 # from ..dns_resolver import DNSResolver
 from libreactor import logging
@@ -75,23 +76,27 @@ class TcpClient(object):
         connector.set_failure_callback(self._connection_failed)
         connector.start_connect()
 
-    def _connection_error(self, conn):
+    def _connection_error(self, err_code):
         """
 
-        :param conn:
         :return:
         """
+        reason = ErrorCode.str_error(err_code)
+        logger.error(f"error happened with {self.host}:{self.port}, reason: {reason}")
+
         if self.auto_reconnect:
             self._reconnect()
 
         self.ctx.connection_error()
 
-    def _connection_failed(self, conn):
+    def _connection_failed(self, err_code):
         """
 
-        :param conn:
         :return:
         """
+        reason = ErrorCode.str_error(err_code)
+        logger.error(f"failed to connect {self.host}:{self.port}, reason: {reason}")
+
         if self.auto_reconnect:
             self._reconnect()
 

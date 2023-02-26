@@ -38,8 +38,7 @@ class ErrorCode(object):
         :return:
         """
         return not (err_code == ErrorCode.OK or
-                    err_code == ErrorCode.DO_AGAIN or
-                    err_code == ErrorCode.CLOSED)
+                    err_code == ErrorCode.DO_AGAIN)
 
     @staticmethod
     def str_error(err_code):
