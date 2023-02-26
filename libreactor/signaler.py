@@ -5,9 +5,23 @@ from . import fd_helper
 
 class Signaler(object):
 
-    def __init__(self):
+    def __init__(self, r_fd=None, w_fd=None):
+        """
 
-        self.r_fd, self.w_fd = fd_helper.make_async_pipe()
+        :param r_fd:
+        :param w_fd:
+        """
+        if not r_fd or not w_fd:
+            self.r_fd, self.w_fd = fd_helper.make_async_pipe()
+        else:
+            fd_helper.make_fd_async(r_fd)
+            fd_helper.make_fd_async(w_fd)
+
+            fd_helper.close_on_exec(r_fd)
+            fd_helper.close_on_exec(w_fd)
+
+            self.r_fd = r_fd
+            self.w_fd = w_fd
 
     def fileno(self):
         """
@@ -28,7 +42,7 @@ class Signaler(object):
 
         :return:
         """
-        fd_helper.read_fd_all(self.r_fd)
+        fd_helper.read_fd(self.r_fd)
 
     def read_one(self):
         """
