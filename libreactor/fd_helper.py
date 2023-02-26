@@ -83,7 +83,7 @@ def close_fd(fd):
         pass
 
 
-def read_fd_all(fd, chunk_size=8192):
+def read_fd(fd, chunk_size=8192):
     """
     read non-block fd until buffer is empty
     :param fd:
@@ -99,26 +99,6 @@ def read_fd_all(fd, chunk_size=8192):
         output += data
 
     return err_code, output
-
-
-def read_fd(fd, chunk_size=8192):
-    """
-    read non-block fd {chunk size} bytes or until buffer is empty
-    :param fd:
-    :param chunk_size:
-    :return:
-    """
-    output = b""
-    remain = chunk_size
-    while True:
-        err_code, data = read_once(fd, remain)
-        if err_code != ErrorCode.OK:
-            return err_code, output
-
-        output += data
-        remain -= len(data)
-        if remain == 0:
-            return ErrorCode.OK, output
 
 
 def read_once(fd, chunk_size=8192):
@@ -152,18 +132,32 @@ def write_fd(fd, data: bytes):
     """
     idx = 0
     while True:
-        try:
-            chunk_size = os.write(fd, data[idx:])
-        except IOError as e:
-            err_code = errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = ErrorCode.DO_AGAIN
-
+        err_code, chunk_size = write_once(fd, data[idx:])
+        if err_code != ErrorCode.OK:
             return err_code, idx
-
-        if chunk_size == 0:
-            return ErrorCode.CLOSED, idx
 
         idx += chunk_size
         if idx == len(data):
             return ErrorCode.OK, idx
+
+
+def write_once(fd, data: bytes):
+    """
+
+    :param fd:
+    :param data:
+    :return:
+    """
+    try:
+        chunk_size = os.write(fd, data)
+    except IOError as e:
+        err_code = errno_from_ex(e)
+        if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+            err_code = ErrorCode.DO_AGAIN, 0
+
+        return err_code, 0
+
+    if chunk_size == 0:
+        return ErrorCode.CLOSED, 0
+
+    return ErrorCode.OK, chunk_size

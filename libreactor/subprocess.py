@@ -149,7 +149,7 @@ class Popen(object):
 
         :return:
         """
-        err_code, data = fd_helper.read_fd_all(self.stdout_channel.fileno(), 4096)
+        err_code, data = fd_helper.read_fd(self.stdout_channel.fileno(), 4096)
         self.stdout += data
 
         if ErrorCode.is_error(err_code):
@@ -164,7 +164,7 @@ class Popen(object):
 
         :return:
         """
-        err_code, data = fd_helper.read_fd_all(self.stderr_channel.fileno(), 4096)
+        err_code, data = fd_helper.read_fd(self.stderr_channel.fileno(), 4096)
         self.stderr += data
 
         if ErrorCode.is_error(err_code):

@@ -279,7 +279,8 @@ class TcpConnection(object):
 
         :return:
         """
-        err_code, write_size = fd_helper.write_fd(self.sock.fileno(), self.write_buffer)
+        # because of use level trigger, we write once
+        err_code, write_size = fd_helper.write_once(self.sock.fileno(), self.write_buffer)
         self.write_buffer = self.write_buffer[write_size:]
         return err_code
 
@@ -303,7 +304,8 @@ class TcpConnection(object):
 
         :return:
         """
-        err_code, data = fd_helper.read_fd_all(self.sock.fileno(), READ_SIZE)
+        # because of use level trigger, we read once
+        err_code, data = fd_helper.read_once(self.sock.fileno(), READ_SIZE)
         if data:
             self.protocol.data_received(data)
 
