@@ -76,7 +76,7 @@ class Context(object):
 
     def connection_failure(self, err_code):
         """
-        auto called when connection can not established
+        auto called when connection can not be established
         :return:
         """
         if self.on_failure:

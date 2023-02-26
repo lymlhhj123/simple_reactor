@@ -47,9 +47,9 @@ class ErrorCode(object):
         :param err_code:
         :return:
         """
-        reason = os.strerror(err_code)
+        reason = ErrorCode.MAP.get(err_code)
         if not reason:
-            reason = ErrorCode.MAP.get(err_code, "Unknown error")
+            reason = os.strerror(err_code)
 
         return reason
 
