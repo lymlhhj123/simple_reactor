@@ -87,7 +87,7 @@ class TcpClient(object):
         if self.auto_reconnect:
             self._reconnect()
 
-        self.ctx.connection_error()
+        self.ctx.connection_error(err_code)
 
     def _connection_failed(self, err_code):
         """
@@ -100,7 +100,7 @@ class TcpClient(object):
         if self.auto_reconnect:
             self._reconnect()
 
-        self.ctx.connection_error()
+        self.ctx.connection_failure(err_code)
 
     def _reconnect(self):
         """

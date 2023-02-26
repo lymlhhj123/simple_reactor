@@ -12,6 +12,7 @@ class Context(object):
         self.on_established = None
         self.on_made = None
         self.on_error = None
+        self.on_failure = None
 
     def set_established_callback(self, on_established):
         """
@@ -37,6 +38,14 @@ class Context(object):
         """
         self.on_error = on_error
 
+    def set_failure_callback(self, on_failure):
+        """
+
+        :param on_failure:
+        :return:
+        """
+        self.on_failure = on_failure
+
     def connection_established(self, protocol):
         """
 
@@ -57,13 +66,21 @@ class Context(object):
         if self.on_made:
             self.on_made(protocol)
 
-    def connection_error(self):
+    def connection_error(self, err_code):
         """
         auto called when connection error happened
         :return:
         """
         if self.on_error:
-            self.on_error()
+            self.on_error(err_code)
+
+    def connection_failure(self, err_code):
+        """
+        auto called when connection can not established
+        :return:
+        """
+        if self.on_failure:
+            self.on_failure(err_code)
 
     def build_protocol(self):
         """
