@@ -15,7 +15,7 @@ class MyProtocol(MessageReceiver):
         :return:
         """
         print(f"{msg.json()}")
-        self.event_loop.call_later(5, self.send_msg, msg)
+        self.event_loop.call_later(0.01, self.send_msg, msg)
 
 
 class MyContext(Context):

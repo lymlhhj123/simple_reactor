@@ -4,6 +4,7 @@ import json
 from typing import Union
 
 from ..message import Message
+from ..message import Header
 from ..bytes_buffer import BytesBuffer
 from ..protocol import Protocol
 from .. import logging
@@ -18,7 +19,7 @@ class MessageReceiver(Protocol):
         super(MessageReceiver, self).__init__()
 
         self.buffer = BytesBuffer()
-        self.msg = Message()
+        self.header = None
 
     def send_json(self, data):
         """
@@ -57,23 +58,64 @@ class MessageReceiver(Protocol):
         """
         self.buffer.extend(data)
         while True:
-            try:
-                if self.msg.create_from_buffer(self.buffer) != 0:
-                    return
-            except Exception as ex:
-                logger.exception(f"msg broken: {ex}")
-                self.msg_broken()
-                return
+            self._retrieve_header()
+            if not self.header:
+                break
 
-            msg, self.msg = self.msg, Message()
+            if self.header.is_completed() is False:
+                self._retrieve_header()
 
-            assert msg.is_completed()
+            if self.header.is_completed() is False:
+                break
 
+            status, data = self._retrieve_data()
+            if status != 0:
+                break
+
+            header, self.header = self.header, None
+            msg = Message(header, data)
             if msg.is_broken():
                 self.msg_broken()
                 return
-            else:
-                self.msg_received(msg)
+
+            self.msg_received(msg)
+            self.buffer.trim()
+
+    def _retrieve_header(self):
+        """
+
+        :return:
+        """
+        if self.header:
+            return
+
+        if self.buffer.size() < Header.HEADER_LEN:
+            return
+
+        self.header = Header.from_buffer(self.buffer)
+
+    def _retrieve_header_extension(self):
+        """
+
+        :return:
+        """
+        if self.buffer.size() < self.header.ext_len:
+            return
+
+        extension = self.buffer.retrieve(self.header.ext_len)
+        self.header.set_extension(extension)
+
+    def _retrieve_data(self):
+        """
+
+        :return:
+        """
+        if self.buffer.size() < self.header.msg_len:
+            return -1, b""
+
+        # maybe data is empty
+        data = self.buffer.retrieve(self.header.msg_len)
+        return 0, data
 
     def msg_broken(self):
         """

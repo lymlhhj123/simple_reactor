@@ -13,13 +13,7 @@ class BytesBuffer(object):
     def __init__(self):
 
         self._buffer = b""
-
-    def size(self):
-        """
-
-        :return:
-        """
-        return len(self._buffer)
+        self.read_pos = 0
 
     def extend(self, data: bytes):
         """
@@ -31,6 +25,15 @@ class BytesBuffer(object):
             raise TypeError("only accept bytes")
 
         self._buffer += data
+
+    def probe_read(self, size):
+        """
+        probe read, don't set read_pos
+        :param size:
+        :return:
+        """
+        assert size > 0
+        return self._buffer[self.read_pos: self.read_pos + size]
 
     def retrieve_int8(self):
         """
@@ -104,7 +107,24 @@ class BytesBuffer(object):
         """
         assert size > 0
         if self.size() < size:
-            raise BufferEmpty(f"buffer size < size({size})")
+            raise BufferEmpty(f"buffer readable size < size({size})")
 
-        data, self._buffer = self._buffer[:size], self._buffer[size:]
+        end = self.read_pos + size
+        data = self._buffer[self.read_pos: end]
+        self.read_pos = end
         return data
+
+    def size(self):
+        """
+        buffer readable size
+        :return:
+        """
+        return len(self._buffer) - self.read_pos
+
+    def trim(self):
+        """
+        drop data which has been read
+        :return:
+        """
+        self._buffer = self._buffer[self.read_pos:]
+        self.read_pos = 0

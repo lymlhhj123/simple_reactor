@@ -25,7 +25,7 @@ class Popen(object):
         self.cwd = cwd
         self.timeout = timeout
 
-        self.child_pid = 0
+        self.child_pid = -1
         self.stdout_channel = None
         self.stderr_channel = None
 
@@ -205,3 +205,18 @@ class Popen(object):
 
         stdout, stderr = self.stdout, self.stderr
         self.on_result(status, stdout.decode("utf-8"), stderr.decode("utf-8"))
+
+    def kill(self):
+        """kill child process"""
+        self.send_signal(signal.SIGKILL)
+
+    def terminate(self):
+        """stop child process"""
+        self.send_signal(signal.SIGTERM)
+
+    def send_signal(self, sig):
+        """send signal to child process"""
+        try:
+            os.kill(self.child_pid, sig)
+        except (OSError, Exception):
+            pass
