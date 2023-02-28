@@ -63,7 +63,7 @@ class MessageReceiver(Protocol):
                 break
 
             if self.header.is_completed() is False:
-                self._retrieve_header()
+                self._retrieve_header_extension()
 
             if self.header.is_completed() is False:
                 break
@@ -76,7 +76,7 @@ class MessageReceiver(Protocol):
             msg = Message(header, data)
             if msg.is_broken():
                 self.msg_broken()
-                return
+                break
 
             self.msg_received(msg)
             self.buffer.trim()
@@ -113,7 +113,6 @@ class MessageReceiver(Protocol):
         if self.buffer.size() < self.header.msg_len:
             return -1, b""
 
-        # maybe data is empty
         data = self.buffer.retrieve(self.header.msg_len)
         return 0, data
 

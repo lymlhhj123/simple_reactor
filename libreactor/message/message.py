@@ -9,13 +9,11 @@ from .header import Header
 
 class Message(object):
 
-    CHARSET = "utf-8"
-    VER = 1
+    Encoding = "utf-8"
 
     def __init__(self, header, data: bytes):
 
         self.header = header
-
         self.data = data
 
     @classmethod
@@ -34,7 +32,7 @@ class Message(object):
             raise ValueError("header extension must be <= 65535")
 
         if isinstance(data, str):
-            data = data.encode(cls.CHARSET)
+            data = data.encode(cls.Encoding)
 
         crc32 = zlib.crc32(data)
         msg_len = len(data)
@@ -58,19 +56,20 @@ class Message(object):
         """
         return self.data
 
-    def text(self):
+    def text(self, encoding=None):
         """
         return unicode str
         :return:
         """
-        return self.data.decode(self.CHARSET)
+        encoding = encoding if encoding else self.Encoding
+        return self.data.decode(encoding)
 
-    def json(self):
+    def json(self, encoding=None):
         """
 
         :return:
         """
-        return json.loads(self.text())
+        return json.loads(self.text(encoding))
 
     def is_broken(self):
         """
