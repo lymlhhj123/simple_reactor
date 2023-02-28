@@ -116,14 +116,14 @@ class BytesBuffer(object):
 
     def size(self):
         """
-        buffer readable size
+        readable buffer size
         :return:
         """
         return len(self._buffer) - self.read_pos
 
     def trim(self):
         """
-        drop data which has been read
+        trim buffer, drop data which has been read
         :return:
         """
         self._buffer = self._buffer[self.read_pos:]

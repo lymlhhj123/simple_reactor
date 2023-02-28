@@ -198,7 +198,7 @@ class Popen(object):
             if err_code == errno.ECHILD:
                 status = 0
             else:
-                status = 1
+                status = -1
 
         self.child_pid = 0
         self.timeout_timer = None
@@ -216,7 +216,12 @@ class Popen(object):
 
     def send_signal(self, sig):
         """send signal to child process"""
+        if self.child_pid == -1:
+            return
+
         try:
             os.kill(self.child_pid, sig)
         except (OSError, Exception):
             pass
+        finally:
+            self.child_pid = -1
