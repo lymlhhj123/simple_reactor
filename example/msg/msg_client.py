@@ -8,6 +8,12 @@ from libreactor.basic_protocols import MessageReceiver
 
 class MyProtocol(MessageReceiver):
 
+    def __init__(self):
+
+        super(MyProtocol, self).__init__()
+
+        self.idx = 0
+
     def msg_received(self, msg):
         """
 
@@ -15,7 +21,10 @@ class MyProtocol(MessageReceiver):
         :return:
         """
         print(f"{msg.json()}")
-        self.event_loop.call_later(0.01, self.send_msg, msg)
+
+        idx, self.idx = self.idx, self.idx + 1
+        data = {idx: idx}
+        self.send_json(data)
 
 
 class MyContext(Context):
@@ -29,8 +38,8 @@ def on_established(protocol):
     :param protocol:
     :return:
     """
-    user_data = {"1": "2", "3": "4"}
-    protocol.send_json(user_data)
+    data = {-1: -1}
+    protocol.send_json(data)
 
 
 ev = EventLoop()
