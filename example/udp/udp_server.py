@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import UdpV6Server
+from libreactor.internet import UdpServer
 from libreactor.protocol import Protocol
 
 
@@ -26,7 +26,6 @@ class MyContext(Context):
 ctx = MyContext()
 ev = EventLoop()
 
-server = UdpV6Server(9527, ctx, ev)
-server.start()
+server = UdpServer(9527, ctx, ev)
 
 ev.loop()

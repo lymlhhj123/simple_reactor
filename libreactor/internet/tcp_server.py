@@ -1,7 +1,12 @@
 # coding: utf-8
 
-from .tcp_acceptor import TcpAcceptor
+import errno
+import socket
+
 from .tcp_connection import TcpConnection
+from ..channel import Channel
+from .. import utils
+from .. import const
 from libreactor import sock_helper
 from libreactor import logging
 
@@ -10,29 +15,69 @@ logger = logging.get_logger()
 
 class TcpServer(object):
 
-    def __init__(self, port, ev, ctx, is_ipv6, backlog):
-        """
+    def __init__(self, port, ev, ctx, backlog=1024, ipv6_only=False):
 
-        :param port:
-        :param ev:
-        :param ctx:
-        :param backlog:
-        :param is_ipv6:
-        """
+        self.port = port
+        self.ev = ev
         self.ctx = ctx
-        self.event_loop = ev
+        self.backlog = backlog
+        self.ipv6_only = ipv6_only
 
-        self.acceptor = TcpAcceptor(port, ev, backlog, is_ipv6)
-        self.acceptor.set_new_connection_callback(self._on_new_connection)
+        self.placeholder = open("/dev/null")
 
-        self._connection_set = set()
+        self.sock = None
+        self.channel = None
 
-    def start(self):
+        self.ev.call_soon(self._start_in_loop)
+
+    def _start_in_loop(self):
         """
 
         :return:
         """
-        self.acceptor.start_accept()
+        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock_helper.set_reuse_addr(self.sock)
+        if self.ipv6_only:
+            sock_helper.set_ipv6_only(self.sock)
+
+        self.sock.bind((const.IPAny.V6, self.port))
+        self.sock.listen(self.backlog)
+
+        self.channel = Channel(self.sock.fileno(), self.ev)
+        self.channel.set_read_callback(self._on_read_event)
+        self.channel.enable_reading()
+
+    def _on_read_event(self):
+        """
+
+        :return:
+        """
+        while True:
+            try:
+                sock, addr = self.sock.accept()
+            except Exception as e:
+                err_code = utils.errno_from_ex(e)
+                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                    break
+                elif err_code == errno.EMFILE:
+                    self._too_many_open_file()
+                else:
+                    self._accept_error()
+                    logger.error("unknown error happened, exit server, %s", e)
+                    break
+            else:
+                self._on_new_connection(sock, addr)
+
+    def _too_many_open_file(self):
+        """
+
+        :return:
+        """
+        logger.error("too many open file, accept and close connection")
+        self.placeholder.close()
+        sock, _ = self.sock.accept()
+        sock.close()
+        self._placeholder = open("/dev/null")
 
     def _on_new_connection(self, sock, addr):
         """
@@ -41,49 +86,21 @@ class TcpServer(object):
         :param addr:
         :return:
         """
-        assert self.event_loop.is_in_loop_thread()
-
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
 
         sock_helper.set_tcp_no_delay(sock)
         sock_helper.set_tcp_keepalive(sock)
 
-        conn = TcpConnection(sock, self.ctx, self.event_loop)
-        self._connection_set.add(conn)
-        conn.set_closed_callback(self._connection_closed)
+        conn = TcpConnection(sock, self.ctx, self.ev)
         conn.connection_made(addr)
 
-    def _connection_closed(self, conn):
+    def _accept_error(self):
         """
 
-        :param conn:
         :return:
         """
-        logger.info(f"server side connection closed. fileno: {conn.fileno()}")
-        self._connection_set.remove(conn)
-        
-        
-class TcpV4Server(TcpServer):
-    
-    def __init__(self, port, ev, ctx, backlog=1024):
-        """
-        
-        :param port: 
-        :param ev:
-        :param ctx: 
-        :param backlog: 
-        """
-        super(TcpV4Server, self).__init__(port, ev, ctx, False, backlog)
+        self.channel.disable_reading()
+        self.channel.close()
 
-
-class TcpV6Server(TcpServer):
-
-    def __init__(self, port, ev, ctx, backlog=1024):
-        """
-        
-        :param port:
-        :param ev:
-        :param ctx:
-        :param backlog:
-        """
-        super(TcpV6Server, self).__init__(port, ev, ctx, True, backlog)
+        del self.channel
+        del self.sock

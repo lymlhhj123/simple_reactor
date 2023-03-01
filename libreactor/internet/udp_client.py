@@ -1,32 +1,26 @@
 # coding: utf-8
 
 import socket
+import ipaddress
 
 from .udp_connection import UdpConnection
 
 
 class UdpClient(object):
 
-    def __init__(self, host, port, ctx, ev, is_ipv6):
-        """
+    def __init__(self, host, port, ctx, ev):
 
-        :param host:
-        :param port:
-        :param ctx:
-        :param ev:
-        :param is_ipv6:
-        """
         self.host = host
         self.port = port
         self.ctx = ctx
         self.ev = ev
-        self.is_ipv6 = is_ipv6
 
-    def start(self):
-        """
+        address = ipaddress.ip_address(host)
+        if isinstance(address, ipaddress.IPv4Address):
+            self.family = socket.AF_INET
+        else:
+            self.family = socket.AF_INET6
 
-        :return:
-        """
         self.ev.call_soon(self._start_in_loop)
 
     def _start_in_loop(self):
@@ -34,34 +28,6 @@ class UdpClient(object):
 
         :return:
         """
-        family = socket.AF_INET6 if self.is_ipv6 else socket.AF_INET
-        sock = socket.socket(family, socket.SOCK_DGRAM)
-
+        sock = socket.socket(self.family, socket.SOCK_DGRAM)
         conn = UdpConnection(sock, self.ctx, self.ev)
         conn.connection_established((self.host, self.port))
-
-
-class UdpV4Client(UdpClient):
-
-    def __init__(self, host, port, ctx, ev):
-        """
-        
-        :param host:
-        :param port:
-        :param ctx:
-        :param ev:
-        """
-        super(UdpV4Client, self).__init__(host, port, ctx, ev, False)
-
-
-class UdpV6Client(UdpClient):
-
-    def __init__(self, host, port, ctx, ev):
-        """
-
-        :param host:
-        :param port:
-        :param ctx:
-        :param ev:
-        """
-        super(UdpV6Client, self).__init__(host, port, ctx, ev, True)

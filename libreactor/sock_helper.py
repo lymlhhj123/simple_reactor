@@ -12,6 +12,15 @@ def set_reuse_addr(sock: socket.socket):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 
+def set_ipv6_only(sock: socket.socket):
+    """
+
+    :param sock:
+    :return:
+    """
+    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+
+
 def set_tcp_no_delay(sock: socket.socket):
     """
 

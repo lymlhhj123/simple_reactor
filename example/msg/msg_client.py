@@ -2,7 +2,7 @@
 
 from libreactor.context import Context
 from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpV6Client
+from libreactor.internet import TcpClient
 from libreactor.basic_protocols import MessageReceiver
 
 
@@ -47,7 +47,6 @@ ev = EventLoop()
 ctx = MyContext()
 ctx.set_established_callback(on_established)
 
-client = TcpV6Client("::1", 9527, ev, ctx, auto_reconnect=True)
-client.start()
+client = TcpClient("::1", 9527, ev, ctx, auto_reconnect=True)
 
 ev.loop()

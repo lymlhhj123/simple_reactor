@@ -31,7 +31,6 @@ class UdpConnection(object):
         self.channel = Channel(sock.fileno(), ev)
         self.channel.set_read_callback(self._do_read_event)
         self.channel.set_write_callback(self._do_write_event)
-        self.channel.enable_reading()
 
         self.type = UNKNOWN
         self.endpoint = None
@@ -46,6 +45,8 @@ class UdpConnection(object):
         :param addr:
         :return:
         """
+        self.channel.enable_reading()
+
         self.endpoint = addr
         self.type = CLIENT_SIDE
         self.protocol = self._build_protocol()
@@ -59,6 +60,8 @@ class UdpConnection(object):
         :param addr:
         :return:
         """
+        self.channel.enable_reading()
+
         self.endpoint = addr
         self.type = SERVER_SIDE
         self.protocol = self._build_protocol()

@@ -9,24 +9,15 @@ from .udp_connection import UdpConnection
 
 class UdpServer(object):
 
-    def __init__(self, port, ctx, ev, is_ipv6):
-        """
+    def __init__(self, port, ctx, ev, ipv6_only=False):
 
-        :param port:
-        :param ctx:
-        :param ev:
-        :param is_ipv6:
-        """
         self.port = port
         self.ctx = ctx
         self.ev = ev
-        self.is_ipv6 = is_ipv6
+        self.ipv6_only = ipv6_only
 
-    def start(self):
-        """
+        self.sock = None
 
-        :return:
-        """
         self.ev.call_soon(self._start_in_loop)
 
     def _start_in_loop(self):
@@ -34,40 +25,12 @@ class UdpServer(object):
 
         :return:
         """
-        if self.is_ipv6:
-            family = socket.AF_INET6
-            ip_any = const.IPAny.V6
-        else:
-            family = socket.AF_INET
-            ip_any = const.IPAny.V4
-
-        sock = socket.socket(family, socket.SOCK_DGRAM)
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock_helper.set_reuse_addr(sock)
-        sock.bind((ip_any, self.port))
+        if self.ipv6_only:
+            sock_helper.set_ipv6_only(sock)
 
-        conn = UdpConnection(sock, self.ctx, self.ev)
-        conn.connection_made((ip_any, self.port))
+        sock.bind((const.IPAny.V6, self.port))
 
-
-class UdpV4Server(UdpServer):
-
-    def __init__(self, port, ctx, ev):
-        """
-
-        :param port:
-        :param ctx:
-        :param ev:
-        """
-        super(UdpV4Server, self).__init__(port, ctx, ev, False)
-
-
-class UdpV6Server(UdpServer):
-
-    def __init__(self, port, ctx, ev):
-        """
-
-        :param port:
-        :param ctx:
-        :param ev:
-        """
-        super(UdpV6Server, self).__init__(port, ctx, ev, True)
+        conn = UdpConnection(self.sock, self.ctx, self.ev)
+        conn.connection_made((const.IPAny.V6, self.port))
