@@ -16,8 +16,6 @@ class UdpServer(object):
         self.ev = ev
         self.ipv6_only = ipv6_only
 
-        self.sock = None
-
         self.ev.call_soon(self._start_in_loop)
 
     def _start_in_loop(self):
@@ -32,5 +30,5 @@ class UdpServer(object):
 
         sock.bind((const.IPAny.V6, self.port))
 
-        conn = UdpConnection(self.sock, self.ctx, self.ev)
+        conn = UdpConnection(sock, self.ctx, self.ev)
         conn.connection_made((const.IPAny.V6, self.port))
