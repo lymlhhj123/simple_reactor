@@ -62,8 +62,8 @@ class TcpServer(object):
                 elif err_code == errno.EMFILE:
                     self._too_many_open_file()
                 else:
-                    self._accept_error()
-                    logger.error("unknown error happened, exit server, %s", e)
+                    self._do_accept_error()
+                    logger.error("unknown error happened on do accept: %s", e)
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -79,7 +79,7 @@ class TcpServer(object):
         sock.close()
         self._placeholder = open("/dev/null")
 
-    def _accept_error(self):
+    def _do_accept_error(self):
         """
 
         :return:
@@ -87,8 +87,10 @@ class TcpServer(object):
         self.channel.disable_reading()
         self.channel.close()
 
-        del self.channel
-        del self.sock
+        self.sock = None
+        self.channel = None
+
+        self.ev.call_soon(self._start_in_loop)
 
     def _on_new_connection(self, sock, addr):
         """
