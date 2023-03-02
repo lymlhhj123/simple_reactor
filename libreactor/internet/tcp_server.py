@@ -79,6 +79,17 @@ class TcpServer(object):
         sock.close()
         self._placeholder = open("/dev/null")
 
+    def _accept_error(self):
+        """
+
+        :return:
+        """
+        self.channel.disable_reading()
+        self.channel.close()
+
+        del self.channel
+        del self.sock
+
     def _on_new_connection(self, sock, addr):
         """
 
@@ -92,15 +103,31 @@ class TcpServer(object):
         sock_helper.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.ev)
-        conn.connection_made(addr)
+        conn.set_made_callback(self._connection_made)
+        conn.set_error_callback(self._connection_error)
+        conn.set_closed_callback(self._connection_closed)
 
-    def _accept_error(self):
+        self.ev.call_soon(conn.connection_made, addr)
+
+    def _connection_made(self, protocol):
+        """
+
+        :param protocol:
+        :return:
+        """
+        self.ctx.connection_made(protocol)
+
+    def _connection_error(self, conn):
         """
 
         :return:
         """
-        self.channel.disable_reading()
-        self.channel.close()
+        self.ctx.connection_error(conn)
 
-        del self.channel
-        del self.sock
+    def _connection_closed(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        self.ctx.connection_closed(conn)

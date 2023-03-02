@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.context import Context
+from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import UdpClient
 from libreactor.protocol import Protocol
@@ -33,7 +33,7 @@ def on_established(protocol):
     protocol.write_dgram()
 
 
-class MyContext(Context):
+class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 

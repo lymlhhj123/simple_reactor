@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.context import Context
+from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.protocol import Protocol
@@ -24,7 +24,7 @@ class MyProtocol(Protocol):
         self.io_count += 1
         self.connection.write(data)
 
-    def connection_error(self, err_code):
+    def connection_error(self):
         """
 
         :return:
@@ -61,7 +61,7 @@ class MyProtocol(Protocol):
         self.connection.write(b"hello")
 
 
-class MyContext(Context):
+class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 

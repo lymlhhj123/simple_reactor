@@ -19,10 +19,9 @@ class Protocol(object):
         :return:
         """
 
-    def connection_error(self, err_code):
+    def connection_error(self):
         """
         auto called when connection error happened
-        :param err_code:
         :return:
         """
 

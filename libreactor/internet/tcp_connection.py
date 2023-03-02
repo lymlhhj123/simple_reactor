@@ -38,6 +38,8 @@ class TcpConnection(object):
         self.write_buffer = b""
         self.protocol = None
 
+        self.error_code = ErrorCode.OK
+
         self.close_after_write = False
         self.linger_timer = None
         self.timeout_timer = None
@@ -46,29 +48,43 @@ class TcpConnection(object):
         self.on_error = None
         self.on_failure = None
 
-    def set_closed_callback(self, callback):
+        self.on_made = None
+        self.on_established = None
+
+    def set_closed_callback(self, on_closed):
         """
 
-        :param callback:
         :return:
         """
-        self.on_closed = callback
+        self.on_closed = on_closed
 
-    def set_error_callback(self, callback):
+    def set_error_callback(self, on_error):
         """
 
-        :param callback:
         :return:
         """
-        self.on_error = callback
+        self.on_error = on_error
 
-    def set_failure_callback(self, callback):
+    def set_failure_callback(self, on_failure):
         """
 
-        :param callback:
         :return:
         """
-        self.on_failure = callback
+        self.on_failure = on_failure
+
+    def set_made_callback(self, on_made):
+        """
+
+        :return:
+        """
+        self.on_made = on_made
+
+    def set_established_callback(self, on_established):
+        """
+
+        :return:
+        """
+        self.on_established = on_established
 
     def fileno(self):
         """
@@ -76,6 +92,20 @@ class TcpConnection(object):
         :return:
         """
         return self.sock.fileno()
+
+    def errno(self):
+        """
+
+        :return:
+        """
+        return self.error_code
+
+    def str_error(self):
+        """
+
+        :return:
+        """
+        return ErrorCode.str_error(self.error_code)
 
     def try_open(self, endpoint, timeout=10):
         """
@@ -126,7 +156,8 @@ class TcpConnection(object):
         self.protocol = self._build_protocol()
         self.protocol.connection_established()
 
-        self.ctx.connection_established(self.protocol)
+        if self.on_established:
+            self.on_established(self.protocol)
 
     def connection_made(self, addr):
         """
@@ -142,7 +173,8 @@ class TcpConnection(object):
         self.protocol = self._build_protocol()
         self.protocol.connection_made()
 
-        self.ctx.connection_made(self.protocol)
+        if self.on_made:
+            self.on_made(self.protocol)
 
     def _build_protocol(self):
         """
@@ -169,6 +201,8 @@ class TcpConnection(object):
         :param err_code:
         :return:
         """
+        self.error_code = err_code
+
         if self.timeout_timer:
             self.timeout_timer.cancel()
             self.timeout_timer = None
@@ -176,19 +210,21 @@ class TcpConnection(object):
         self._close_connection()
 
         if self.on_failure:
-            self.on_failure(err_code)
+            self.on_failure(self)
 
     def _connection_error(self, err_code):
         """
         error happened when on read/write
         :return:
         """
+        self.error_code = err_code
+
         self._close_connection()
 
-        self.protocol.connection_error(err_code)
+        self.protocol.connection_error()
 
         if self.on_error:
-            self.on_error(err_code)
+            self.on_error(self)
 
     def _connection_closed(self):
         """
@@ -389,15 +425,17 @@ class TcpConnection(object):
 
         :return:
         """
+        self.state = ConnectionState.DISCONNECTED
+
         self.channel.close()
 
-        self.state = ConnectionState.DISCONNECTED
-        self.sock = None
-
-        self.protocol = None
-        self.ctx = None
-
-        self.linger_timer = None
-        self.on_closed = None
-        self.on_error = None
-        self.on_failure = None
+        del self.channel
+        del self.sock
+        del self.protocol
+        del self.ctx
+        del self.linger_timer
+        del self.on_closed
+        del self.on_error
+        del self.on_failure
+        del self.on_made
+        del self.on_established

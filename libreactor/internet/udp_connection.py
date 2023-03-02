@@ -88,6 +88,8 @@ class UdpConnection(object):
         if self.protocol:
             self.protocol.connection_closed()
 
+        self.ctx.connection_closed(self)
+
     def write(self, data: bytes, addr=None):
         """
 

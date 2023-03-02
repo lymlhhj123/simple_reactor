@@ -4,7 +4,6 @@ import socket
 import random
 import ipaddress
 
-from ..const import ErrorCode
 from .. import sock_helper
 from .tcp_connection import TcpConnection
 from libreactor import logging
@@ -41,35 +40,54 @@ class TcpClient(object):
         sock_helper.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.ev)
+        conn.set_established_callback(self._connection_established)
         conn.set_error_callback(self._connection_error)
         conn.set_failure_callback(self._connection_failed)
+        conn.set_closed_callback(self._connection_closed)
+
         conn.try_open((self.host, self.port), self.timeout)
 
-    def _connection_error(self, err_code):
+    def _connection_established(self, protocol):
+        """
+
+        :param protocol:
+        :return:
+        """
+        self.ctx.connection_established(protocol)
+
+    def _connection_error(self, conn):
         """
 
         :return:
         """
-        reason = ErrorCode.str_error(err_code)
+        reason = conn.str_error()
         logger.error(f"error happened with {self.host}:{self.port}, reason: {reason}")
 
-        self.ctx.connection_error(err_code)
+        self.ctx.connection_error(conn)
 
         if self.auto_reconnect:
             self._reconnect()
 
-    def _connection_failed(self, err_code):
+    def _connection_failed(self, conn):
         """
 
         :return:
         """
-        reason = ErrorCode.str_error(err_code)
+        reason = conn.str_error()
         logger.error(f"failed to connect {self.host}:{self.port}, reason: {reason}")
 
-        self.ctx.connection_failure(err_code)
+        self.ctx.connection_failure(conn)
 
         if self.auto_reconnect:
             self._reconnect()
+
+    def _connection_closed(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        self.ctx.connection_closed(conn)
 
     def _reconnect(self):
         """

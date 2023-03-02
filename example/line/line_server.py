@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.context import Context
+from libreactor.context import ServerContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpServer
 from libreactor.basic_protocols import LineReceiver
@@ -18,7 +18,7 @@ class MyProtocol(LineReceiver):
         self.send_line(line)
 
 
-class MyContext(Context):
+class MyContext(ServerContext):
 
     protocol_cls = MyProtocol
 

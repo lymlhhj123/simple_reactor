@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.context import Context
+from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.basic_protocols import LineReceiver
@@ -26,7 +26,7 @@ class MyProtocol(LineReceiver):
         self.event_loop.call_later(2, self.send_line, line_format.format(line_no))
 
 
-class MyContext(Context):
+class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 

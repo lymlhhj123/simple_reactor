@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.context import Context
+from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.basic_protocols import MessageReceiver
@@ -27,7 +27,7 @@ class MyProtocol(MessageReceiver):
         self.send_json(data)
 
 
-class MyContext(Context):
+class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 
