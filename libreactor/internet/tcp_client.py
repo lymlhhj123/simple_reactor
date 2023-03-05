@@ -65,10 +65,10 @@ class TcpClient(object):
         reason = conn.str_error()
         logger.error(f"error happened with {self.host}:{self.port}, reason: {reason}")
 
-        self.ctx.connection_error(conn)
-
         if self.auto_reconnect:
             self._reconnect()
+
+        self.ctx.connection_error(conn)
 
     def _connection_failed(self, conn):
         """
@@ -78,10 +78,10 @@ class TcpClient(object):
         reason = conn.str_error()
         logger.error(f"failed to connect {self.host}:{self.port}, reason: {reason}")
 
-        self.ctx.connection_failure(conn)
-
         if self.auto_reconnect:
             self._reconnect()
+
+        self.ctx.connection_failure(conn)
 
     def _connection_closed(self, conn):
         """
