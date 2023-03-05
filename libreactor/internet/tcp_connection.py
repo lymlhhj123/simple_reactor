@@ -145,6 +145,11 @@ class TcpConnection(object):
         client side established connection
         :return:
         """
+        if sock_helper.is_self_connect(self.sock):
+            logger.warning("sock is self connect, force close")
+            self._close_connection()
+            return
+
         logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
         if self.timeout_timer:
             self.timeout_timer.cancel()

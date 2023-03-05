@@ -3,7 +3,7 @@
 import socket
 
 
-def set_sock_async(sock: socket):
+def set_sock_async(sock: socket.socket):
     """
 
     :param sock:
@@ -68,3 +68,12 @@ def get_remote_addr(sock: socket.socket):
     :return:
     """
     return sock.getpeername()
+
+
+def is_self_connect(sock: socket.socket):
+    """
+
+    :param sock:
+    :return:
+    """
+    return sock.getsockname() == sock.getpeername()
