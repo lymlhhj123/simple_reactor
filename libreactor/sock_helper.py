@@ -3,6 +3,15 @@
 import socket
 
 
+def set_sock_async(sock: socket):
+    """
+
+    :param sock:
+    :return:
+    """
+    sock.setblocking(False)
+
+
 def set_reuse_addr(sock: socket.socket):
     """
 

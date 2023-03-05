@@ -3,24 +3,23 @@
 import socket
 
 from libreactor import logging
+from libreactor import const
 
 logger = logging.get_logger()
 
 
-class DNSResolver(object):
+class BlockDNSResolver(object):
 
-    def __init__(self, host, port, family, ev):
+    def __init__(self, host, port, ev):
         """
 
         :param host:
         :param port:
-        :param family:
         :param ev:
         """
         self.host = host
         self.port = port
         self.ev = ev
-        self.family = family
 
         self.on_done = None
 
@@ -44,12 +43,13 @@ class DNSResolver(object):
 
         :return:
         """
-        # fixme: use non-block dns resolve
         try:
-            addr_list = socket.getaddrinfo(self.host, self.port, self.family, socket.SOCK_STREAM)
+            addr_list = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+            err_code = const.ErrorCode.OK
         except Exception as ex:
             addr_list = []
+            err_code = const.ErrorCode.DNS_RESOLVE_FAILED
             logger.error(f"failed to dns resolve {self.host}, {ex}")
 
         if self.on_done:
-            self.ev.call_soon(self.on_done, addr_list)
+            self.ev.call_soon(self.on_done, err_code, addr_list)

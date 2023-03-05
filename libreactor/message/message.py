@@ -36,8 +36,8 @@ class Message(object):
 
         crc32 = zlib.crc32(data)
         msg_len = len(data)
-        ext_pen = len(header_extension)
-        header = Header(crc32, msg_len, ext_pen)
+        ext_len = len(header_extension)
+        header = Header(crc32, msg_len, ext_len)
         header.extension = header_extension
 
         return cls(header, data)

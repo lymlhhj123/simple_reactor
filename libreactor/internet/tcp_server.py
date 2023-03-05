@@ -36,6 +36,8 @@ class TcpServer(object):
         :return:
         """
         self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+
+        sock_helper.set_sock_async(self.sock)
         sock_helper.set_reuse_addr(self.sock)
         if self.ipv6_only:
             sock_helper.set_ipv6_only(self.sock)
@@ -101,6 +103,7 @@ class TcpServer(object):
         """
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
 
+        sock_helper.set_sock_async(sock)
         sock_helper.set_tcp_no_delay(sock)
         sock_helper.set_tcp_keepalive(sock)
 

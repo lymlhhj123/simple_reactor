@@ -36,6 +36,8 @@ class TcpClient(object):
         :return:
         """
         sock = socket.socket(self.family, socket.SOCK_STREAM)
+
+        sock_helper.set_sock_async(sock)
         sock_helper.set_tcp_no_delay(sock)
         sock_helper.set_tcp_keepalive(sock)
 
