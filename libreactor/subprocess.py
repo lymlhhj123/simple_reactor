@@ -15,8 +15,7 @@ from .channel import Channel
 
 class Popen(object):
 
-    def __init__(self, args, ev, on_result, shell=False,
-                 cwd=None, timeout=60):
+    def __init__(self, args, ev, on_result, shell=False, cwd=None, timeout=60):
 
         self.ev = ev
         self.args = args

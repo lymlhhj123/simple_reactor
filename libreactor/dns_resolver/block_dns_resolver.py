@@ -10,32 +10,20 @@ logger = logging.get_logger()
 
 class BlockDNSResolver(object):
 
-    def __init__(self, host, port, ev):
+    def __init__(self, host, port, ev, on_done):
         """
 
         :param host:
         :param port:
         :param ev:
+        :param on_done: callback
         """
         self.host = host
         self.port = port
         self.ev = ev
 
-        self.on_done = None
-
-    def set_done_callback(self, on_done):
-        """
-
-        :param on_done:
-        :return:
-        """
         self.on_done = on_done
 
-    def start(self):
-        """
-
-        :return:
-        """
         self._start_dns_resolve()
 
     def _start_dns_resolve(self):
