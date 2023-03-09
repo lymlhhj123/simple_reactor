@@ -23,7 +23,7 @@ class TcpClient(object):
         self.auto_reconnect = auto_reconnect
 
         address = ipaddress.ip_address(host)
-        if isinstance(address, ipaddress.IPv4Address):
+        if address.version == 4:
             self.family = socket.AF_INET
         else:
             self.family = socket.AF_INET6
