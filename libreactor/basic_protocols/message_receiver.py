@@ -38,7 +38,7 @@ class MessageReceiver(Protocol):
         msg = Message.create(data)
         self.send_msg(msg)
 
-    def send_msg(self, msg: Message):
+    def send_msg(self, msg):
         """
 
         :param msg:
@@ -123,7 +123,7 @@ class MessageReceiver(Protocol):
         """
         self.close_connection()
 
-    def msg_received(self, msg: Message):
+    def msg_received(self, msg):
         """
 
         :param msg:
