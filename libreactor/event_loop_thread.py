@@ -12,7 +12,35 @@ class EventLoopThread(object):
         self._cond = threading.Condition(self._lock)
         self._event_loop = None
 
-        self._started = False
+        self._started_event = threading.Event()
+
+    def start(self):
+        """
+
+        :return:
+        """
+        if self._started_event.is_set():
+            raise RuntimeError("start() method only called once")
+
+        t = threading.Thread(target=self._start_event_loop)
+        t.daemon = True
+        t.start()
+
+        self._started_event.wait()
+
+    def _start_event_loop(self):
+        """
+
+        :return:
+        """
+        self._started_event.set()
+
+        event_loop = EventLoop.current()
+        with self._cond:
+            self._event_loop = event_loop
+            self._cond.notify_all()
+
+        event_loop.loop()
 
     def get_event_loop(self):
         """
@@ -27,29 +55,13 @@ class EventLoopThread(object):
 
         return event_loop
 
-    def start(self):
-        """
 
-        :return:
-        """
-        with self._lock:
-            if self._started is True:
-                return
+def create_ev_thread():
+    """
 
-            self._started = True
+    :return:
+    """
+    ev_t = EventLoopThread()
+    ev_t.start()
 
-        t = threading.Thread(target=self._start_event_loop)
-        t.daemon = True
-        t.start()
-
-    def _start_event_loop(self):
-        """
-
-        :return:
-        """
-        event_loop = EventLoop()
-        with self._cond:
-            self._event_loop = event_loop
-            self._cond.notify_all()
-
-        event_loop.loop()
+    return ev_t.get_event_loop()

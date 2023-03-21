@@ -30,21 +30,21 @@ class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 
+    def connection_established(self, protocol):
+        """
 
-def on_established(protocol):
-    """
-
-    :param protocol:
-    :return:
-    """
-    protocol.send_line(line_format.format(1))
+        :param protocol:
+        :return:
+        """
+        protocol.send_line(line_format.format(1))
 
 
 ev = EventLoop()
 
 ctx = MyContext()
-ctx.set_established_callback(on_established)
+
 
 client = TcpClient("127.0.0.1", 9527, ev, ctx)
+client.connect()
 
 ev.loop()

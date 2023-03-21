@@ -1,6 +1,11 @@
 # coding: utf-8
 
+from threading import Lock
+
 from .protocol import Protocol
+from . import logging
+
+logger = logging.get_logger()
 
 
 class _BaseContext(object):
@@ -9,49 +14,13 @@ class _BaseContext(object):
 
     def __init__(self):
 
-        self.on_error = None
-        self.on_failure = None
-        self.on_closed = None
-
-    def set_error_callback(self, on_error):
-        """
-
-        :param on_error:
-        :return:
-        """
-        self.on_error = on_error
-
-    def set_failure_callback(self, on_failure):
-        """
-
-        :param on_failure:
-        :return:
-        """
-        self.on_failure = on_failure
-
-    def set_closed_callback(self, on_closed):
-        """
-
-        :param on_closed:
-        :return:
-        """
-        self.on_closed = on_closed
+        self.lock = Lock()
 
     def connection_error(self, conn):
-        """
-        auto called when connection error happened
-        :return:
-        """
-        if self.on_error:
-            self.on_error(conn)
+        """auto called when connection error happened
 
-    def connection_failure(self, conn):
-        """
-        auto called when connection can not be established
         :return:
         """
-        if self.on_failure:
-            self.on_failure(conn)
 
     def connection_closed(self, conn):
         """
@@ -59,8 +28,6 @@ class _BaseContext(object):
         :param conn:
         :return:
         """
-        if self.on_closed:
-            self.on_closed(conn)
 
     def build_protocol(self):
         """
@@ -76,25 +43,31 @@ class ClientContext(_BaseContext):
         
         super(ClientContext, self).__init__()
 
-        self.on_established = None
+        self.client = None
 
-    def set_established_callback(self, on_established):
-        """
+    def bind_client(self, client):
+        """bind client to this context, only bind once
 
-        :param on_established:
-        :return:
         """
-        self.on_established = on_established
+        with self.lock:
+            if self.client:
+                raise RuntimeError("context only bind client once")
+
+            self.client = client
 
     def connection_established(self, protocol):
-        """
+        """auto called when client connection established
 
-        auto called when client connection established
         :param protocol:
         :return:
         """
-        if self.on_established:
-            self.on_established(protocol)
+
+    def connection_failure(self, conn):
+        """auto called when client failed to establish connection
+
+        :param conn:
+        :return:
+        """
 
 
 class ServerContext(_BaseContext):
@@ -103,22 +76,21 @@ class ServerContext(_BaseContext):
         
         super(ServerContext, self).__init__()
 
-        self.on_made = None
+        self.server = None
 
-    def set_made_callback(self, on_made):
-        """
+    def bind_server(self, server):
+        """bind server to this context, only bind once
 
-        :param on_made:
-        :return:
         """
-        self.on_made = on_made
+        with self.lock:
+            if self.server:
+                raise RuntimeError("context only bind server once")
+
+            self.server = server
 
     def connection_made(self, protocol):
-        """
+        """auto called when server side connection made
 
-        auto called when server side connection made
         :param protocol:
         :return:
         """
-        if self.on_made:
-            self.on_made(protocol)

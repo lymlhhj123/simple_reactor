@@ -26,5 +26,6 @@ class MyContext(ServerContext):
 ev = EventLoop()
 
 server = TcpServer(9527, ev, MyContext())
+server.start()
 
 ev.loop()

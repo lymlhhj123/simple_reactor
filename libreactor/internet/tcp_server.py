@@ -7,8 +7,8 @@ from .tcp_connection import TcpConnection
 from ..channel import Channel
 from .. import utils
 from .. import const
-from libreactor import sock_helper
-from libreactor import logging
+from .. import sock_helper
+from .. import logging
 
 logger = logging.get_logger()
 
@@ -19,6 +19,8 @@ class TcpServer(object):
 
         self.port = port
         self.ev = ev
+
+        ctx.bind_server(self)
         self.ctx = ctx
         self.backlog = backlog
         self.ipv6_only = ipv6_only
@@ -28,6 +30,10 @@ class TcpServer(object):
         self.sock = None
         self.channel = None
 
+    def start(self):
+        """start tcp server
+
+        """
         self.ev.call_soon(self._start_in_loop)
 
     def _start_in_loop(self):
@@ -108,31 +114,8 @@ class TcpServer(object):
         sock_helper.set_tcp_keepalive(sock)
 
         conn = TcpConnection(sock, self.ctx, self.ev)
-        conn.set_made_callback(self._connection_made)
-        conn.set_error_callback(self._connection_error)
-        conn.set_closed_callback(self._connection_closed)
+        conn.set_made_callback(self.ctx.connection_made)
+        conn.set_error_callback(self.ctx.connection_error)
+        conn.set_closed_callback(self.ctx.connection_closed)
 
         self.ev.call_soon(conn.connection_made, addr)
-
-    def _connection_made(self, protocol):
-        """
-
-        :param protocol:
-        :return:
-        """
-        self.ctx.connection_made(protocol)
-
-    def _connection_error(self, conn):
-        """
-
-        :return:
-        """
-        self.ctx.connection_error(conn)
-
-    def _connection_closed(self, conn):
-        """
-
-        :param conn:
-        :return:
-        """
-        self.ctx.connection_closed(conn)

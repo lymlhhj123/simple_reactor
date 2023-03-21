@@ -31,6 +31,15 @@ class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 
+    def connection_established(self, protocol):
+        """
+
+        :param protocol:
+        :return:
+        """
+        data = {-1: -1}
+        protocol.send_json(data)
+
 
 def on_established(protocol):
     """
@@ -45,8 +54,8 @@ def on_established(protocol):
 ev = EventLoop()
 
 ctx = MyContext()
-ctx.set_established_callback(on_established)
 
-client = TcpClient("::1", 9527, ev, ctx, auto_reconnect=True)
+client = TcpClient("::1", 9527, ev, ctx)
+client.connect()
 
 ev.loop()

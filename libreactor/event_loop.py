@@ -16,10 +16,17 @@ from . import utils
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
+thread_local = threading.local()
+
 
 class EventLoop(object):
 
-    def __init__(self):
+    def __init__(self, ev_func=None):
+        """
+
+        :param ev_func: auto called on every loop
+        """
+        self._ev_callback = Callback(ev_func) if ev_func else None
 
         self._time_func = time.monotonic
 
@@ -36,6 +43,20 @@ class EventLoop(object):
         self.channel = Channel(self.signaler.fileno(), self)
         self.channel.set_read_callback(self.signaler.read_all)
         self.channel.enable_reading()
+
+    @classmethod
+    def current(cls, ev_func=None):
+        """
+
+        :param ev_func:
+        :return:
+        """
+        ev = getattr(thread_local, "ev")
+        if not ev:
+            ev = cls(ev_func)
+            setattr(thread_local, "ev", ev)
+
+        return ev
 
     def time(self):
         """
@@ -186,6 +207,9 @@ class EventLoop(object):
         assert self.is_in_loop_thread()
 
         while True:
+            if self._ev_callback:
+                self._ev_callback.run()
+
             timeout = self._calc_timeout()
 
             try:

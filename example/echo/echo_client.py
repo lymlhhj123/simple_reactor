@@ -65,23 +65,33 @@ class MyContext(ClientContext):
 
     protocol_cls = MyProtocol
 
+    def connection_established(self, protocol):
+        """
 
-def on_established(protocol):
-    """
+        :param protocol:
+        :return:
+        """
+        protocol.start_test()
 
-    :param protocol:
-    :return:
-    """
-    protocol.start_test()
+        protocol.send_data()
 
-    protocol.send_data()
+    def connection_failure(self, conn):
+
+        print("conn failure:", conn.str_error())
+
+        self.client.connect()
+
+    def connection_error(self, conn):
+
+        print("conn error:", conn.str_error())
+        self.client.connect()
 
 
 ev = EventLoop()
 
 ctx = MyContext()
-ctx.set_established_callback(on_established)
 
-client = TcpClient("127.0.0.1", 9527, ev, ctx, auto_reconnect=True)
+client = TcpClient("127.0.0.1", 9527, ev, ctx)
+client.connect()
 
 ev.loop()
