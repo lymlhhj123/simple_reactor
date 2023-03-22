@@ -1,5 +1,7 @@
 # coding: utf-8
 
+import os
+
 from . import fd_helper
 
 
@@ -42,21 +44,34 @@ class Signaler(object):
 
         :return:
         """
-        fd_helper.read_fd(self.r_fd)
+        while True:
+            if self._read(4096) == -1:
+                break
 
     def read_one(self):
         """
         read one byte
         :return:
         """
-        fd_helper.read_once(self.r_fd, 1)
+        self._read(1)
+
+    def _read(self, chunk_size):
+        """
+
+        :param chunk_size:
+        :return:
+        """
+        try:
+            return os.read(self.r_fd, chunk_size)
+        except IOError:
+            return -1
 
     def write_one(self):
         """
         write one byte
         :return:
         """
-        fd_helper.write_fd(self.w_fd, b"1")
+        self.write(b"1")
 
     def write(self, data: bytes):
         """
@@ -65,4 +80,7 @@ class Signaler(object):
         :return:
         """
         assert isinstance(data, bytes)
-        fd_helper.write_fd(self.w_fd, data)
+        try:
+            os.write(self.w_fd, data)
+        except IOError:
+            pass

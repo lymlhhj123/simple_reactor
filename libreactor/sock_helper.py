@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import socket
+import ipaddress
 
 
 def set_sock_async(sock: socket.socket):
@@ -77,3 +78,18 @@ def is_self_connect(sock: socket.socket):
     :return:
     """
     return sock.getsockname() == sock.getpeername()
+
+
+def get_family_by_ip(ip_addr):
+    """
+
+    :param ip_addr:
+    :return:
+    """
+    address = ipaddress.ip_address(ip_addr)
+    if address.version == 4:
+        family = socket.AF_INET
+    else:
+        family = socket.AF_INET6
+
+    return family

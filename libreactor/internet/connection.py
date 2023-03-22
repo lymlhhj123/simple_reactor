@@ -5,7 +5,6 @@ import errno
 
 from libreactor.channel import Channel
 from libreactor import sock_helper
-from libreactor import fd_helper
 from libreactor import utils
 from libreactor.const import ErrorCode
 from libreactor.const import ConnectionState
@@ -16,7 +15,7 @@ logger = logging.get_logger()
 READ_SIZE = 8192
 
 
-class TcpConnection(object):
+class Connection(object):
 
     def __init__(self, sock, ctx, ev):
         """
@@ -43,48 +42,6 @@ class TcpConnection(object):
         self.close_after_write = False
         self.linger_timer = None
         self.timeout_timer = None
-
-        self.on_closed = None
-        self.on_error = None
-        self.on_failure = None
-
-        self.on_made = None
-        self.on_established = None
-
-    def set_closed_callback(self, on_closed):
-        """
-
-        :return:
-        """
-        self.on_closed = on_closed
-
-    def set_error_callback(self, on_error):
-        """
-
-        :return:
-        """
-        self.on_error = on_error
-
-    def set_failure_callback(self, on_failure):
-        """
-
-        :return:
-        """
-        self.on_failure = on_failure
-
-    def set_made_callback(self, on_made):
-        """
-
-        :return:
-        """
-        self.on_made = on_made
-
-    def set_established_callback(self, on_established):
-        """
-
-        :return:
-        """
-        self.on_established = on_established
 
     def fileno(self):
         """
@@ -158,11 +115,9 @@ class TcpConnection(object):
         self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
 
-        self.protocol = self._build_protocol()
-        self.protocol.connection_established()
-
-        if self.on_established:
-            self.on_established(self.protocol)
+        self.protocol = protocol = self._build_protocol()
+        protocol.connection_established()
+        self.ctx.connection_established(protocol)
 
     def connection_made(self, addr):
         """
@@ -175,11 +130,9 @@ class TcpConnection(object):
         self.state = ConnectionState.CONNECTED
         self.channel.enable_reading()
 
-        self.protocol = self._build_protocol()
+        self.protocol = protocol = self._build_protocol()
         self.protocol.connection_made()
-
-        if self.on_made:
-            self.on_made(self.protocol)
+        self.ctx.connection_made(protocol)
 
     def _build_protocol(self):
         """
@@ -213,9 +166,7 @@ class TcpConnection(object):
             self.timeout_timer = None
 
         self._close_connection()
-
-        if self.on_failure:
-            self.on_failure(self)
+        self.ctx.connection_failure(self)
 
     def _connection_error(self, err_code):
         """
@@ -227,20 +178,17 @@ class TcpConnection(object):
         self._close_connection()
 
         self.protocol.connection_error()
-
-        if self.on_error:
-            self.on_error(self)
+        self.ctx.connection_error(self)
 
     def _connection_closed(self):
         """
 
         :return:
         """
-        if self.on_closed:
-            self.on_closed(self)
-
         if self.protocol:
             self.protocol.connection_closed()
+
+        self.ctx.connection_closed(self)
 
     def write(self, data: bytes):
         """
@@ -319,8 +267,20 @@ class TcpConnection(object):
         :return:
         """
         # because of use level trigger, we write once
-        err_code, write_size = fd_helper.write_once(self.sock.fileno(), self.write_buffer)
-        self.write_buffer = self.write_buffer[write_size:]
+        try:
+            chunk_size = self.sock.send(self.write_buffer)
+        except IOError as e:
+            chunk_size = 0
+            err_code = utils.errno_from_ex(e)
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                err_code = ErrorCode.DO_AGAIN, 0
+        else:
+            if chunk_size == 0:
+                err_code = ErrorCode.CLOSED
+            else:
+                err_code = ErrorCode.OK
+
+        self.write_buffer = self.write_buffer[chunk_size:]
         return err_code
 
     def _on_read_event(self):
@@ -344,7 +304,19 @@ class TcpConnection(object):
         :return:
         """
         # because of use level trigger, we read once
-        err_code, data = fd_helper.read_once(self.sock.fileno(), READ_SIZE)
+        try:
+            data = self.sock.recv(READ_SIZE)
+        except IOError as e:
+            data = b""
+            err_code = utils.errno_from_ex(e)
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                err_code = ErrorCode.DO_AGAIN
+        else:
+            if not data:
+                err_code = ErrorCode.CLOSED
+            else:
+                err_code = ErrorCode.OK
+
         if data:
             self.protocol.data_received(data)
 
@@ -370,7 +342,9 @@ class TcpConnection(object):
         :param delay: sec
         :return:
         """
-        assert delay > 0
+        if so_linger:
+            assert delay > 0
+
         if self.ev.is_in_loop_thread():
             self._close_in_loop(so_linger, delay)
         else:
@@ -431,7 +405,6 @@ class TcpConnection(object):
         :return:
         """
         self.state = ConnectionState.DISCONNECTED
-
         self.channel.close()
 
         del self.channel
@@ -439,8 +412,3 @@ class TcpConnection(object):
         del self.protocol
         del self.ctx
         del self.linger_timer
-        del self.on_closed
-        del self.on_error
-        del self.on_failure
-        del self.on_made
-        del self.on_established

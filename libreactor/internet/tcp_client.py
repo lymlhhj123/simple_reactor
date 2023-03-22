@@ -1,10 +1,7 @@
 # coding: utf-8
 
-import socket
-import ipaddress
-
+from .connector import Connector
 from .. import sock_helper
-from .tcp_connection import TcpConnection
 from libreactor import logging
 
 logger = logging.get_logger()
@@ -22,12 +19,6 @@ class TcpClient(object):
         self.ctx = ctx
         self.timeout = timeout
 
-        address = ipaddress.ip_address(host)
-        if address.version == 4:
-            self.family = socket.AF_INET
-        else:
-            self.family = socket.AF_INET6
-
     def connect(self):
         """
 
@@ -40,19 +31,9 @@ class TcpClient(object):
 
         :return:
         """
-        sock = socket.socket(self.family, socket.SOCK_STREAM)
-
-        sock_helper.set_sock_async(sock)
-        sock_helper.set_tcp_no_delay(sock)
-        sock_helper.set_tcp_keepalive(sock)
-
-        conn = TcpConnection(sock, self.ctx, self.ev)
-        conn.set_established_callback(self.ctx.connection_established)
-        conn.set_error_callback(self.ctx.connection_error)
-        conn.set_failure_callback(self.ctx.connection_failure)
-        conn.set_closed_callback(self.ctx.connection_closed)
-
-        conn.try_open((self.host, self.port), self.timeout)
+        family = sock_helper.get_family_by_ip(self.host)
+        connector = Connector(family, (self.host, self.port), self.ctx, self.ev)
+        connector.connect(self.timeout)
 
     def endpoint(self):
         """
