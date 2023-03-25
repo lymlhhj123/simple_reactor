@@ -52,7 +52,7 @@ class EventLoop(metaclass=NoConstructor):
         :param ev_func:
         :return:
         """
-        ev = getattr(thread_local, "ev")
+        ev = getattr(thread_local, "ev", None)
         if not ev:
             ev = cls.__new__(cls)
             ev._ev_callback = Callback(ev_func) if ev_func else None
