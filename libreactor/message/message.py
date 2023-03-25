@@ -29,16 +29,16 @@ class Message(object):
 
         # 2 bytes, so extension len <= 65535
         if len(header_extension) > 65535:
-            raise ValueError("header extension must be <= 65535")
+            raise ValueError("header extension len must be <= 65535")
 
         if isinstance(data, str):
             data = data.encode(cls.Encoding)
 
         crc32 = zlib.crc32(data)
         msg_len = len(data)
-        ext_len = len(header_extension)
-        header = Header(crc32, msg_len, ext_len)
-        header.extension = header_extension
+        header = Header(crc32, msg_len)
+        header.set_ext_len(len(header_extension))
+        header.set_extension(header_extension)
 
         return cls(header, data)
 

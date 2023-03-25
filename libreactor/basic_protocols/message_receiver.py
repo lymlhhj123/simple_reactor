@@ -19,7 +19,11 @@ class MessageReceiver(Protocol):
         super(MessageReceiver, self).__init__()
 
         self.buffer = BytesBuffer()
+
         self.header = None
+        self.header_len = Header.HEADER_LEN
+        self.ext_len = 0
+        self.msg_len = 0
 
     def send_json(self, data):
         """
@@ -58,15 +62,15 @@ class MessageReceiver(Protocol):
         """
         self.buffer.extend(data)
         while True:
-            self._retrieve_header()
-            if not self.header:
+            if self._retrieve_header() is False:
                 break
 
-            if self.header.is_completed() is False:
-                self._retrieve_header_extension()
+            # assert self.header is not None
 
-            if self.header.is_completed() is False:
+            if self._retrieve_header_extension() is False:
                 break
+
+            assert self.header is not None and self.header.is_completed()
 
             status, data = self._retrieve_data()
             if status != 0:
@@ -87,33 +91,44 @@ class MessageReceiver(Protocol):
         :return:
         """
         if self.header:
-            return
+            return True
 
-        if self.buffer.size() < Header.HEADER_LEN:
-            return
+        if self.buffer.size() < self.header_len:
+            return False
 
-        self.header = Header.from_buffer(self.buffer)
+        header = Header.from_buffer(self.buffer)
+        self.ext_len = header.ext_len()
+        self.msg_len = header.msg_len()
+        self.header = header
+        return True
 
     def _retrieve_header_extension(self):
         """
 
         :return:
         """
-        if self.buffer.size() < self.header.ext_len:
-            return
+        if self.ext_len == 0:
+            return True
 
-        extension = self.buffer.retrieve(self.header.ext_len)
+        if self.buffer.size() < self.ext_len:
+            return False
+
+        extension = self.buffer.retrieve(self.ext_len)
         self.header.set_extension(extension)
+        return True
 
     def _retrieve_data(self):
         """
 
         :return:
         """
-        if self.buffer.size() < self.header.msg_len:
+        if self.msg_len == 0:
+            return 0, b""
+
+        if self.buffer.size() < self.msg_len:
             return -1, b""
 
-        data = self.buffer.retrieve(self.header.msg_len)
+        data = self.buffer.retrieve(self.msg_len)
         return 0, data
 
     def msg_broken(self):

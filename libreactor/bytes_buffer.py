@@ -100,14 +100,14 @@ class BytesBuffer(object):
         return struct.unpack("!Q", data)[0]
 
     def retrieve(self, size):
-        """
+        """if readable size < size, raise exception; otherwise, return data size == size
 
         :param size:
         :return:
         """
         assert size > 0
         if self.size() < size:
-            raise BufferEmpty(f"buffer readable size < size({size})")
+            raise BufferEmpty(f"buffer readable size < {size}")
 
         end = self.read_pos + size
         data = self._buffer[self.read_pos: end]
