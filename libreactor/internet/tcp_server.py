@@ -10,15 +10,14 @@ logger = logging.get_logger()
 
 class TcpServer(object):
 
-    def __init__(self, port, ev, ctx, host=const.IPAny.V4, backlog=1024, ipv6_only=False):
+    def __init__(self, port, ev, ctx, options, host=const.IPAny.V6):
         """
 
         :param port:
         :param ev:
         :param ctx:
+        :param options:
         :param host:
-        :param backlog:
-        :param ipv6_only:
         """
         self.port = port
         self.host = host
@@ -27,8 +26,7 @@ class TcpServer(object):
         ctx.bind_server(self)
         self.ctx = ctx
 
-        self.backlog = backlog
-        self.ipv6_only = ipv6_only
+        self.options = options
 
     def start(self):
         """start tcp server
@@ -43,5 +41,5 @@ class TcpServer(object):
         """
         family = sock_helper.get_family_by_ip(self.host)
         endpoint = (self.host, self.port)
-        acceptor = Acceptor(family, endpoint, self.ctx, self.ev, self.backlog, self.ipv6_only)
+        acceptor = Acceptor(family, endpoint, self.ctx, self.ev, self.options)
         acceptor.start()

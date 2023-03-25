@@ -1,11 +1,7 @@
 # coding: utf-8
 
-import errno
 import os
 import fcntl
-
-from .const import ErrorCode
-from .utils import errno_from_ex
 
 
 def make_async_pipe():
@@ -34,14 +30,30 @@ def make_fd_async(fd):
     fcntl.fcntl(fd, fcntl.F_SETFL, flag_old | os.O_NONBLOCK)
 
 
-def close_on_exec(fd):
+def is_fd_async(fd):
     """
 
     :param fd:
     :return:
     """
+    flag = fcntl.fcntl(fd, fcntl.F_GETFL)
+    return flag & os.O_NONBLOCK
+
+
+def close_on_exec(fd, flag=True):
+    """
+
+    :param fd:
+    :param flag:
+    :return:
+    """
     flags_old = fcntl.fcntl(fd, fcntl.F_GETFD)
-    fcntl.fcntl(fd, fcntl.F_SETFD, flags_old | fcntl.FD_CLOEXEC)
+    if flag:
+        flag_new = flags_old | fcntl.FD_CLOEXEC
+    else:
+        flag_new = flags_old & ~fcntl.FD_CLOEXEC
+
+    fcntl.fcntl(fd, fcntl.F_SETFD, flag_new)
 
 
 def lock_file(fd, blocking=True):

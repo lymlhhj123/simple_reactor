@@ -13,13 +13,14 @@ from .signaler import Signaler
 from .callback import Callback
 from . import io_event
 from . import utils
+from .meta import NoConstructor
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
 thread_local = threading.local()
 
 
-class EventLoop(object):
+class EventLoop(metaclass=NoConstructor):
 
     def __init__(self, ev_func=None):
         """
@@ -53,7 +54,8 @@ class EventLoop(object):
         """
         ev = getattr(thread_local, "ev")
         if not ev:
-            ev = cls(ev_func)
+            ev = cls.__new__(cls)
+            ev._ev_callback = Callback(ev_func) if ev_func else None
             setattr(thread_local, "ev", ev)
 
         return ev

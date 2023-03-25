@@ -9,11 +9,10 @@ class Channel(object):
     def __init__(self, fd, event_loop):
         """
 
-        :param fd:
+        :param fd: the fd must be non-blocking
         :param event_loop:
         """
-        fd_helper.make_fd_async(fd)
-        fd_helper.close_on_exec(fd)
+        assert fd_helper.is_fd_async(fd)
 
         self._fd = fd
         self._event_loop = event_loop

@@ -6,6 +6,7 @@ import socket
 from .connection import Connection
 from ..channel import Channel
 from .. import sock_helper
+from .. import fd_helper
 from .. import utils
 from .. import logging
 
@@ -14,22 +15,20 @@ logger = logging.get_logger()
 
 class Acceptor(object):
 
-    def __init__(self, family, endpoint, ctx, ev, backlog=128, ipv6_only=False):
+    def __init__(self, family, endpoint, ctx, ev, options):
         """
 
         :param family:
         :param endpoint:
         :param ctx:
         :param ev:
-        :param backlog:
-        :param ipv6_only:
+        :param options:
         """
         self.family = family
         self.endpoint = endpoint
         self.ctx = ctx
         self.ev = ev
-        self.backlog = backlog
-        self.ipv6_only = ipv6_only
+        self.options = options
 
         self.placeholder = open("/dev/null")
 
@@ -43,20 +42,26 @@ class Acceptor(object):
         """
         assert self.ev.is_in_loop_thread()
 
-        self.sock = sock = socket.socket(self.family, socket.SOCK_STREAM)
+        sock = socket.socket(self.family, socket.SOCK_STREAM)
 
         sock_helper.set_sock_async(sock)
-        sock_helper.set_reuse_addr(sock)
 
-        if self.family == socket.AF_INET6 and self.ipv6_only:
+        if self.options.reuse_addr:
+            sock_helper.set_reuse_addr(sock)
+
+        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
+
+        if self.family == socket.AF_INET6 and self.options.ipv6_only:
             sock_helper.set_ipv6_only(sock)
 
         sock.bind(self.endpoint)
-        sock.listen(self.backlog)
+        sock.listen(self.options.backlog)
 
         self.channel = Channel(sock.fileno(), self.ev)
         self.channel.set_read_callback(self._on_read_event)
         self.channel.enable_reading()
+
+        self.sock = sock
 
     def _on_read_event(self):
         """
@@ -113,8 +118,14 @@ class Acceptor(object):
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
 
         sock_helper.set_sock_async(sock)
-        sock_helper.set_tcp_no_delay(sock)
-        sock_helper.set_tcp_keepalive(sock)
+
+        if self.options.tcp_no_delay:
+            sock_helper.set_tcp_no_delay(sock)
+
+        if self.options.tcp_keepalive:
+            sock_helper.set_tcp_keepalive(sock)
+
+        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
         conn = Connection(sock, self.ctx, self.ev)
         self.ev.call_soon(conn.connection_made, addr)
