@@ -20,7 +20,7 @@ DEFAULT_TIMEOUT = 3.6  # sec
 thread_local = threading.local()
 
 
-class EventLoop(objectr):
+class EventLoop(object):
 
     def __init__(self, ev_func=None):
         """
