@@ -4,6 +4,7 @@ from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.protocol import Protocol
+from libreactor.options import Options
 
 
 class MyProtocol(Protocol):
@@ -88,11 +89,15 @@ class MyContext(ClientContext):
         self.client.ev.call_later(2, self.client.connect)
 
 
-ev = EventLoop()
+ev = EventLoop.current()
 
-ctx = MyContext()
+options = Options()
+options.tcp_no_delay = True
+options.tcp_keepalive = True
+options.close_on_exec = True
+options.connect_timeout = 5
 
-client = TcpClient("127.0.0.1", 9527, ev, ctx)
+client = TcpClient("127.0.0.1", 9527, ev, MyContext(), options)
 client.connect()
 
 ev.loop()

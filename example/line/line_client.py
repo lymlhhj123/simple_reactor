@@ -3,6 +3,7 @@
 from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
+from libreactor.options import Options
 from libreactor.basic_protocols import LineReceiver
 
 line_format = "this is line {}"
@@ -41,10 +42,7 @@ class MyContext(ClientContext):
 
 ev = EventLoop()
 
-ctx = MyContext()
-
-
-client = TcpClient("127.0.0.1", 9527, ev, ctx)
+client = TcpClient("127.0.0.1", 9527, ev, MyContext(), Options())
 client.connect()
 
 ev.loop()

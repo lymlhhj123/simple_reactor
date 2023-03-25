@@ -3,6 +3,7 @@
 from libreactor.context import ServerContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpServer
+from libreactor.options import Options
 from libreactor.basic_protocols import LineReceiver
 
 
@@ -23,9 +24,9 @@ class MyContext(ServerContext):
     protocol_cls = MyProtocol
 
 
-ev = EventLoop()
+ev = EventLoop.current()
 
-server = TcpServer(9527, ev, MyContext())
+server = TcpServer(9527, ev, MyContext(), Options())
 server.start()
 
 ev.loop()

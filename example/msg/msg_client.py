@@ -3,6 +3,7 @@
 from libreactor.context import ClientContext
 from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
+from libreactor.options import Options
 from libreactor.basic_protocols import MessageReceiver
 
 
@@ -51,11 +52,9 @@ def on_established(protocol):
     protocol.send_json(data)
 
 
-ev = EventLoop()
+ev = EventLoop.current()
 
-ctx = MyContext()
-
-client = TcpClient("::1", 9527, ev, ctx)
+client = TcpClient("::1", 9527, ev, MyContext(), Options())
 client.connect()
 
 ev.loop()

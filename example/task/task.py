@@ -27,7 +27,7 @@ def call_now():
     print(f"done: call now")
 
 
-ev = EventLoop()
+ev = EventLoop.current()
 
 ev.call_soon(call_now)
 

@@ -15,7 +15,7 @@ def on_result(status, stdout, stderr):
     print(status, "stdout: ", stdout, "stderr: ", stderr)
 
 
-ev = EventLoop()
+ev = EventLoop.current()
 
 Popen("uname -a", ev, on_result=on_result)
 
