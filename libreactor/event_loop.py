@@ -20,7 +20,7 @@ DEFAULT_TIMEOUT = 3.6  # sec
 thread_local = threading.local()
 
 
-class EventLoop(metaclass=NoConstructor):
+class EventLoop(objectr):
 
     def __init__(self, ev_func=None):
         """
@@ -54,8 +54,7 @@ class EventLoop(metaclass=NoConstructor):
         """
         ev = getattr(thread_local, "ev", None)
         if not ev:
-            ev = cls.__new__(cls)
-            ev._ev_callback = Callback(ev_func) if ev_func else None
+            ev = cls(ev_func)
             setattr(thread_local, "ev", ev)
 
         return ev
