@@ -13,7 +13,6 @@ from .signaler import Signaler
 from .callback import Callback
 from . import io_event
 from . import utils
-from .meta import NoConstructor
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
