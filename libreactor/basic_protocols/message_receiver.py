@@ -65,8 +65,6 @@ class MessageReceiver(Protocol):
             if self._retrieve_header() is False:
                 break
 
-            # assert self.header is not None
-
             if self._retrieve_header_extension() is False:
                 break
 

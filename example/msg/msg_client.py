@@ -42,16 +42,6 @@ class MyContext(ClientContext):
         protocol.send_json(data)
 
 
-def on_established(protocol):
-    """
-
-    :param protocol:
-    :return:
-    """
-    data = {-1: -1}
-    protocol.send_json(data)
-
-
 ev = EventLoop.current()
 
 client = TcpClient("::1", 9527, ev, MyContext(), Options())

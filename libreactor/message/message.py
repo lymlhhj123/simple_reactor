@@ -76,7 +76,7 @@ class Message(object):
 
         :return:
         """
-        if zlib.crc32(self.data) != self.header.crc32:
+        if zlib.crc32(self.data) != self.header.crc32():
             return True
 
         return False
