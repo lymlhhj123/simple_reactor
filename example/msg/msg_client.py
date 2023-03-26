@@ -5,6 +5,10 @@ from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.options import Options
 from libreactor.basic_protocols import MessageReceiver
+from libreactor.logging import get_logger, logger_init
+
+logger = get_logger()
+logger_init(logger)
 
 
 class MyProtocol(MessageReceiver):
@@ -21,7 +25,7 @@ class MyProtocol(MessageReceiver):
         :param msg:
         :return:
         """
-        print(f"{msg.json()}")
+        logger.info(f"msg received: {msg.json()}")
 
         idx, self.idx = self.idx, self.idx + 1
         data = {idx: idx}

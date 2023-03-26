@@ -5,6 +5,10 @@ from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpServer
 from libreactor.options import Options
 from libreactor.basic_protocols import LineReceiver
+from libreactor.logging import get_logger, logger_init
+
+logger = get_logger()
+logger_init(logger)
 
 
 class MyProtocol(LineReceiver):
@@ -15,7 +19,7 @@ class MyProtocol(LineReceiver):
         :param line:
         :return:
         """
-        print(f"{line}")
+        logger.info(f"line received: {line}")
         self.send_line(line)
 
 
