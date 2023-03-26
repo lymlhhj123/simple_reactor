@@ -5,6 +5,10 @@ from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpServer
 from libreactor.protocol import Protocol
 from libreactor.options import Options
+from libreactor.logging import get_logger, logger_init
+
+logger = get_logger()
+logger_init(logger)
 
 
 class MyProtocol(Protocol):

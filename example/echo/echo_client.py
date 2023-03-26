@@ -5,6 +5,10 @@ from libreactor.event_loop import EventLoop
 from libreactor.internet import TcpClient
 from libreactor.protocol import Protocol
 from libreactor.options import Options
+from libreactor.logging import get_logger, logger_init
+
+logger = get_logger()
+logger_init(logger)
 
 
 class MyProtocol(Protocol):
@@ -52,7 +56,7 @@ class MyProtocol(Protocol):
         start_time, self.start_time = self.start_time, now
         io_count, self.io_count = self.io_count, 0
         ops = io_count / (now - start_time)
-        print(f"ops: {ops}")
+        logger.info(f"ops: {ops}")
 
     def send_data(self):
         """
@@ -78,13 +82,13 @@ class MyContext(ClientContext):
 
     def connection_failure(self, conn):
 
-        print("conn failure:", conn.str_error())
+        logger.error(f"conn failure: {conn.str_error()}")
 
         self.client.connect(delay=2)
 
     def connection_error(self, conn):
 
-        print("conn error:", conn.str_error())
+        logger.error(f"conn failure: {conn.str_error()}")
 
         self.client.connect(delay=2)
 

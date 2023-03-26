@@ -25,14 +25,7 @@ def _get_default_log():
     :return:
     """
     default_log = logging.getLogger()
-    default_log.setLevel(logging.DEBUG)
-
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(LOG_FORMAT)
-    handler.setFormatter(formatter)
-    handler.addFilter(_ThreadFilter())
-    default_log.addHandler(handler)
-
+    default_log.setLevel(logging.INFO)
     return default_log
 
 
@@ -42,3 +35,16 @@ def get_logger():
     :return:
     """
     return _get_default_log()
+
+
+def logger_init(logger):
+    """
+
+    :param logger:
+    :return:
+    """
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(LOG_FORMAT)
+    handler.setFormatter(formatter)
+    handler.addFilter(_ThreadFilter())
+    logger.addHandler(handler)
