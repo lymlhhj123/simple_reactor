@@ -36,19 +36,9 @@ def _get_default_log():
     return default_log
 
 
-_lock = threading.Lock()
-_logger = "logger"
-_logger_record = {}
-
-
 def get_logger():
     """
 
     :return:
     """
-    with _lock:
-        if not _logger_record:
-            log = _get_default_log()
-            _logger_record[_logger] = log
-
-    return _logger_record[_logger]
+    return _get_default_log()

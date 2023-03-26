@@ -80,13 +80,13 @@ class MyContext(ClientContext):
 
         print("conn failure:", conn.str_error())
 
-        self.client.ev.call_later(2, self.client.connect)
+        self.client.connect(delay=2)
 
     def connection_error(self, conn):
 
         print("conn error:", conn.str_error())
 
-        self.client.ev.call_later(2, self.client.connect)
+        self.client.connect(delay=2)
 
 
 ev = EventLoop.current()
