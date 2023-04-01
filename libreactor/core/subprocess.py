@@ -213,7 +213,7 @@ class Subprocess(object):
         self.timeout_timer = None
 
         stdout, stderr = self.stdout, self.stderr
-        self.on_result(status, stdout.decode("utf-8"), stderr.decode("utf-8"))
+        self.on_result(status, stdout, stderr)
 
     def kill(self):
         """kill child process"""

@@ -147,24 +147,20 @@ class Channel(object):
         :param chunk_size:
         :return:
         """
-        output = b""
-        while True:
-            try:
-                data = os.read(self._fd, chunk_size)
-            except IOError as e:
-                err_code = common.errno_from_ex(e)
-                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                    err_code = common.ErrorCode.DO_AGAIN
-
-                break
-
+        try:
+            data = os.read(self._fd, chunk_size)
+        except IOError as e:
+            data = b""
+            err_code = common.errno_from_ex(e)
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                err_code = common.ErrorCode.DO_AGAIN
+        else:
             if not data:
                 err_code = common.ErrorCode.CLOSED
-                break
+            else:
+                err_code = common.ErrorCode.OK
 
-            output += data
-
-        return err_code, output
+        return err_code, data
 
     def write(self, data):
         """shortcut for write to fd
