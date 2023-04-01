@@ -207,9 +207,6 @@ class EventLoop(object):
         assert self.is_in_loop_thread()
 
         while True:
-            if self._ev_callback:
-                self._ev_callback.run()
-
             timeout = self._calc_timeout()
 
             try:
@@ -225,6 +222,9 @@ class EventLoop(object):
                 self._handle_events(events)
 
             self._process_timer_event()
+
+            if self._ev_callback:
+                self._ev_callback.run()
 
     def _calc_timeout(self):
         """
