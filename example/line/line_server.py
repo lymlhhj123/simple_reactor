@@ -1,14 +1,14 @@
 # coding: utf-8
 
-from libreactor.context import ServerContext
-from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpServer
-from libreactor.options import Options
-from libreactor.basic_protocols import LineReceiver
-from libreactor.logging import get_logger, logger_init
+from libreactor import ServerContext
+from libreactor import EventLoop
+from libreactor import TcpServer
+from libreactor import Options
+from libreactor import LineReceiver
+from libreactor import common
 
-logger = get_logger()
-logger_init(logger)
+logger = common.get_logger()
+common.logger_init(logger)
 
 
 class MyProtocol(LineReceiver):

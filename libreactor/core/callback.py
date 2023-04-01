@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from .logging import get_logger
+from ..common import get_logger
 
 logger = get_logger()
 

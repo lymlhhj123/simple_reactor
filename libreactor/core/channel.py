@@ -1,6 +1,9 @@
 # coding: utf-8
 
-from . import fd_helper
+import os
+import errno
+
+from .. import common
 from . import io_event
 
 
@@ -12,7 +15,7 @@ class Channel(object):
         :param fd: the fd must be non-blocking
         :param event_loop:
         """
-        assert fd_helper.is_fd_async(fd)
+        assert common.is_fd_async(fd)
 
         self._fd = fd
         self._event_loop = event_loop
@@ -138,6 +141,52 @@ class Channel(object):
         if self.read_callback:
             self.read_callback()
 
+    def read(self, chunk_size):
+        """shortcut for read form fd
+
+        :param chunk_size:
+        :return:
+        """
+        output = b""
+        while True:
+            try:
+                data = os.read(self._fd, chunk_size)
+            except IOError as e:
+                err_code = common.errno_from_ex(e)
+                if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                    err_code = common.ErrorCode.DO_AGAIN
+
+                break
+
+            if not data:
+                err_code = common.ErrorCode.CLOSED
+                break
+
+            output += data
+
+        return err_code, output
+
+    def write(self, data):
+        """shortcut for write to fd
+
+        :param data:
+        :return:
+        """
+        try:
+            chunk_size = os.write(self._fd, data)
+        except IOError as e:
+            chunk_size = 0
+            err_code = common.errno_from_ex(e)
+            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
+                err_code = common.ErrorCode.DO_AGAIN, 0
+        else:
+            if chunk_size == 0:
+                err_code = common.ErrorCode.CLOSED
+            else:
+                err_code = common.ErrorCode.OK
+
+        return err_code, chunk_size
+
     def close(self):
         """
 
@@ -148,11 +197,10 @@ class Channel(object):
 
         self._event_loop.remove_channel(self)
 
+        # the fd is not belong to us, do not close it
+        self._fd = -1
         self.read_callback = None
         self.write_callback = None
-
-        fd, self._fd = self._fd, -1
-        fd_helper.close_fd(fd)
 
     def is_closed(self):
         """

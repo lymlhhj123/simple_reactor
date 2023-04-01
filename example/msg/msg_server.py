@@ -1,10 +1,10 @@
 # coding: utf-8
 
-from libreactor.context import ServerContext
-from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpServer
-from libreactor.options import Options
-from libreactor.basic_protocols import MessageReceiver
+from libreactor import ServerContext
+from libreactor import EventLoop
+from libreactor import TcpServer
+from libreactor import Options
+from libreactor import MessageReceiver
 
 
 class MyProtocol(MessageReceiver):

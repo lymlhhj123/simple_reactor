@@ -2,10 +2,10 @@
 
 from threading import Lock
 
-from .protocol import Protocol
-from . import logging
+from ..protocols import Protocol
+from ..common import get_logger
 
-logger = logging.get_logger()
+logger = get_logger()
 
 
 class _BaseContext(object):

@@ -12,6 +12,7 @@ class Options(object):
         self._close_on_exec = False
         self._ipv6_only = False
         self._backlog = 128
+        self._ssl_option = {}
 
     @property
     def connect_timeout(self):
@@ -82,3 +83,13 @@ class Options(object):
     def backlog(self, backlog):
 
         self._backlog = backlog
+
+    @property
+    def ssl_option(self):
+
+        return self._ssl_option
+
+    @ssl_option.setter
+    def ssl_option(self, option):
+
+        self._ssl_option = option

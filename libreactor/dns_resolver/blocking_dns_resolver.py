@@ -2,13 +2,12 @@
 
 import socket
 
-from libreactor import logging
-from libreactor import const
+from .. import common
 
-logger = logging.get_logger()
+logger = common.get_logger()
 
 
-class BlockDNSResolver(object):
+class BlockingDNSResolver(object):
 
     def __init__(self, host, port, ev, on_done):
         """
@@ -33,10 +32,10 @@ class BlockDNSResolver(object):
         """
         try:
             addr_list = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            err_code = const.ErrorCode.OK
+            err_code = common.ErrorCode.OK
         except Exception as ex:
             addr_list = []
-            err_code = const.ErrorCode.DNS_RESOLVE_FAILED
+            err_code = common.ErrorCode.DNS_RESOLVE_FAILED
             logger.error(f"failed to dns resolve {self.host}, {ex}")
 
         if self.on_done:

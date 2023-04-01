@@ -3,14 +3,11 @@
 import socket
 import errno
 
-from libreactor.channel import Channel
-from libreactor import sock_helper
-from libreactor import utils
-from libreactor.const import ErrorCode
-from libreactor.const import ConnectionState
-from libreactor import logging
+from ..core import Channel
+from .. import common
 
-logger = logging.get_logger()
+
+logger = common.get_logger()
 
 READ_SIZE = 8192
 
@@ -33,11 +30,11 @@ class Connection(object):
         self.channel.set_write_callback(self._on_write_event)
 
         self.endpoint = None
-        self.state = ConnectionState.DISCONNECTED
+        self.state = common.ConnectionState.DISCONNECTED
         self.write_buffer = b""
         self.protocol = None
 
-        self.error_code = ErrorCode.OK
+        self.error_code = common.ErrorCode.OK
 
         self.close_after_write = False
         self.linger_timer = None
@@ -62,7 +59,7 @@ class Connection(object):
 
         :return:
         """
-        return ErrorCode.str_error(self.error_code)
+        return common.ErrorCode.str_error(self.error_code)
 
     def try_open(self, endpoint, timeout=10):
         """
@@ -77,11 +74,11 @@ class Connection(object):
         try:
             self.sock.connect(endpoint)
         except socket.error as e:
-            err_code = utils.errno_from_ex(e)
+            err_code = common.errno_from_ex(e)
         else:
-            err_code = ErrorCode.OK
+            err_code = common.ErrorCode.OK
 
-        if err_code == errno.EISCONN or err_code == ErrorCode.OK:
+        if err_code == errno.EISCONN or err_code == common.ErrorCode.OK:
             self.connection_established()
         elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
             self._wait_connection_established(timeout)
@@ -93,7 +90,7 @@ class Connection(object):
 
         :return:
         """
-        self.state = ConnectionState.CONNECTING
+        self.state = common.ConnectionState.CONNECTING
         self.channel.enable_writing()
         self.timeout_timer = self.ev.call_later(timeout, self._connection_timeout)
 
@@ -102,7 +99,7 @@ class Connection(object):
         client side established connection
         :return:
         """
-        if sock_helper.is_self_connect(self.sock):
+        if common.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
             self._close_connection()
             return
@@ -112,7 +109,7 @@ class Connection(object):
             self.timeout_timer.cancel()
             self.timeout_timer = None
 
-        self.state = ConnectionState.CONNECTED
+        self.state = common.ConnectionState.CONNECTED
         self.channel.enable_reading()
 
         self.protocol = protocol = self._build_protocol()
@@ -127,7 +124,7 @@ class Connection(object):
         """
         self.endpoint = addr
 
-        self.state = ConnectionState.CONNECTED
+        self.state = common.ConnectionState.CONNECTED
         self.channel.enable_reading()
 
         self.protocol = protocol = self._build_protocol()
@@ -151,7 +148,7 @@ class Connection(object):
         :return:
         """
         self._timeout_timer = None
-        self._connection_failed(ErrorCode.TIMEOUT)
+        self._connection_failed(common.ErrorCode.TIMEOUT)
 
     def _connection_failed(self, err_code):
         """
@@ -222,12 +219,12 @@ class Connection(object):
         self.write_buffer += data
 
         # still in connecting
-        if self.state == ConnectionState.CONNECTING:
+        if self.state == common.ConnectionState.CONNECTING:
             return
 
         # try to write directly
         err_code = self._do_write()
-        if ErrorCode.is_error(err_code):
+        if common.ErrorCode.is_error(err_code):
             self._connection_error(err_code)
             return
 
@@ -239,15 +236,15 @@ class Connection(object):
 
         :return:
         """
-        if self.state == ConnectionState.CONNECTING:
+        if self.state == common.ConnectionState.CONNECTING:
             self._handle_connect()
 
-        if self.state != ConnectionState.CONNECTED:
+        if self.state != common.ConnectionState.CONNECTED:
             return
 
         if self.write_buffer:
             err_code = self._do_write()
-            if ErrorCode.is_error(err_code):
+            if common.ErrorCode.is_error(err_code):
                 self._connection_error(err_code)
                 return
 
@@ -266,20 +263,7 @@ class Connection(object):
 
         :return:
         """
-        # because of use level trigger, we write once
-        try:
-            chunk_size = self.sock.send(self.write_buffer)
-        except IOError as e:
-            chunk_size = 0
-            err_code = utils.errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = ErrorCode.DO_AGAIN, 0
-        else:
-            if chunk_size == 0:
-                err_code = ErrorCode.CLOSED
-            else:
-                err_code = ErrorCode.OK
-
+        err_code, chunk_size = self.channel.write(self.write_buffer)
         self.write_buffer = self.write_buffer[chunk_size:]
         return err_code
 
@@ -288,14 +272,14 @@ class Connection(object):
 
         :return:
         """
-        if self.state == ConnectionState.CONNECTING:
+        if self.state == common.ConnectionState.CONNECTING:
             self._handle_connect()
 
-        if self.state != ConnectionState.CONNECTED:
+        if self.state != common.ConnectionState.CONNECTED:
             return
 
         err_code = self._do_read()
-        if ErrorCode.is_error(err_code):
+        if common.ErrorCode.is_error(err_code):
             self._connection_error(err_code)
 
     def _do_read(self):
@@ -303,20 +287,7 @@ class Connection(object):
 
         :return:
         """
-        # because of use level trigger, we read once
-        try:
-            data = self.sock.recv(READ_SIZE)
-        except IOError as e:
-            data = b""
-            err_code = utils.errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = ErrorCode.DO_AGAIN
-        else:
-            if not data:
-                err_code = ErrorCode.CLOSED
-            else:
-                err_code = ErrorCode.OK
-
+        err_code, data = self.channel.read(READ_SIZE)
         if data:
             self.protocol.data_received(data)
 
@@ -327,7 +298,7 @@ class Connection(object):
 
         :return:
         """
-        err_code = sock_helper.get_sock_error(self.sock)
+        err_code = common.get_sock_error(self.sock)
         if err_code != 0:
             self._connection_failed(err_code)
             return
@@ -379,7 +350,7 @@ class Connection(object):
         if self._connection_will_be_closed():
             return
 
-        self.state = ConnectionState.DISCONNECTING
+        self.state = common.ConnectionState.DISCONNECTING
 
         if self.linger_timer:
             self.linger_timer.cancel()
@@ -397,15 +368,16 @@ class Connection(object):
 
         :return:
         """
-        return self.state == ConnectionState.DISCONNECTING or self.state == ConnectionState.DISCONNECTED
+        return self.state in [common.ConnectionState.DISCONNECTING, common.ConnectionState.DISCONNECTED]
 
     def _close_force(self):
         """
 
         :return:
         """
-        self.state = ConnectionState.DISCONNECTED
+        self.state = common.ConnectionState.DISCONNECTED
         self.channel.close()
+        self.sock.close()
 
         del self.channel
         del self.sock

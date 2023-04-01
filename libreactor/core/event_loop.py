@@ -5,14 +5,14 @@ import time
 import select
 import threading
 
-from . import poller
+from .. import poller
 from .timer import Timer
 from .timer_queue import TimerQueue
 from .channel import Channel
 from .signaler import Signaler
-from .callback import Callback
 from . import io_event
-from . import utils
+from .callback import Callback
+from .. import common
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -215,7 +215,7 @@ class EventLoop(object):
             try:
                 events = self._poller.poll(timeout)
             except Exception as e:
-                err_code = utils.errno_from_ex(e)
+                err_code = common.errno_from_ex(e)
                 if err_code != errno.EINTR:
                     break
 

@@ -1,10 +1,9 @@
 # coding: utf-8
 
 from .connector import Connector
-from .. import sock_helper
-from libreactor import logging
+from .. import common
 
-logger = logging.get_logger()
+logger = common.get_logger()
 
 
 class TcpClient(object):
@@ -35,7 +34,7 @@ class TcpClient(object):
 
         :return:
         """
-        family = sock_helper.get_family_by_ip(self.host)
+        family = common.get_family_by_ip(self.host)
         connector = Connector(family, (self.host, self.port), self.ctx, self.ev, self.options)
         connector.connect()
 

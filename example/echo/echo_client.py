@@ -1,11 +1,12 @@
 # coding: utf-8
 
-from libreactor.context import ClientContext
-from libreactor.event_loop import EventLoop
-from libreactor.internet import TcpClient
-from libreactor.protocol import Protocol
-from libreactor.options import Options
-from libreactor.logging import get_logger, logger_init
+from libreactor import ClientContext
+from libreactor import EventLoop
+from libreactor import TcpClient
+from libreactor import Protocol
+from libreactor import Options
+from libreactor import get_logger
+from libreactor import logger_init
 
 logger = get_logger()
 logger_init(logger)

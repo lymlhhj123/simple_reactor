@@ -1,7 +1,7 @@
 # coding: utf-8
 
-from libreactor.event_loop import EventLoop
-from libreactor.subprocess import Popen
+from libreactor import EventLoop
+from libreactor import Subprocess
 
 
 def on_result(status, stdout, stderr):
@@ -17,6 +17,6 @@ def on_result(status, stdout, stderr):
 
 ev = EventLoop.current()
 
-Popen("uname -a", ev, on_result=on_result)
+Subprocess("uname -a", ev, on_result)
 
 ev.loop()

@@ -2,7 +2,7 @@
 
 import os
 
-from . import fd_helper
+from .. import common
 
 
 class Signaler(object):
@@ -14,13 +14,13 @@ class Signaler(object):
         :param w_fd:
         """
         if not r_fd or not w_fd:
-            self.r_fd, self.w_fd = fd_helper.make_async_pipe()
+            self.r_fd, self.w_fd = common.make_async_pipe()
         else:
-            fd_helper.make_fd_async(r_fd)
-            fd_helper.make_fd_async(w_fd)
+            common.make_fd_async(r_fd)
+            common.make_fd_async(w_fd)
 
-            fd_helper.close_on_exec(r_fd)
-            fd_helper.close_on_exec(w_fd)
+            common.close_on_exec(r_fd)
+            common.close_on_exec(w_fd)
 
             self.r_fd = r_fd
             self.w_fd = w_fd

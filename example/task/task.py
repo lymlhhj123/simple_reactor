@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor.event_loop import EventLoop
+from libreactor import EventLoop
 
 
 def call_after_5_sec():
