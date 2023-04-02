@@ -42,9 +42,9 @@ class Subprocess(object):
         :return:
         """
         # stdin not used for now
-        stdin_read, stdin_write = os.pipe()
-        stdout_read, stdout_write = os.pipe()
-        stderr_read, stderr_write = os.pipe()
+        stdin_read, stdin_write = common.make_async_pipe()
+        stdout_read, stdout_write = common.make_async_pipe()
+        stderr_read, stderr_write = common.make_async_pipe()
 
         pid = os.fork()
         if pid == 0:

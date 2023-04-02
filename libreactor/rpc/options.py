@@ -12,6 +12,8 @@ class Options(object):
         self._close_on_exec = False
         self._ipv6_only = False
         self._backlog = 128
+
+        self._ssl_verify = False
         self._ssl_option = {}
 
     @property
@@ -83,6 +85,16 @@ class Options(object):
     def backlog(self, backlog):
 
         self._backlog = backlog
+
+    @property
+    def ssl_verify(self):
+
+        return self._ssl_verify
+
+    @ssl_verify.setter
+    def ssl_verify(self, flag):
+
+        self._ssl_verify = flag
 
     @property
     def ssl_option(self):
