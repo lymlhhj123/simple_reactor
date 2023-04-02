@@ -187,14 +187,6 @@ class Subprocess(object):
         if self.timeout_timer:
             self.timeout_timer.cancel()
 
-        fd_list = [self.stderr_channel.fileno(), self.stdout_channel.fileno()]
-
-        self.stderr_channel.close()
-        self.stdout_channel.close()
-
-        for fd in fd_list:
-            common.close_fd(fd)
-
         self._on_result()
 
     def _on_result(self):
