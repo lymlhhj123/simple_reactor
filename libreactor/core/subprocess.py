@@ -156,6 +156,7 @@ class Subprocess(object):
             fd = self.stdout_channel.fileno()
             self.stdout_channel.disable_reading()
             self.stdout_channel.close()
+            self.stdout_channel = None
             common.close_fd(fd)
             self._maybe_done()
 
@@ -171,6 +172,7 @@ class Subprocess(object):
             fd = self.stderr_channel.fileno()
             self.stderr_channel.disable_reading()
             self.stderr_channel.close()
+            self.stderr_channel = None
             common.close_fd(fd)
             self._maybe_done()
 
