@@ -26,9 +26,6 @@ class Subprocess(object):
         self.stdout_channel = None
         self.stderr_channel = None
 
-        self.stdout_done = False
-        self.stderr_done = False
-
         self.stdout = b""
         self.stderr = b""
 
@@ -156,8 +153,10 @@ class Subprocess(object):
         self.stdout += data
 
         if common.ErrorCode.is_error(err_code):
+            fd = self.stdout_channel.fileno()
             self.stdout_channel.disable_reading()
-            self.stdout_done = True
+            self.stdout_channel.close()
+            common.close_fd(fd)
             self._maybe_done()
 
     def _on_stderr_read(self):
@@ -169,8 +168,10 @@ class Subprocess(object):
         self.stderr += data
 
         if common.ErrorCode.is_error(err_code):
+            fd = self.stderr_channel.fileno()
             self.stderr_channel.disable_reading()
-            self.stderr_done = True
+            self.stderr_channel.close()
+            common.close_fd(fd)
             self._maybe_done()
 
     def _maybe_done(self):
@@ -178,7 +179,7 @@ class Subprocess(object):
 
         :return:
         """
-        if not self.stderr_done or not self.stdout_done:
+        if self.stderr_channel or self.stdout_channel:
             return
 
         if self.timeout_timer:
