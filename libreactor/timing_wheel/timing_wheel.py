@@ -39,7 +39,7 @@ class TimingWheel(object):
             if not self.overflow_timingwheel:
                 self.overflow_timingwheel = TimingWheel(self.interval, self.wheel_size, self.current_time)
 
-            return self.overflow_timingwheel.add_timer(timer)
+            return self.overflow_timingwheel.add(timer)
 
     def advance_clock(self, time_ms):
         """
