@@ -1,5 +1,7 @@
 # coding: utf-8
 
+import time
+
 
 def errno_from_ex(e):
     """
@@ -14,3 +16,16 @@ def errno_from_ex(e):
         return e.args[0]
 
     return -1
+
+
+def monotonic_ms():
+    """
+
+    :return:
+    """
+    return time.monotonic() * 1000
+
+
+if __name__ == "__main__":
+
+    print(monotonic_ms())

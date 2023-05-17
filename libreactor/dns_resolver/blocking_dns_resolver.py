@@ -2,9 +2,10 @@
 
 import socket
 
-from .. import common
+from ..common import logging
+from ..common import const
 
-logger = common.get_logger()
+logger = logging.get_logger()
 
 
 class BlockingDNSResolver(object):
@@ -32,10 +33,10 @@ class BlockingDNSResolver(object):
         """
         try:
             addr_list = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            err_code = common.ErrorCode.OK
+            err_code = const.ErrorCode.OK
         except Exception as ex:
             addr_list = []
-            err_code = common.ErrorCode.DNS_RESOLVE_FAILED
+            err_code = const.ErrorCode.DNS_RESOLVE_FAILED
             logger.error(f"failed to dns resolve {self.host}, {ex}")
 
         if self.on_done:

@@ -12,7 +12,7 @@ from .channel import Channel
 from .signaler import Signaler
 from . import io_event
 from .callback import Callback
-from .. import common
+from ..common import utils
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -57,6 +57,8 @@ class EventLoop(object):
             setattr(thread_local, "ev", ev)
 
         return ev
+
+    Current = current
 
     def time(self):
         """
@@ -212,7 +214,7 @@ class EventLoop(object):
             try:
                 events = self._poller.poll(timeout)
             except Exception as e:
-                err_code = common.errno_from_ex(e)
+                err_code = utils.errno_from_ex(e)
                 if err_code != errno.EINTR:
                     break
 

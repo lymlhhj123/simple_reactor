@@ -2,28 +2,14 @@
 
 import os
 
-from .. import common
+from ..common import fd_helper
 
 
 class Signaler(object):
 
-    def __init__(self, r_fd=None, w_fd=None):
-        """
+    def __init__(self):
 
-        :param r_fd:
-        :param w_fd:
-        """
-        if not r_fd or not w_fd:
-            self.r_fd, self.w_fd = common.make_async_pipe()
-        else:
-            common.make_fd_async(r_fd)
-            common.make_fd_async(w_fd)
-
-            common.close_on_exec(r_fd)
-            common.close_on_exec(w_fd)
-
-            self.r_fd = r_fd
-            self.w_fd = w_fd
+        self.r_fd, self.w_fd = fd_helper.make_async_pipe()
 
     def fileno(self):
         """
@@ -45,7 +31,7 @@ class Signaler(object):
         :return:
         """
         while True:
-            if self._read(4096) == -1:
+            if not self._read(4096):
                 break
 
     def read_one(self):
@@ -64,7 +50,7 @@ class Signaler(object):
         try:
             return os.read(self.r_fd, chunk_size)
         except IOError:
-            return -1
+            return b""
 
     def write_one(self):
         """

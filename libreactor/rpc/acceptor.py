@@ -5,9 +5,12 @@ import socket
 
 from .connection import Connection
 from ..core import Channel
-from .. import common
+from ..common import logging
+from ..common import sock_helper
+from ..common import fd_helper
+from ..common import utils
 
-logger = common.get_logger()
+logger = logging.get_logger()
 
 
 class Acceptor(object):
@@ -41,15 +44,15 @@ class Acceptor(object):
 
         sock = socket.socket(self.family, socket.SOCK_STREAM)
 
-        common.set_sock_async(sock)
+        sock_helper.set_sock_async(sock)
 
         if self.options.reuse_addr:
-            common.set_reuse_addr(sock)
+            sock_helper.set_reuse_addr(sock)
 
-        common.close_on_exec(sock.fileno(), self.options.close_on_exec)
+        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
         if self.family == socket.AF_INET6 and self.options.ipv6_only:
-            common.set_ipv6_only(sock)
+            sock_helper.set_ipv6_only(sock)
 
         sock.bind(self.endpoint)
         sock.listen(self.options.backlog)
@@ -69,7 +72,7 @@ class Acceptor(object):
             try:
                 sock, addr = self.sock.accept()
             except Exception as e:
-                err_code = common.errno_from_ex(e)
+                err_code = utils.errno_from_ex(e)
                 if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
                     break
                 elif err_code == errno.EMFILE:
@@ -115,15 +118,15 @@ class Acceptor(object):
         """
         logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
 
-        common.set_sock_async(sock)
+        sock_helper.set_sock_async(sock)
 
         if self.options.tcp_no_delay:
-            common.set_tcp_no_delay(sock)
+            sock_helper.set_tcp_no_delay(sock)
 
         if self.options.tcp_keepalive:
-            common.set_tcp_keepalive(sock)
+            sock_helper.set_tcp_keepalive(sock)
 
-        common.close_on_exec(sock.fileno(), self.options.close_on_exec)
+        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
         conn = Connection(sock, self.ctx, self.ev)
         self.ev.call_soon(conn.connection_made, addr)

@@ -7,8 +7,10 @@ import sys
 import signal
 import traceback
 
-from .. import common
 from .channel import Channel
+from ..common import fd_helper
+from ..common import utils
+from ..common import const
 
 
 class Subprocess(object):
@@ -39,9 +41,9 @@ class Subprocess(object):
         :return:
         """
         # stdin not used for now
-        stdin_read, stdin_write = common.make_async_pipe()
-        stdout_read, stdout_write = common.make_async_pipe()
-        stderr_read, stderr_write = common.make_async_pipe()
+        stdin_read, stdin_write = fd_helper.make_async_pipe()
+        stdout_read, stdout_write = fd_helper.make_async_pipe()
+        stderr_read, stderr_write = fd_helper.make_async_pipe()
 
         pid = os.fork()
         if pid == 0:
@@ -56,12 +58,12 @@ class Subprocess(object):
 
         self.child_pid = pid
 
-        common.close_fd(stdin_read)
-        common.close_fd(stdout_write)
-        common.close_fd(stderr_write)
+        fd_helper.close_fd(stdin_read)
+        fd_helper.close_fd(stdout_write)
+        fd_helper.close_fd(stderr_write)
 
         # stdin_write not used
-        common.close_fd(stdin_write)
+        fd_helper.close_fd(stdin_write)
 
         self.stdout_channel = Channel(stdout_read, self.ev)
         self.stderr_channel = Channel(stderr_read, self.ev)
@@ -80,9 +82,9 @@ class Subprocess(object):
 
         :return:
         """
-        common.close_fd(stdin_write)
-        common.close_fd(stdout_read)
-        common.close_fd(stderr_read)
+        fd_helper.close_fd(stdin_write)
+        fd_helper.close_fd(stdout_read)
+        fd_helper.close_fd(stderr_read)
 
         in_dup = os.dup(stdin_read)
         out_dup = os.dup(stdout_write)
@@ -140,7 +142,7 @@ class Subprocess(object):
         try:
             os.kill(self.child_pid, signal.SIGKILL)
         except Exception as e:
-            common.errno_from_ex(e)
+            utils.errno_from_ex(e)
 
         self.timeout_timer = None
 
@@ -152,12 +154,12 @@ class Subprocess(object):
         err_code, data = self.stdout_channel.read(8192)
         self.stdout += data
 
-        if common.ErrorCode.is_error(err_code):
+        if const.ErrorCode.is_error(err_code):
             fd = self.stdout_channel.fileno()
             self.stdout_channel.disable_reading()
             self.stdout_channel.close()
             self.stdout_channel = None
-            common.close_fd(fd)
+            fd_helper.close_fd(fd)
             self._maybe_done()
 
     def _on_stderr_read(self):
@@ -168,12 +170,12 @@ class Subprocess(object):
         err_code, data = self.stderr_channel.read(8192)
         self.stderr += data
 
-        if common.ErrorCode.is_error(err_code):
+        if const.ErrorCode.is_error(err_code):
             fd = self.stderr_channel.fileno()
             self.stderr_channel.disable_reading()
             self.stderr_channel.close()
             self.stderr_channel = None
-            common.close_fd(fd)
+            fd_helper.close_fd(fd)
             self._maybe_done()
 
     def _maybe_done(self):
@@ -197,7 +199,7 @@ class Subprocess(object):
         try:
             _, status = os.waitpid(self.child_pid, 0)
         except Exception as e:
-            err_code = common.errno_from_ex(e)
+            err_code = utils.errno_from_ex(e)
             # maybe set signal handler
             if err_code == errno.ECHILD:
                 status = 0

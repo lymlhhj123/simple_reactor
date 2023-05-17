@@ -6,9 +6,10 @@ from typing import Union
 from ..message import Message
 from ..message import Header
 from .protocol import Protocol
-from .. import common
+from ..common import bytes_buffer
+from ..common import logging
 
-logger = common.get_logger()
+logger = logging.get_logger()
 
 
 class MessageReceiver(Protocol):
@@ -17,7 +18,7 @@ class MessageReceiver(Protocol):
 
         super(MessageReceiver, self).__init__()
 
-        self.buffer = common.BytesBuffer()
+        self.buffer = bytes_buffer.BytesBuffer()
 
         self.header = None
         self.header_len = Header.HEADER_LEN

@@ -3,8 +3,10 @@
 import os
 import errno
 
-from .. import common
 from . import io_event
+from ..common import fd_helper
+from ..common import utils
+from ..common import const
 
 
 class Channel(object):
@@ -15,7 +17,7 @@ class Channel(object):
         :param fd: the fd must be non-blocking
         :param event_loop:
         """
-        assert common.is_fd_async(fd)
+        assert fd_helper.is_fd_async(fd)
 
         self._fd = fd
         self._event_loop = event_loop
@@ -151,14 +153,14 @@ class Channel(object):
             data = os.read(self._fd, chunk_size)
         except IOError as e:
             data = b""
-            err_code = common.errno_from_ex(e)
+            err_code = utils.errno_from_ex(e)
             if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = common.ErrorCode.DO_AGAIN
+                err_code = const.ErrorCode.DO_AGAIN
         else:
             if not data:
-                err_code = common.ErrorCode.CLOSED
+                err_code = const.ErrorCode.CLOSED
             else:
-                err_code = common.ErrorCode.OK
+                err_code = const.ErrorCode.OK
 
         return err_code, data
 
@@ -172,14 +174,14 @@ class Channel(object):
             chunk_size = os.write(self._fd, data)
         except IOError as e:
             chunk_size = 0
-            err_code = common.errno_from_ex(e)
+            err_code = utils.errno_from_ex(e)
             if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = common.ErrorCode.DO_AGAIN, 0
+                err_code = const.ErrorCode.DO_AGAIN, 0
         else:
             if chunk_size == 0:
-                err_code = common.ErrorCode.CLOSED
+                err_code = const.ErrorCode.CLOSED
             else:
-                err_code = common.ErrorCode.OK
+                err_code = const.ErrorCode.OK
 
         return err_code, chunk_size
 

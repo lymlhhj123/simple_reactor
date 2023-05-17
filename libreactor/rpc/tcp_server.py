@@ -1,14 +1,16 @@
 # coding: utf-8
 
 from .acceptor import Acceptor
-from .. import common
+from ..common import logging
+from ..common import const
+from ..common import sock_helper
 
-logger = common.get_logger()
+logger = logging.get_logger()
 
 
 class TcpServer(object):
 
-    def __init__(self, port, ev, ctx, options, host=common.IPAny.V6):
+    def __init__(self, port, ev, ctx, options, host=const.IPAny.V6):
         """
 
         :param port:
@@ -37,7 +39,7 @@ class TcpServer(object):
 
         :return:
         """
-        family = common.get_family_by_ip(self.host)
+        family = sock_helper.get_family_by_ip(self.host)
         endpoint = (self.host, self.port)
         acceptor = Acceptor(family, endpoint, self.ctx, self.ev, self.options)
         acceptor.start()
