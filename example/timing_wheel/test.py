@@ -1,11 +1,17 @@
 # coding: utf-8
 
 from libreactor import EventLoop
-from libreactor import TaskScheduler
+from libreactor import TimerScheduler
 
 
 ev = EventLoop.current()
 
-task_scheduler = TaskScheduler(ev)
+scheduler = TimerScheduler(ev)
 
-task_scheduler.call_later()
+
+def func():
+
+    print("test")
+
+
+scheduler.call_later(5, func)

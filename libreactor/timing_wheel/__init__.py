@@ -1,3 +1,3 @@
 # coding: utf-8
 
-from .timer_scheduler import TaskScheduler
+from .timer_scheduler import TimerScheduler

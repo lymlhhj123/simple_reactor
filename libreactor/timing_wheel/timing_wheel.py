@@ -53,4 +53,4 @@ class TimingWheel(object):
         self.current_time = time_ms - time_ms % self.tick_ms
 
         if self.overflow_timingwheel:
-            self.overflow_timingwheel.advance_clock(time_ms)
+            self.overflow_timingwheel.advance_clock(self.current_time)

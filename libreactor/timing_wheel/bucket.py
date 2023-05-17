@@ -62,6 +62,9 @@ class Bucket(object):
                 node = self.list.front()
                 timer = node.v
                 self._remove_timer(timer)
+                if timer.is_cancelled():
+                    continue
+
                 timer_list.append(timer)
 
             self.expiration = -1
