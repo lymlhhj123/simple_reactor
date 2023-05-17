@@ -3,9 +3,6 @@
 from threading import Lock
 
 from ..protocols import Protocol
-from ..common import get_logger
-
-logger = get_logger()
 
 
 class _BaseContext(object):

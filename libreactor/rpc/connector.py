@@ -2,7 +2,8 @@
 
 import socket
 
-from .. import common
+from ..common import sock_helper
+from ..common import fd_helper
 from .connection import Connection
 
 
@@ -30,15 +31,15 @@ class Connector(object):
         """
         sock = socket.socket(self.family, socket.SOCK_STREAM)
 
-        common.set_sock_async(sock)
+        sock_helper.set_sock_async(sock)
 
         if self.options.tcp_no_delay:
-            common.set_tcp_no_delay(sock)
+            sock_helper.set_tcp_no_delay(sock)
 
         if self.options.tcp_keepalive:
-            common.set_tcp_keepalive(sock)
+            sock_helper.set_tcp_keepalive(sock)
 
-        common.close_on_exec(sock.fileno(), self.options.close_on_exec)
+        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
         conn = Connection(sock, self.ctx, self.ev)
         conn.try_open(self.endpoint, self.options.connect_timeout)
