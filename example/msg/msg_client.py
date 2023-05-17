@@ -5,10 +5,10 @@ from libreactor import EventLoop
 from libreactor import TcpClient
 from libreactor import Options
 from libreactor import MessageReceiver
-from libreactor import common
+from libreactor.common import logging
 
-logger = common.get_logger()
-common.logger_init(logger)
+logger = logging.get_logger()
+logging.logger_init(logger)
 
 
 class MyProtocol(MessageReceiver):
