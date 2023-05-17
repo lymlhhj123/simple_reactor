@@ -23,7 +23,7 @@ def monotonic_ms():
 
     :return:
     """
-    return time.monotonic() * 1000
+    return int(time.monotonic() * 1000)
 
 
 if __name__ == "__main__":
