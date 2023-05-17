@@ -1,9 +1,7 @@
 # coding: utf-8
 
 from .connector import Connector
-from .. import common
-
-logger = common.get_logger()
+from ..common import sock_helper
 
 
 class TcpClient(object):
@@ -34,7 +32,7 @@ class TcpClient(object):
 
         :return:
         """
-        family = common.get_family_by_ip(self.host)
+        family = sock_helper.get_family_by_ip(self.host)
         connector = Connector(family, (self.host, self.port), self.ctx, self.ev, self.options)
         connector.connect()
 

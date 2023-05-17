@@ -1,11 +1,8 @@
 # coding: utf-8
 
 from .acceptor import Acceptor
-from ..common import logging
 from ..common import const
 from ..common import sock_helper
-
-logger = logging.get_logger()
 
 
 class TcpServer(object):
