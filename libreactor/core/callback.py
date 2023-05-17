@@ -1,8 +1,8 @@
 # coding: utf-8
 
-from ..common import get_logger
+from ..common import logging
 
-logger = get_logger()
+logger = logging.get_logger()
 
 
 class Callback(object):
