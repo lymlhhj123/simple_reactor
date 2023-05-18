@@ -30,8 +30,8 @@ class TimerScheduler(object):
         :param kwargs:
         :return:
         """
-        deadline = utils.monotonic_ms() + delay * 1000
-        return self.call_at(deadline, func, *args, **kwargs)
+        when = utils.monotonic_time() + delay
+        return self.call_at(when, func, *args, **kwargs)
 
     def call_at(self, when, func, *args, **kwargs):
         """
