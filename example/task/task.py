@@ -11,14 +11,6 @@ def call_after_5_sec():
     print(f"done, 5 sec")
 
 
-def call_every_10_sec():
-    """
-
-    :return:
-    """
-    print(f"done, 10 sec")
-
-
 def call_now():
     """
 
@@ -32,7 +24,5 @@ ev = EventLoop.current()
 ev.call_soon(call_now)
 
 ev.call_later(5, call_after_5_sec)
-
-ev.call_every(10, call_every_10_sec)
 
 ev.loop()

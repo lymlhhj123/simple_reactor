@@ -7,45 +7,19 @@ import functools
 @functools.total_ordering
 class Timer(object):
 
-    def __init__(self, event_loop, callback, delay: int, repeated=False):
+    def __init__(self, event_loop, callback, when):
         """
 
         :param event_loop:
         :param callback:
-        :param delay:
-        :param repeated:
+        :param when:
         """
         self._callback = callback
         self._event_loop = event_loop
-        
-        self._delay = delay
-        self._repeated = repeated
-
-        self._when = self._next_run_time()
+        self._when = when
 
         self._lock = threading.Lock()
         self._is_cancelled = False
-
-    def is_repeated(self):
-        """
-
-        :return:
-        """
-        return self._repeated
-
-    def schedule(self):
-        """
-
-        :return:
-        """
-        self._when = self._next_run_time()
-
-    def _next_run_time(self):
-        """
-
-        :return:
-        """
-        return self._event_loop.time() + self._delay
 
     def run(self):
         """

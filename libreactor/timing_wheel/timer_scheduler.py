@@ -58,7 +58,8 @@ class TimerScheduler(object):
                 self.ev.call_soon(t.run)
             elif bucket and expiration_updated:
                 # ms to sec
-                self.ev.call_at(bucket.expiration // 1000, self._bucket_expiration, bucket)
+                when = bucket.expiration // 1000
+                self.ev.call_at(when, self._bucket_expiration, bucket)
 
     def _bucket_expiration(self, bucket):
         """

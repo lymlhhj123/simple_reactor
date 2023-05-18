@@ -18,6 +18,14 @@ def errno_from_ex(e):
     return -1
 
 
+def monotonic_time():
+    """
+
+    :return:
+    """
+    return time.monotonic()
+
+
 def monotonic_ms():
     """
 

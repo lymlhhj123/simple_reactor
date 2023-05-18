@@ -1,7 +1,6 @@
 # coding: utf-8
 
 import errno
-import time
 import select
 import threading
 
@@ -28,7 +27,7 @@ class EventLoop(object):
         """
         self._ev_callback = Callback(ev_func) if ev_func else None
 
-        self._time_func = time.monotonic
+        self._time_func = utils.monotonic_time
 
         self._tid = threading.get_native_id()
 
@@ -91,8 +90,7 @@ class EventLoop(object):
         :param kwargs:
         :return:
         """
-        cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, delay)
+        return self.call_at(self.time() + delay, func, *args, **kwargs)
 
     def call_at(self, when, func, *args, **kwargs):
         """
@@ -103,32 +101,19 @@ class EventLoop(object):
         :param kwargs:
         :return:
         """
-        now = self.time()
-        return self.call_later(when - now, func, *args, **kwargs)
+        cb = Callback(func, *args, **kwargs)
+        return self._create_timer(cb, when)
 
     call_when = call_at
 
-    def call_every(self, interval, func, *args, **kwargs):
+    def _create_timer(self, cb, when):
         """
 
-        :param interval:
-        :param func:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, interval, repeated=True)
-
-    def _create_timer(self, cb, delay, repeated=False):
-        """
-
-        :param delay:
-        :param repeated:
         :param cb:
+        :param when:
         :return:
         """
-        t = Timer(self, cb, delay, repeated)
+        t = Timer(self, cb, when)
         try:
             with self._mutex:
                 self._timer_queue.put(t)

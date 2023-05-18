@@ -15,3 +15,5 @@ def func():
 
 
 scheduler.call_later(5, func)
+
+ev.loop()

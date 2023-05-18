@@ -68,9 +68,5 @@ class TimerQueue(object):
 
             timer_list.append(timer)
 
-            if timer.is_repeated():
-                timer.schedule()
-                heapq.heappush(queue, timer)
-
         self.queue = queue
         return timer_list
