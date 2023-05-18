@@ -80,4 +80,4 @@ class Bucket(object):
         """
         with self.lock:
             self.expiration, old_expiration = expiration, self.expiration
-            return old_expiration == expiration
+            return old_expiration != expiration

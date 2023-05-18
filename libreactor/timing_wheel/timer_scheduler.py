@@ -43,7 +43,7 @@ class TimerScheduler(object):
         :return:
         """
         # sec to ms
-        t = Timer(int(when * 1000), func, *args, **kwargs)
+        t = Timer(when * 1000, func, *args, **kwargs)
         self._add_timer(t)
         return t
 
