@@ -151,13 +151,13 @@ class Connection(object):
         :param data:
         :return:
         """
-        if not isinstance(data, bytes):
-            logger.error(f"only accept bytes, not {type(data)}")
-            return
-
         assert self.ev.is_in_loop_thread()
 
-        if self.closing is True:
+        if self._conn_lost:
+            return
+
+        if not isinstance(data, bytes):
+            logger.error(f"only accept bytes, not {type(data)}")
             return
 
         # still in connecting
@@ -172,13 +172,13 @@ class Connection(object):
                 self._force_close(error.Reason(code))
                 return
 
-            del data[:write_size]
+            del data[write_size:]
             if not data:
                 return
 
-        self.write_buffer.extend(data)
-        if not self.channel.writable():
             self.channel.enable_writing()
+
+        self.write_buffer.extend(data)
 
     def _on_write_event(self):
         """
@@ -206,20 +206,14 @@ class Connection(object):
         if not self.write_buffer and self.channel.writable():
             self.channel.disable_writing()
 
-    def _do_write(self, data):
-        """
-
-        :return:
-        """
-        err_code, chunk_size = self.channel.write(data)
-        # self.write_buffer = self.write_buffer[chunk_size:]
-        return err_code, chunk_size
-
     def _on_read_event(self):
         """
 
         :return:
         """
+        if self._conn_lost:
+            return
+
         if self.state == state.CONNECTING:
             self._handle_connect()
 

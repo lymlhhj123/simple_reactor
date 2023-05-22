@@ -55,7 +55,7 @@ class MyProtocol(Protocol):
         """
         self.start_time = self.event_loop.time()
 
-        self._timer = self.event_loop.call_every(60, self._count_down)
+        self._timer = self.event_loop.call_later(60, self._count_down)
 
     def _count_down(self):
         """
@@ -67,6 +67,8 @@ class MyProtocol(Protocol):
         io_count, self.io_count = self.io_count, 0
         ops = io_count / (now - start_time)
         logger.info(f"ops: {ops}")
+
+        self._timer = self.event_loop.call_later(60, self._count_down)
 
     def send_data(self):
         """
