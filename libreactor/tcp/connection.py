@@ -172,7 +172,7 @@ class Connection(object):
                 self._force_close(error.Reason(code))
                 return
 
-            del data[write_size:]
+            data = data[write_size:]
             if not data:
                 return
 
