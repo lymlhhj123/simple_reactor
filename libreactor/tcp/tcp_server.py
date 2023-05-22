@@ -7,7 +7,7 @@ from ..common import sock_helper
 
 class TcpServer(object):
 
-    def __init__(self, port, ev, ctx, options, host=const.IPAny.V6):
+    def __init__(self, port, ev, ctx, options, host=const.IPV6_ANY):
         """
 
         :param port:
