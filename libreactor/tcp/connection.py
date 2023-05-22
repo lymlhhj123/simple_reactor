@@ -1,13 +1,13 @@
 # coding: utf-8
 
 import socket
-import errno
 
+from . import state
 from ..core import Channel
 from ..common import logging
-from ..common import const
 from ..common import utils
 from ..common import sock_helper
+from ..common import error
 
 
 logger = logging.get_logger()
@@ -33,12 +33,11 @@ class Connection(object):
         self.channel.set_write_callback(self._on_write_event)
 
         self.endpoint = None
-        self.state = const.ConnectionState.DISCONNECTED
-        self.write_buffer = b""
+        self.state = state.DISCONNECTED
+        self.write_buffer = bytearray()
         self.protocol = None
 
-        self.error_code = const.ErrorCode.OK
-
+        self._conn_lost = 0
         self.closing = False
         self.timeout_timer = None
 
@@ -48,20 +47,6 @@ class Connection(object):
         :return:
         """
         return self.sock.fileno()
-
-    def errno(self):
-        """
-
-        :return:
-        """
-        return self.error_code
-
-    def str_error(self):
-        """
-
-        :return:
-        """
-        return const.ErrorCode.str_error(self.error_code)
 
     def try_open(self, endpoint, timeout=10):
         """
@@ -76,25 +61,25 @@ class Connection(object):
         try:
             self.sock.connect(endpoint)
         except socket.error as e:
-            err_code = utils.errno_from_ex(e)
+            code = utils.errno_from_ex(e)
         else:
-            err_code = const.ErrorCode.OK
+            code = error.OK
 
-        if err_code == errno.EISCONN or err_code == const.ErrorCode.OK:
+        if code == error.EISCONN or code == error.OK:
             self.connection_established()
-        elif err_code == errno.EINPROGRESS or err_code == errno.EALREADY:
+        elif code == error.EINPROGRESS or code == error.EALREADY:
             self._wait_connection_established(timeout)
         else:
-            self._connection_failed(err_code)
+            self._connection_failed(code)
 
     def _wait_connection_established(self, timeout):
         """
 
         :return:
         """
-        self.state = const.ConnectionState.CONNECTING
+        self.state = state.CONNECTING
         self.channel.enable_writing()
-        self.timeout_timer = self.ev.call_later(timeout, self._connection_timeout)
+        self.timeout_timer = self.ev.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
 
     def connection_established(self):
         """
@@ -103,19 +88,18 @@ class Connection(object):
         """
         if sock_helper.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
-            self._connection_lost()
+            err_code = error.Reason(error.SELF_CONNECT)
+            self._connection_lost(err_code)
             return
 
-        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
-        if self.timeout_timer:
-            self.timeout_timer.cancel()
-            self.timeout_timer = None
+        self._cancel_timeout_timer()
 
-        self.state = const.ConnectionState.CONNECTED
+        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
+        self.state = state.CONNECTED
         self.channel.enable_reading()
 
         self.protocol = self._build_protocol()
-        self.protocol.connection_established()
+        self.protocol.connection_established(self)
         self.ctx.connection_established(self.protocol)
 
     def connection_made(self, addr):
@@ -126,11 +110,11 @@ class Connection(object):
         """
         self.endpoint = addr
 
-        self.state = const.ConnectionState.CONNECTED
+        self.state = state.CONNECTED
         self.channel.enable_reading()
 
         self.protocol = self._build_protocol()
-        self.protocol.connection_made()
+        self.protocol.connection_made(self)
         self.ctx.connection_made(self.protocol)
 
     def _build_protocol(self):
@@ -139,18 +123,9 @@ class Connection(object):
         :return:
         """
         protocol = self.ctx.build_protocol()
-        protocol.connection = self
         protocol.ctx = self.ctx
         protocol.event_loop = self.ev
         return protocol
-
-    def _connection_timeout(self):
-        """
-        client establish connection timeout
-        :return:
-        """
-        self._timeout_timer = None
-        self._connection_failed(const.ErrorCode.TIMEOUT)
 
     def _connection_failed(self, err_code):
         """
@@ -158,26 +133,17 @@ class Connection(object):
         :param err_code:
         :return:
         """
-        self.error_code = err_code
+        self._cancel_timeout_timer()
+        self._force_close(error.Reason(err_code))
 
+    def _cancel_timeout_timer(self):
+        """
+
+        :return:
+        """
         if self.timeout_timer:
             self.timeout_timer.cancel()
             self.timeout_timer = None
-
-        self._connection_lost()
-        self.ctx.connection_failure(self)
-
-    def _connection_error(self, err_code):
-        """
-        error happened when on read/write
-        :return:
-        """
-        self.error_code = err_code
-
-        self._connection_lost()
-
-        self.protocol.connection_error()
-        self.ctx.connection_error(self)
 
     def write(self, data: bytes):
         """
@@ -189,33 +155,29 @@ class Connection(object):
             logger.error(f"only accept bytes, not {type(data)}")
             return
 
-        if self.ev.is_in_loop_thread():
-            self._write_in_loop(data)
-        else:
-            self.ev.call_soon(self._write_in_loop, data)
+        assert self.ev.is_in_loop_thread()
 
-    def _write_in_loop(self, data):
-        """
-
-        :param data:
-        :return:
-        """
         if self.closing is True:
             return
 
-        self.write_buffer += data
-
         # still in connecting
-        if self.state == const.ConnectionState.CONNECTING:
+        if self.state == state.CONNECTING:
+            self.write_buffer.extend(data)
             return
 
         # try to write directly
-        err_code = self._do_write()
-        if const.ErrorCode.is_error(err_code):
-            self._connection_error(err_code)
-            return
+        if not self.write_buffer:
+            code, write_size = self.channel.write(data)
+            if error.is_bad_error(code):
+                self._force_close(error.Reason(code))
+                return
 
-        if self.write_buffer and not self.channel.writable():
+            del data[:write_size]
+            if not data:
+                return
+
+        self.write_buffer.extend(data)
+        if not self.channel.writable():
             self.channel.enable_writing()
 
     def _on_write_event(self):
@@ -223,52 +185,50 @@ class Connection(object):
 
         :return:
         """
-        if self.state == common.ConnectionState.CONNECTING:
+        if self.state == state.CONNECTING:
             self._handle_connect()
 
-        if self.state != common.ConnectionState.CONNECTED:
+        if self.state != state.CONNECTED:
             return
 
         if self.write_buffer:
-            err_code = self._do_write()
-            if common.ErrorCode.is_error(err_code):
-                self._connection_error(err_code)
+            code, write_size = self.channel.write(self.write_buffer)
+            if error.is_bad_error(code):
+                self._force_close(error.Reason(code))
                 return
 
-        if self.write_buffer:
+            del self.write_buffer[:write_size]
+
+        if not self.write_buffer and self.closing is True:
+            self._force_close(error.Reason(error.USER_CLOSED))
             return
 
-        if self.closing is True:
-            self._close_impl()
-            return
-
-        if self.channel.writable():
+        if not self.write_buffer and self.channel.writable():
             self.channel.disable_writing()
 
-    def _do_write(self):
+    def _do_write(self, data):
         """
 
         :return:
         """
-        err_code, chunk_size = self.channel.write(self.write_buffer)
-        self.write_buffer = self.write_buffer[chunk_size:]
-        return err_code
+        err_code, chunk_size = self.channel.write(data)
+        # self.write_buffer = self.write_buffer[chunk_size:]
+        return err_code, chunk_size
 
     def _on_read_event(self):
         """
 
         :return:
         """
-        if self.state == common.ConnectionState.CONNECTING:
+        if self.state == state.CONNECTING:
             self._handle_connect()
 
-        if self.state != common.ConnectionState.CONNECTED:
+        if self.state != state.CONNECTED:
             return
 
-        err_code = self._do_read()
-
-        # todo:
-        self._connection_lost()
+        code = self._do_read()
+        if error.is_bad_error(code):
+            self._force_close(error.Reason(code))
 
     def _do_read(self):
         """
@@ -286,13 +246,42 @@ class Connection(object):
 
         :return:
         """
-        err_code = sock_helper.get_sock_error(self.sock)
-        if err_code != 0:
-            self._connection_failed(err_code)
+        code = sock_helper.get_sock_error(self.sock)
+        if error.is_bad_error(code):
+            self._connection_failed(code)
             return
 
         self.channel.disable_writing()
         self.connection_established()
+
+    def abort(self):
+        """force to close connection
+
+        :return:
+        """
+        assert self.ev.is_in_loop_thread()
+        reason = error.Reason(error.USER_ABORT)
+        self._force_close(reason)
+
+    def _force_close(self, reason):
+        """
+
+        :param reason:
+        :return:
+        """
+        if self._conn_lost:
+            return
+
+        if self.write_buffer:
+            self.write_buffer.clear()
+
+        if not self.closing:
+            self.closing = True
+
+        self.channel.disable_all()
+
+        self._conn_lost += 1
+        self.ev.call_soon(self._connection_lost, reason)
 
     def close(self):
         """
@@ -305,61 +294,31 @@ class Connection(object):
             return
 
         self.closing = True
-
         self.channel.disable_reading()
 
         # write buffer is empty, close it
         if not self.write_buffer:
-            self._connection_lost()
-            return
+            self.channel.disable_writing()
 
-    def abort(self):
-        """
-
-        :return:
-        """
-        assert self.ev.is_in_loop_thread()
-
-    def _close_force(self):
-        """
-
-        :return:
-        """
-        if self.write_buffer:
-            self.write_buffer = b""
-
-        self.channel.disable_all()
-
-        self._close_impl()
-
-    def _close_impl(self):
-        """
-
-        :return:
-        """
-        if self.closing is True:
-            return
-
-        self.closing = True
-
-        self.channel.disable_reading()
-
-        # write buffer is empty, close it
-        if not self.write_buffer:
-            self._connection_lost()
-            return
+            self._conn_lost += 1
+            reason = error.Reason(error.USER_CLOSED)
+            self.ev.call_soon(self._connection_lost, reason)
 
     def _connection_lost(self, reason):
         """
 
         :return:
         """
-        self.channel.close()
-        self.sock.close()
+        try:
+            if self.protocol:
+                self.protocol.connection_lost(reason)
 
-        del self.channel
-        del self.sock
-        del self.protocol
-        del self.ctx
+            self.ctx.connection_lost(self, reason)
+        finally:
+            self.channel.close()
+            self.sock.close()
 
-        self.ev.call_soon
+            self.channel = None
+            self.protocol = None
+            self.ctx = None
+            self.sock = None

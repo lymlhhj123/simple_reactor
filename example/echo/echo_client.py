@@ -20,6 +20,16 @@ class MyProtocol(Protocol):
         self.start_time = 0
         self._timer = None
 
+        self.connection = None
+
+    def connection_established(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        self.connection = conn
+
     def data_received(self, data: bytes):
         """
 
@@ -29,7 +39,7 @@ class MyProtocol(Protocol):
         self.io_count += 1
         self.connection.write(data)
 
-    def connection_error(self):
+    def connection_lost(self, reason):
         """
 
         :return:
@@ -80,15 +90,9 @@ class MyContext(ClientContext):
 
         protocol.send_data()
 
-    def connection_failure(self, conn):
+    def connection_lost(self, conn, reason):
 
-        logger.error(f"conn failure: {conn.str_error()}")
-
-        self.client.connect(delay=2)
-
-    def connection_error(self, conn):
-
-        logger.error(f"conn failure: {conn.str_error()}")
+        logger.error(f"conn lost: {conn.fileno()}, {reason.what()}")
 
         self.client.connect(delay=2)
 

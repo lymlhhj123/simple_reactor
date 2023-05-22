@@ -2,7 +2,7 @@
 
 from threading import Lock
 
-from ..protocols import Protocol
+from .protocol import Protocol
 
 
 class _BaseContext(object):
@@ -13,16 +13,11 @@ class _BaseContext(object):
 
         self.lock = Lock()
 
-    def connection_error(self, conn):
-        """auto called when connection error happened
-
-        :return:
-        """
-
-    def connection_closed(self, conn):
+    def connection_lost(self, conn, reason):
         """
 
         :param conn:
+        :param reason:
         :return:
         """
 
@@ -52,17 +47,18 @@ class ClientContext(_BaseContext):
 
             self.client = client
 
+    def unbind(self):
+        """
+
+        :return:
+        """
+        with self.lock:
+            self.client = None
+
     def connection_established(self, protocol):
         """auto called when client connection established
 
         :param protocol:
-        :return:
-        """
-
-    def connection_failure(self, conn):
-        """auto called when client failed to establish connection
-
-        :param conn:
         :return:
         """
 
@@ -84,6 +80,13 @@ class ServerContext(_BaseContext):
                 raise RuntimeError("context only bind server once")
 
             self.server = server
+
+    def unbind(self):
+        """
+
+        :return:
+        """
+
 
     def connection_made(self, protocol):
         """auto called when server side connection made

@@ -12,7 +12,7 @@ class BytesBuffer(object):
 
     def __init__(self):
 
-        self._buffer = b""
+        self._buffer = bytearray()
         self.read_pos = 0
 
     def extend(self, data: bytes):
@@ -24,16 +24,7 @@ class BytesBuffer(object):
         if not isinstance(data, bytes):
             raise TypeError("only accept bytes")
 
-        self._buffer += data
-
-    def probe_read(self, size):
-        """
-        probe read, don't set read_pos
-        :param size:
-        :return:
-        """
-        assert size > 0
-        return self._buffer[self.read_pos: self.read_pos + size]
+        self._buffer.extend(data)
 
     def retrieve_int8(self):
         """
@@ -99,17 +90,25 @@ class BytesBuffer(object):
         data = self.retrieve(8)
         return struct.unpack("!Q", data)[0]
 
-    def retrieve(self, size):
-        """if readable size < size, raise exception; otherwise, return data size == size
+    def retrieve(self, size=-1, strict=True):
+        """retrieve data from buffer, if size == -1, retrieve all if it
 
         :param size:
+        :param strict:
         :return:
         """
-        assert size > 0
-        if self.size() < size:
-            raise BufferEmpty(f"buffer readable size < {size}")
+        if size == -1:
+            end = self.read_pos + self.size()
+        else:
+            assert size > 0
+            if size > self.size():
+                if strict:
+                    raise BufferEmpty(f"buffer readable size < {size}")
 
-        end = self.read_pos + size
+                end = self.read_pos + self.size()
+            else:
+                end = self.read_pos + size
+
         data = self._buffer[self.read_pos: end]
         self.read_pos = end
         return data
@@ -119,12 +118,14 @@ class BytesBuffer(object):
         readable buffer size
         :return:
         """
-        return len(self._buffer) - self.read_pos
+        readable_size = len(self._buffer) - self.read_pos
+        assert readable_size >= 0
+        return readable_size
 
     def trim(self):
         """
         trim buffer, drop data which has been read
         :return:
         """
-        self._buffer = self._buffer[self.read_pos:]
+        del self._buffer[:self.read_pos]
         self.read_pos = 0

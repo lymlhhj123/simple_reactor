@@ -1,12 +1,11 @@
 # coding: utf-8
 
 import os
-import errno
 
 from . import io_event
 from ..common import fd_helper
 from ..common import utils
-from ..common import const
+from ..common import error
 
 
 class Channel(object):
@@ -153,16 +152,14 @@ class Channel(object):
             data = os.read(self._fd, chunk_size)
         except IOError as e:
             data = b""
-            err_code = utils.errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = const.ErrorCode.DO_AGAIN
+            code = utils.errno_from_ex(e)
         else:
             if not data:
-                err_code = const.ErrorCode.CLOSED
+                code = error.PEER_CLOSED
             else:
-                err_code = const.ErrorCode.OK
+                code = error.OK
 
-        return err_code, data
+        return code, data
 
     def write(self, data):
         """shortcut for write to fd
@@ -174,16 +171,14 @@ class Channel(object):
             chunk_size = os.write(self._fd, data)
         except IOError as e:
             chunk_size = 0
-            err_code = utils.errno_from_ex(e)
-            if err_code == errno.EAGAIN or err_code == errno.EWOULDBLOCK:
-                err_code = const.ErrorCode.DO_AGAIN, 0
+            code = utils.errno_from_ex(e)
         else:
             if chunk_size == 0:
-                err_code = const.ErrorCode.CLOSED
+                code = error.PEER_CLOSED
             else:
-                err_code = const.ErrorCode.OK
+                code = error.OK
 
-        return err_code, chunk_size
+        return code, chunk_size
 
     def close(self):
         """

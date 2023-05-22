@@ -13,6 +13,20 @@ logging.logger_init(logger)
 
 class MyProtocol(Protocol):
 
+    def __init__(self):
+
+        super().__init__()
+
+        self.connection = None
+
+    def connection_made(self, conn):
+        """
+
+        :param conn:
+        :return:
+        """
+        self.connection = conn
+
     def data_received(self, data: bytes):
         """
 

@@ -10,7 +10,7 @@ import traceback
 from .channel import Channel
 from ..common import fd_helper
 from ..common import utils
-from ..common import const
+from ..common import error
 
 
 class Subprocess(object):
@@ -51,8 +51,8 @@ class Subprocess(object):
                 self._execute_child(stdin_read, stdin_write, stdout_read,
                                     stdout_write, stderr_read, stderr_write)
             except (ValueError, Exception):
-                error = traceback.format_exc()
-                os.write(2, error.encode("utf-8"))
+                stderr = traceback.format_exc()
+                os.write(2, stderr.encode("utf-8"))
 
             sys.exit(255)
 
@@ -151,10 +151,10 @@ class Subprocess(object):
 
         :return:
         """
-        err_code, data = self.stdout_channel.read(8192)
+        code, data = self.stdout_channel.read(8192)
         self.stdout += data
 
-        if const.ErrorCode.is_error(err_code):
+        if error.is_bad_error(code):
             fd = self.stdout_channel.fileno()
             self.stdout_channel.disable_reading()
             self.stdout_channel.close()
@@ -167,10 +167,10 @@ class Subprocess(object):
 
         :return:
         """
-        err_code, data = self.stderr_channel.read(8192)
+        code, data = self.stderr_channel.read(8192)
         self.stderr += data
 
-        if const.ErrorCode.is_error(err_code):
+        if error.is_bad_error(code):
             fd = self.stderr_channel.fileno()
             self.stderr_channel.disable_reading()
             self.stderr_channel.close()
