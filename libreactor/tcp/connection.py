@@ -28,6 +28,8 @@ class Connection(object):
         self.ctx = ctx
         self.ev = ev
 
+        # todo: add write high water mark
+
         self.channel = Channel(sock.fileno(), ev)
         self.channel.set_read_callback(self._on_read_event)
         self.channel.set_write_callback(self._on_write_event)

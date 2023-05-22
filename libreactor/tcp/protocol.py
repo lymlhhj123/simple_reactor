@@ -30,3 +30,15 @@ class Protocol(object):
         :param data:
         :return:
         """
+
+    def pause_write(self):
+        """
+
+        :return:
+        """
+
+    def resume_write(self):
+        """
+
+        :return:
+        """
