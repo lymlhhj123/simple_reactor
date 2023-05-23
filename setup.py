@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 py_version = (3, 8, 5)
 
 if sys.version_info < py_version:
-    print(f"[ERROR] python version must be >= {py_version}")
+    print("[ERROR] python version must be >= {}".format(py_version))
     sys.exit(1)
 
 

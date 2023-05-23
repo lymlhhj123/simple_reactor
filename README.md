@@ -20,13 +20,6 @@ coming soon
 
 [echo client](example/echo/echo_client.py)
 
-### msg server
-
-[msg server](example/msg/msg_server.py)
-
-### msg client
-
-[msg client](example/msg/msg_client.py)
 
 ### task
 

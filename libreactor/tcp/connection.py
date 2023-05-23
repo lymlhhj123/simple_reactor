@@ -187,6 +187,9 @@ class Connection(object):
 
         :return:
         """
+        if self._conn_lost:
+            return
+
         if self.state == state.CONNECTING:
             self._handle_connect()
 
@@ -201,11 +204,12 @@ class Connection(object):
 
             del self.write_buffer[:write_size]
 
-        if not self.write_buffer and self.closing is True:
-            self._force_close(error.Reason(error.USER_CLOSED))
+        if self.write_buffer:
             return
 
-        if not self.write_buffer and self.channel.writable():
+        if self.closing is True:
+            self._force_close(error.Reason(error.USER_CLOSED))
+        elif self.channel.writable():
             self.channel.disable_writing()
 
     def _on_read_event(self):
@@ -222,20 +226,13 @@ class Connection(object):
         if self.state != state.CONNECTED:
             return
 
-        code = self._do_read()
+        code, data = self.channel.read(READ_SIZE)
         if error.is_bad_error(code):
             self._force_close(error.Reason(code))
+            return
 
-    def _do_read(self):
-        """
-
-        :return:
-        """
-        err_code, data = self.channel.read(READ_SIZE)
         if data:
             self.protocol.data_received(data)
-
-        return err_code
 
     def _handle_connect(self):
         """
@@ -276,6 +273,7 @@ class Connection(object):
 
         self.channel.disable_all()
 
+        self.state = state.DISCONNECTING
         self._conn_lost += 1
         self.ev.call_soon(self._connection_lost, reason)
 
@@ -295,8 +293,8 @@ class Connection(object):
         # write buffer is empty, close it
         if not self.write_buffer:
             self.channel.disable_writing()
-
             self._conn_lost += 1
+            self.state = state.DISCONNECTING
             reason = error.Reason(error.USER_CLOSED)
             self.ev.call_soon(self._connection_lost, reason)
 
@@ -311,9 +309,10 @@ class Connection(object):
 
             self.ctx.connection_lost(self, reason)
         finally:
+            self.state = state.DISCONNECTED
+
             self.channel.close()
             self.sock.close()
-
             self.channel = None
             self.protocol = None
             self.ctx = None
