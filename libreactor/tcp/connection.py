@@ -2,7 +2,6 @@
 
 import socket
 
-from . import state
 from ..core import Channel
 from ..common import logging
 from ..common import utils
@@ -28,14 +27,14 @@ class Connection(object):
         self.ctx = ctx
         self.ev = ev
 
-        # todo: add write high water mark
+        self.write_hw_mark = 4194304  # default is 4 MB
+        self.protocol_paused = False
 
         self.channel = Channel(sock.fileno(), ev)
-        self.channel.set_read_callback(self._on_read_event)
-        self.channel.set_write_callback(self._on_write_event)
+        self.channel.set_read_callback(self._do_read)
+        self.channel.set_write_callback(self._do_write)
 
         self.endpoint = None
-        self.state = state.DISCONNECTED
         self.write_buffer = bytearray()
         self.protocol = None
 
@@ -79,9 +78,23 @@ class Connection(object):
 
         :return:
         """
-        self.state = state.CONNECTING
+        self.channel.set_read_callback(self._do_connect)
+        self.channel.set_write_callback(self._do_connect)
         self.channel.enable_writing()
         self.timeout_timer = self.ev.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
+
+    def _do_connect(self):
+        """
+
+        :return:
+        """
+        code = sock_helper.get_sock_error(self.sock)
+        if error.is_bad_error(code):
+            self._connection_failed(code)
+            return
+
+        self.channel.disable_writing()
+        self.connection_established()
 
     def connection_established(self):
         """
@@ -94,10 +107,12 @@ class Connection(object):
             self._connection_lost(err_code)
             return
 
+        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
+
         self._cancel_timeout_timer()
 
-        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
-        self.state = state.CONNECTED
+        self.channel.set_read_callback(self._do_read)
+        self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
 
         self.protocol = self._build_protocol()
@@ -111,8 +126,8 @@ class Connection(object):
         :return:
         """
         self.endpoint = addr
-
-        self.state = state.CONNECTED
+        self.channel.set_read_callback(self._do_read)
+        self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
 
         self.protocol = self._build_protocol()
@@ -162,11 +177,6 @@ class Connection(object):
             logger.error(f"only accept bytes, not {type(data)}")
             return
 
-        # still in connecting
-        if self.state == state.CONNECTING:
-            self.write_buffer.extend(data)
-            return
-
         # try to write directly
         if not self.write_buffer:
             code, write_size = self.channel.write(data)
@@ -181,8 +191,21 @@ class Connection(object):
             self.channel.enable_writing()
 
         self.write_buffer.extend(data)
+        self._maybe_pause_protocol_write()
 
-    def _on_write_event(self):
+    def _maybe_pause_protocol_write(self):
+        """
+
+        :return:
+        """
+        if len(self.write_buffer) <= self.write_hw_mark:
+            return
+
+        if not self.protocol_paused:
+            self.protocol_paused = True
+            self.protocol.pause_write()
+
+    def _do_write(self):
         """
 
         :return:
@@ -190,40 +213,40 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        if self.state == state.CONNECTING:
-            self._handle_connect()
+        assert self.write_buffer, "write buffer is empty, what happened?"
 
-        if self.state != state.CONNECTED:
+        code, write_size = self.channel.write(self.write_buffer)
+        if error.is_bad_error(code):
+            self._force_close(error.Reason(code))
             return
 
-        if self.write_buffer:
-            code, write_size = self.channel.write(self.write_buffer)
-            if error.is_bad_error(code):
-                self._force_close(error.Reason(code))
-                return
+        del self.write_buffer[:write_size]
 
-            del self.write_buffer[:write_size]
+        self._maybe_resume_protocol_write()
 
-        if self.write_buffer:
-            return
-
-        if self.closing is True:
-            self._force_close(error.Reason(error.USER_CLOSED))
-        elif self.channel.writable():
+        if not self.write_buffer:
             self.channel.disable_writing()
+            if self.closing is True:
+                self._force_close(error.Reason(error.USER_CLOSED))
 
-    def _on_read_event(self):
+    def _maybe_resume_protocol_write(self):
+        """
+
+        :return:
+        """
+        if len(self.write_buffer) > self.write_hw_mark:
+            return
+
+        if self.protocol_paused:
+            self.protocol_paused = False
+            self.protocol.resume_write()
+
+    def _do_read(self):
         """
 
         :return:
         """
         if self._conn_lost:
-            return
-
-        if self.state == state.CONNECTING:
-            self._handle_connect()
-
-        if self.state != state.CONNECTED:
             return
 
         code, data = self.channel.read(READ_SIZE)
@@ -233,19 +256,6 @@ class Connection(object):
 
         if data:
             self.protocol.data_received(data)
-
-    def _handle_connect(self):
-        """
-
-        :return:
-        """
-        code = sock_helper.get_sock_error(self.sock)
-        if error.is_bad_error(code):
-            self._connection_failed(code)
-            return
-
-        self.channel.disable_writing()
-        self.connection_established()
 
     def abort(self):
         """force to close connection
@@ -273,7 +283,6 @@ class Connection(object):
 
         self.channel.disable_all()
 
-        self.state = state.DISCONNECTING
         self._conn_lost += 1
         self.ev.call_soon(self._connection_lost, reason)
 
@@ -294,7 +303,6 @@ class Connection(object):
         if not self.write_buffer:
             self.channel.disable_writing()
             self._conn_lost += 1
-            self.state = state.DISCONNECTING
             reason = error.Reason(error.USER_CLOSED)
             self.ev.call_soon(self._connection_lost, reason)
 
@@ -309,8 +317,6 @@ class Connection(object):
 
             self.ctx.connection_lost(self, reason)
         finally:
-            self.state = state.DISCONNECTED
-
             self.channel.close()
             self.sock.close()
             self.channel = None
