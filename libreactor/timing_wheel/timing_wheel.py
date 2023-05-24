@@ -33,7 +33,7 @@ class TimingWheel(object):
             virtual_id = int(timer.expiration // self.tick_ms)
             bucket = self.buckets[virtual_id % self.wheel_size]
             bucket.add_timer(timer)
-            result = bucket.set_expiration(timer.expiration)
+            result = bucket.set_expiration(virtual_id * self.tick_ms)
             return bucket, result
         else:
             if not self.overflow_timingwheel:
