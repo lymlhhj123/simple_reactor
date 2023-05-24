@@ -31,9 +31,6 @@ class Connection(object):
         self.protocol_paused = False
 
         self.channel = Channel(sock.fileno(), ev)
-        self.channel.set_read_callback(self._do_read)
-        self.channel.set_write_callback(self._do_write)
-
         self.endpoint = None
         self.write_buffer = bytearray()
         self.protocol = None
