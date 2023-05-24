@@ -85,6 +85,9 @@ class Connection(object):
 
         :return:
         """
+        if self._conn_lost:
+            return
+
         code = sock_helper.get_sock_error(self.sock)
         if error.is_bad_error(code):
             self._connection_failed(code)
