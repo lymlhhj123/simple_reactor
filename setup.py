@@ -11,6 +11,12 @@ if sys.version_info < py_version:
     sys.exit(1)
 
 
+install_requires = [
+    "bitarray >= 2.7.4",
+    "mmh3 >= 4.0.0",
+]
+
+
 def get_version():
     """
 
@@ -28,7 +34,7 @@ setup(
     author="Jun Hu",
     author_email="524964426@qq.com",
     packages=find_packages(exclude=["example"]),
-    install_requires=[],
+    install_requires=install_requires,
     python_requires=">=3.8",
     classifiers=[
         "Development Status :: 1 - Planning",
