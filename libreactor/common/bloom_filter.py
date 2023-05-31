@@ -2,7 +2,7 @@
 
 import math
 
-import mnh3
+import mmh3
 import bitarray
 
 
@@ -46,7 +46,7 @@ class BloomFilter(object):
         :return:
         """
         for i in range(self.k):
-            bit = mnh3.hash(s, i) % self.m
+            bit = mmh3.hash(s, i) % self.m
             self.bit_array[bit] = 1
 
     def lookup(self, s):
@@ -56,7 +56,7 @@ class BloomFilter(object):
         :return:
         """
         for i in range(self.k):
-            bit = mnh3.hash(s, i) % self.m
+            bit = mmh3.hash(s, i) % self.m
             if self.bit_array[bit] == 0:
                 return False
 
