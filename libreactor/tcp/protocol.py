@@ -25,20 +25,15 @@ class Protocol(object):
         """
 
     def data_received(self, data: bytes):
-        """
-        used by tcp
+        """auto called when data received by socket
+
         :param data:
         :return:
         """
 
-    def pause_write(self):
-        """
+    def data_written(self, size):
+        """auto called when data has been sent by socket
 
-        :return:
-        """
-
-    def resume_write(self):
-        """
-
+        :param size:
         :return:
         """

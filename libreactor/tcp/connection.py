@@ -23,7 +23,6 @@ class Connection(object):
         self.ctx = ctx
         self.ev = ev
 
-        self.write_hw_mark = 4194304  # default is 4 MB
         self.protocol_paused = False
 
         self.channel = Channel(sock.fileno(), ev)
@@ -101,6 +100,8 @@ class Connection(object):
                 self._force_close(error.Reason(code))
                 return
 
+            self.protocol.data_written(write_size)
+
             data = data[write_size:]
             if not data:
                 return
@@ -108,19 +109,6 @@ class Connection(object):
             self.channel.enable_writing()
 
         self.write_buffer.extend(data)
-        self._maybe_pause_protocol_write()
-
-    def _maybe_pause_protocol_write(self):
-        """
-
-        :return:
-        """
-        if len(self.write_buffer) <= self.write_hw_mark:
-            return
-
-        if not self.protocol_paused:
-            self.protocol_paused = True
-            self.protocol.pause_write()
 
     def _do_write(self):
         """
@@ -135,26 +123,16 @@ class Connection(object):
             self._force_close(error.Reason(code))
             return
 
+        self.protocol.data_written(write_size)
+
         del self.write_buffer[:write_size]
 
-        self._maybe_resume_protocol_write()
-
-        if not self.write_buffer:
-            self.channel.disable_writing()
-            if self.closing is True:
-                self._force_close(error.Reason(error.USER_CLOSED))
-
-    def _maybe_resume_protocol_write(self):
-        """
-
-        :return:
-        """
-        if len(self.write_buffer) > self.write_hw_mark:
+        if self.write_buffer:
             return
 
-        if self.protocol_paused:
-            self.protocol_paused = False
-            self.protocol.resume_write()
+        self.channel.disable_writing()
+        if self.closing is True:
+            self._force_close(error.Reason(error.USER_CLOSED))
 
     def _do_read(self):
         """
