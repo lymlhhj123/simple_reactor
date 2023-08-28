@@ -124,7 +124,7 @@ class Connector(object):
         conn = Client(self.sock, self.ctx, self.ev, self)
 
         remote_addr = sock_helper.get_remote_addr(self.sock)
-        conn.connection_made(remote_addr)
+        conn.connection_established(remote_addr)
 
         del self.sock
         del self.connect_channel
