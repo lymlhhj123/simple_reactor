@@ -16,16 +16,13 @@ class TcpClient(object):
         self.ctx = ctx
         self.options = options
 
-    def connect(self, delay=0):
+    def connect(self):
         """
 
         :param delay: delay sec to connect
         :return:
         """
-        if delay > 0:
-            self.ev.call_later(delay, self._try_connect)
-        else:
-            self.ev.call_soon(self._try_connect)
+        self.ev.call_soon(self._try_connect)
 
     def _try_connect(self):
         """

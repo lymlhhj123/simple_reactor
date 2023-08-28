@@ -1,11 +1,7 @@
 # coding: utf-8
 
-import socket
-
 from ..core import Channel
 from ..common import logging
-from ..common import utils
-from ..common import sock_helper
 from ..common import error
 
 
@@ -46,76 +42,14 @@ class Connection(object):
         """
         return self.sock.fileno()
 
-    def try_open(self, endpoint, timeout=10):
-        """
-
-        :param endpoint:
-        :param timeout:
-        :return:
-        """
-        assert self.ev.is_in_loop_thread()
-        self.endpoint = endpoint
-
-        try:
-            self.sock.connect(endpoint)
-        except socket.error as e:
-            code = utils.errno_from_ex(e)
-        else:
-            code = error.OK
-
-        if code == error.EISCONN or code == error.OK:
-            self.connection_established()
-        elif code == error.EINPROGRESS or code == error.EALREADY:
-            self._wait_connection_established(timeout)
-        else:
-            self._connection_failed(code)
-
-    def _wait_connection_established(self, timeout):
-        """
-
-        :return:
-        """
-        self.channel.set_read_callback(self._do_connect)
-        self.channel.set_write_callback(self._do_connect)
-        self.channel.enable_writing()
-        self.timeout_timer = self.ev.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
-
-    def _do_connect(self):
-        """
-
-        :return:
-        """
-        if self._conn_lost:
-            return
-
-        code = sock_helper.get_sock_error(self.sock)
-        if error.is_bad_error(code):
-            self._connection_failed(code)
-            return
-
-        self.channel.disable_writing()
-        self.connection_established()
-
-    def connection_established(self):
+    def connection_established(self, addr):
         """
         client side established connection
         :return:
         """
-        if sock_helper.is_self_connect(self.sock):
-            logger.warning("sock is self connect, force close")
-            err_code = error.Reason(error.SELF_CONNECT)
-            self._connection_lost(err_code)
-            return
+        self.endpoint = addr
 
-        logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
-
-        self._cancel_timeout_timer()
-
-        self.channel.set_read_callback(self._do_read)
-        self.channel.set_write_callback(self._do_write)
-        self.channel.enable_reading()
-
-        self.protocol = self._build_protocol()
+        self.protocol = self._make_connection()
         self.protocol.connection_established(self)
         self.ctx.connection_established(self.protocol)
 
@@ -126,41 +60,24 @@ class Connection(object):
         :return:
         """
         self.endpoint = addr
+
+        self.protocol = self._make_connection()
+        self.protocol.connection_made(self)
+        self.ctx.connection_made(self.protocol)
+
+    def _make_connection(self):
+        """
+
+        :return:
+        """
         self.channel.set_read_callback(self._do_read)
         self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
 
-        self.protocol = self._build_protocol()
-        self.protocol.connection_made(self)
-        self.ctx.connection_made(self.protocol)
-
-    def _build_protocol(self):
-        """
-
-        :return:
-        """
         protocol = self.ctx.build_protocol()
         protocol.ctx = self.ctx
         protocol.event_loop = self.ev
         return protocol
-
-    def _connection_failed(self, err_code):
-        """
-        client failed to establish connection
-        :param err_code:
-        :return:
-        """
-        self._cancel_timeout_timer()
-        self._force_close(error.Reason(err_code))
-
-    def _cancel_timeout_timer(self):
-        """
-
-        :return:
-        """
-        if self.timeout_timer:
-            self.timeout_timer.cancel()
-            self.timeout_timer = None
 
     def write(self, data: bytes):
         """
@@ -213,8 +130,6 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        assert self.write_buffer, "write buffer is empty, what happened?"
-
         code, write_size = self.channel.write(self.write_buffer)
         if error.is_bad_error(code):
             self._force_close(error.Reason(code))
@@ -254,8 +169,15 @@ class Connection(object):
             self._force_close(error.Reason(code))
             return
 
-        if data:
-            self.protocol.data_received(data)
+        self._data_received(data)
+
+    def _data_received(self, data):
+        """
+
+        :param data:
+        :return:
+        """
+        self.protocol.data_received(data)
 
     def abort(self):
         """force to close connection
@@ -312,14 +234,45 @@ class Connection(object):
         :return:
         """
         try:
-            if self.protocol:
-                self.protocol.connection_lost(reason)
-
-            self.ctx.connection_lost(self, reason)
+            self.protocol.connection_lost(reason)
         finally:
             self.channel.close()
             self.sock.close()
-            self.channel = None
-            self.protocol = None
-            self.ctx = None
-            self.sock = None
+
+            del self.channel
+            del self.protocol
+            del self.ctx
+            del self.sock
+
+
+class Client(Connection):
+
+    def __init__(self, sock, ctx, ev, connector):
+        """
+
+        :param sock:
+        :param ctx:
+        :param ev:
+        :param connector:
+        """
+        super().__init__(sock, ctx, ev)
+
+        self.connector = connector
+
+    def _connection_lost(self, reason):
+        """
+
+        :param reason:
+        :return:
+        """
+        super()._connection_lost(reason)
+
+        connector = self.connector
+        connector.connection_lost(reason)
+
+        del self.connector
+
+
+class Server(Connection):
+
+    pass

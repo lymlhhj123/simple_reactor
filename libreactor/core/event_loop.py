@@ -7,8 +7,7 @@ import threading
 from .. import poller
 from .timer import Timer
 from .timer_queue import TimerQueue
-from .channel import Channel
-from .signaler import Signaler
+from .waker import Waker
 from . import io_event
 from .callback import Callback
 from ..common import utils
@@ -38,10 +37,8 @@ class EventLoop(object):
         self._channel_map = {}
         self._poller = poller.Poller()
 
-        self.signaler = Signaler()
-        self.channel = Channel(self.signaler.fileno(), self)
-        self.channel.set_read_callback(self.signaler.read_all)
-        self.channel.enable_reading()
+        self.waker = Waker(self)
+        self.waker.enable_reading()
 
     @classmethod
     def current(cls, ev_func=None):
@@ -139,7 +136,7 @@ class EventLoop(object):
         :return:
         """
         if not self.is_in_loop_thread():
-            self.signaler.write_one()
+            self.waker.wake()
 
     def is_in_loop_thread(self):
         """

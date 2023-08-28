@@ -3,7 +3,7 @@
 import errno
 import socket
 
-from .connection import Connection
+from .connection import Server
 from ..core import Channel
 from ..common import logging
 from ..common import sock_helper
@@ -57,13 +57,14 @@ class Acceptor(object):
         sock.bind(self.endpoint)
         sock.listen(self.options.backlog)
 
-        self.channel = Channel(sock.fileno(), self.ev)
-        self.channel.set_read_callback(self._on_read_event)
-        self.channel.enable_reading()
+        channel = Channel(sock.fileno(), self.ev)
+        channel.set_read_callback(self._accept_new_connection)
+        channel.enable_reading()
 
         self.sock = sock
+        self.channel = channel
 
-    def _on_read_event(self):
+    def _accept_new_connection(self):
         """
 
         :return:
@@ -128,5 +129,5 @@ class Acceptor(object):
 
         fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
-        conn = Connection(sock, self.ctx, self.ev)
+        conn = Server(sock, self.ctx, self.ev)
         self.ev.call_soon(conn.connection_made, addr)

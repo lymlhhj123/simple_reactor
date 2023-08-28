@@ -92,11 +92,21 @@ class MyContext(ClientContext):
 
         protocol.send_data()
 
-    def connection_lost(self, conn, reason):
+    def connection_failed(self, connector, reason):
+        """
 
-        logger.error(f"conn lost: {conn.fileno()}, {reason.what()}")
+        :param connector:
+        :param reason:
+        :return:
+        """
 
-        self.client.connect(delay=2)
+    def connection_lost(self, connector, reason):
+        """
+
+        :param connector:
+        :param reason:
+        :return:
+        """
 
 
 ev = EventLoop.current()

@@ -8,7 +8,7 @@ class Protocol(object):
 
     def connection_made(self, conn):
         """
-        auto called when server side accept new connection
+        auto called when client/server side make new connection
         :return:
         """
 
