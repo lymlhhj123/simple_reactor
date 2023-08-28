@@ -19,8 +19,6 @@ class TcpServer(object):
         self.port = port
         self.host = host
         self.ev = ev
-
-        ctx.bind_server(self)
         self.ctx = ctx
 
         self.options = options
