@@ -11,15 +11,12 @@ class TcpClient(object):
         self.host = host
         self.port = port
         self.ev = ev
-
-        ctx.bind_client(self)
         self.ctx = ctx
         self.options = options
 
     def connect(self):
         """
 
-        :param delay: delay sec to connect
         :return:
         """
         self.ev.call_soon(self._try_connect)

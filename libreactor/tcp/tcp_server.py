@@ -25,7 +25,6 @@ class TcpServer(object):
 
     def start(self):
         """start tcp server
-
         """
         self.ev.call_soon(self._start_in_loop)
 
