@@ -152,7 +152,7 @@ class Connector(object):
         """
         if self.connect_timer:
             self.connect_timer.cancel()
-            self.timeout_timer = None
+            self.connect_timer = None
 
     def connection_lost(self, reason):
         """

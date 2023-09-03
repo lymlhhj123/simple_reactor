@@ -49,7 +49,7 @@ class Connection(object):
         self.endpoint = addr
 
         self.protocol = self._make_connection()
-        self.protocol.connection_established(self)
+        self.protocol.connection_established()
         self.ctx.connection_established(self.protocol)
 
     def connection_made(self, addr):
@@ -61,7 +61,7 @@ class Connection(object):
         self.endpoint = addr
 
         self.protocol = self._make_connection()
-        self.protocol.connection_made(self)
+        self.protocol.connection_made()
         self.ctx.connection_made(self.protocol)
 
     def _make_connection(self):
@@ -74,8 +74,7 @@ class Connection(object):
         self.channel.enable_reading()
 
         protocol = self.ctx.build_protocol()
-        protocol.ctx = self.ctx
-        protocol.event_loop = self.ev
+        protocol.make_connection(self.ev, self.ctx, self)
         return protocol
 
     def write(self, data: bytes):
@@ -100,7 +99,7 @@ class Connection(object):
                 self._force_close(error.Reason(code))
                 return
 
-            self.protocol.data_written(write_size)
+            self.protocol.data_sent(write_size)
 
             data = data[write_size:]
             if not data:
@@ -123,7 +122,7 @@ class Connection(object):
             self._force_close(error.Reason(code))
             return
 
-        self.protocol.data_written(write_size)
+        self.protocol.data_sent(write_size)
 
         del self.write_buffer[:write_size]
 

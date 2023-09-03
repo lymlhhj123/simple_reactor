@@ -20,16 +20,6 @@ class MyProtocol(Protocol):
         self.start_time = 0
         self._timer = None
 
-        self.connection = None
-
-    def connection_established(self, conn):
-        """
-
-        :param conn:
-        :return:
-        """
-        self.connection = conn
-
     def data_received(self, data: bytes):
         """
 
@@ -37,7 +27,7 @@ class MyProtocol(Protocol):
         :return:
         """
         self.io_count += 1
-        self.connection.write(data)
+        self.transport.write(data)
 
     def connection_lost(self, reason):
         """
@@ -75,7 +65,7 @@ class MyProtocol(Protocol):
 
         :return:
         """
-        self.connection.write(b"hello")
+        self.transport.write(b"hello")
 
 
 class MyContext(ClientContext):

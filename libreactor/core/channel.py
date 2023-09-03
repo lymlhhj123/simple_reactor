@@ -194,6 +194,7 @@ class Channel(object):
         self._fd = -1
         self.read_callback = None
         self.write_callback = None
+        self._event_loop = None
 
     def is_closed(self):
         """
