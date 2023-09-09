@@ -27,7 +27,7 @@ class TimerQueue(object):
         :return:
         """
         assert isinstance(timer, Timer)
-        self.cancelled += 1
+        self.cancelled_count += 1
 
     def first(self):
         """
@@ -43,10 +43,9 @@ class TimerQueue(object):
         """
         if self.cancelled_count < 100:
             queue = self.queue
-            while queue:
-                if queue[0].cancelled():
-                    heapq.heappop(queue)
-                    self.cancelled_count -= 1
+            while queue and queue[0].cancelled():
+                heapq.heappop(queue)
+                self.cancelled_count -= 1
             return
 
         queue = [t for t in self.queue if t.cancelled() is False]

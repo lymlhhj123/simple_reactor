@@ -198,12 +198,14 @@ class Transport(object):
         self.closing = True
         self.channel.disable_reading()
 
+        if self.write_buffer:
+            return
+
         # write buffer is empty, close it
-        if not self.write_buffer:
-            self.channel.disable_writing()
-            self._conn_lost += 1
-            reason = error.Reason(error.USER_CLOSED)
-            self.ev.call_soon(self._connection_lost, reason)
+        self.channel.disable_writing()
+        self._conn_lost += 1
+        reason = error.Reason(error.USER_CLOSED)
+        self.ev.call_soon(self._connection_lost, reason)
 
     def _connection_lost(self, reason):
         """

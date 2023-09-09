@@ -39,11 +39,12 @@ class Timer(object):
         """
         with self._lock:
             if self._is_cancelled:
-                return
+                return False
 
             self._is_cancelled = True
 
         self._event_loop._cancel_timer(self)
+        return True
 
     def cancelled(self):
         """
