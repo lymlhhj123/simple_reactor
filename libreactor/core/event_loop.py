@@ -119,8 +119,8 @@ class EventLoop(object):
         finally:
             self.wakeup()
 
-    def cancel_timer(self, timer):
-        """
+    def _cancel_timer(self, timer):
+        """internal api
 
         thread safe
         :param timer:
@@ -191,6 +191,8 @@ class EventLoop(object):
         assert self.is_in_loop_thread()
 
         while True:
+            self._resize_timer_queue()
+
             timeout = self._calc_timeout()
 
             try:
@@ -209,6 +211,11 @@ class EventLoop(object):
 
             if self._ev_callback:
                 self._ev_callback.run()
+
+    def _resize_timer_queue(self):
+        """resize time queue"""
+        # may be cost a lot of time
+        self._timer_queue.resize()
 
     def _calc_timeout(self):
         """
@@ -255,9 +262,6 @@ class EventLoop(object):
         with self._mutex:
             callbacks, self._callbacks = self._callbacks, []
             timer_list = self._timer_queue.retrieve(now)
-
-            # may be cost a lot of time
-            # self._timer_queue.resize()
 
         for cb in callbacks:
             cb.run()

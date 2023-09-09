@@ -43,9 +43,9 @@ class Timer(object):
 
             self._is_cancelled = True
 
-        self._event_loop.cancel_timer(self)
+        self._event_loop._cancel_timer(self)
 
-    def is_cancelled(self):
+    def cancelled(self):
         """
 
         :return:

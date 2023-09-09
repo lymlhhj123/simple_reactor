@@ -222,7 +222,7 @@ class Transport(object):
             del self.sock
 
 
-class Client(Connection):
+class Client(Transport):
 
     def __init__(self, sock, ctx, ev, connector):
         """
@@ -250,6 +250,6 @@ class Client(Connection):
         del self.connector
 
 
-class Server(Connection):
+class Server(Transport):
 
     pass

@@ -10,7 +10,7 @@ class TimerQueue(object):
     def __init__(self):
 
         self.queue = []
-        self.cancelled = 0
+        self.cancelled_count = 0
 
     def put(self, timer):
         """
@@ -41,13 +41,18 @@ class TimerQueue(object):
 
         :return:
         """
-        if self.cancelled < 100:
+        if self.cancelled_count < 100:
+            queue = self.queue
+            while queue:
+                if queue[0].cancelled():
+                    heapq.heappop(queue)
+                    self.cancelled_count -= 1
             return
 
-        queue = [t for t in self.queue if t.is_cancelled() is False]
+        queue = [t for t in self.queue if t.cancelled() is False]
         heapq.heapify(queue)
         self.queue = queue
-        self.cancelled = 0
+        self.cancelled_count = 0
 
     def retrieve(self, deadline):
         """
@@ -62,8 +67,8 @@ class TimerQueue(object):
                 break
 
             timer = heapq.heappop(queue)
-            if timer.is_cancelled():
-                self.cancelled -= 1
+            if timer.cancelled():
+                self.cancelled_count -= 1
                 continue
 
             timer_list.append(timer)
