@@ -8,7 +8,7 @@ from ..common import error
 from ..common import logging
 from ..core import Channel
 from ..common import utils
-from .connection import Client
+from .transport import Client
 
 logger = logging.get_logger()
 

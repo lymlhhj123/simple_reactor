@@ -10,7 +10,7 @@ logger = logging.get_logger()
 READ_SIZE = 8192
 
 
-class Connection(object):
+class Transport(object):
 
     def __init__(self, sock, ctx, ev):
         """
@@ -174,11 +174,11 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        if self.write_buffer:
-            self.write_buffer.clear()
-
         if not self.closing:
             self.closing = True
+
+        if self.write_buffer:
+            self.write_buffer.clear()
 
         self.channel.disable_all()
 

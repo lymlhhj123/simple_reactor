@@ -3,7 +3,7 @@
 import errno
 import socket
 
-from .connection import Server
+from .transport import Server
 from ..core import Channel
 from ..common import logging
 from ..common import sock_helper

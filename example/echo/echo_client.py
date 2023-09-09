@@ -27,7 +27,7 @@ class MyProtocol(Protocol):
         :return:
         """
         self.io_count += 1
-        self.transport.write(data)
+        self.send_data()
 
     def connection_lost(self, reason):
         """
@@ -54,6 +54,7 @@ class MyProtocol(Protocol):
         """
         now = self.event_loop.time()
         start_time, self.start_time = self.start_time, now
+
         io_count, self.io_count = self.io_count, 0
         ops = io_count / (now - start_time)
         logger.info(f"ops: {ops}")
