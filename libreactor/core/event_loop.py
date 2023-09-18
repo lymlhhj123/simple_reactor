@@ -11,6 +11,7 @@ from .waker import Waker
 from . import io_event
 from .callback import Callback
 from ..common import utils
+from .future import Future
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -53,8 +54,6 @@ class EventLoop(object):
             setattr(thread_local, "ev", ev)
 
         return ev
-
-    Current = current
 
     def time(self):
         """
@@ -120,9 +119,8 @@ class EventLoop(object):
             self.wakeup()
 
     def _cancel_timer(self, timer):
-        """internal api
+        """internal api, thread safe
 
-        thread safe
         :param timer:
         :return:
         """
@@ -182,6 +180,18 @@ class EventLoop(object):
 
         self._channel_map.pop(fd)
         self._poller.unregister(fd)
+
+    def sleep(self, seconds):
+        """async sleep seconds, do not block thread"""
+        f = Future()
+
+        self.call_later(seconds, lambda: f.set_result(None))
+
+        return f
+
+    def add_future(self, future, fn):
+
+        future.add_done_callback(lambda f: self.call_soon(fn, f))
 
     def loop(self):
         """
