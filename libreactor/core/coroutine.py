@@ -3,7 +3,7 @@
 import types
 from functools import wraps
 
-from .future import Future, is_future
+from . import future
 
 
 def coroutine(func):
@@ -11,7 +11,7 @@ def coroutine(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
 
-        f = Future()
+        f = future.Future()
         try:
             result = func(*args, **kwargs)
         except StopIteration as e:
@@ -21,15 +21,15 @@ def coroutine(func):
         else:
             if isinstance(result, types.GeneratorType):
                 try:
-                    yield_future = next(result)
+                    yielded = next(result)
                 except StopIteration as e:
                     f.set_result(getattr(e, "value", None))
                 except Exception as e:
                     f.set_exception(e)
                 else:
-                    _CoroutineScheduler(result, yield_future, f)
-            elif is_future(result):
-                f = result
+                    _CoroutineScheduler(result, yielded, f)
+            elif future.is_future(result):
+                future.chain_future(result, f)
             else:
                 f.set_result(result)
 
@@ -54,9 +54,9 @@ class _CoroutineScheduler(object):
     def _process_yield(self, yielded):
 
         if isinstance(yielded, (list, tuple)):
-            self.future = multi_future(yielded)
+            self.future = future.multi_future([future.maybe_future(f) for f in yielded])
         else:
-            self.future = yielded
+            self.future = future.maybe_future(yielded)
 
         if not self.future.done():
             self.future.add_done_callback(self._schedule)
@@ -101,35 +101,3 @@ class _CoroutineScheduler(object):
 
             if not self._process_yield(yielded):
                 return
-
-
-def multi_future(future_list):
-
-    new_future = Future()
-
-    waiting_finished = set(future_list)
-
-    def callback(f):
-
-        waiting_finished.discard(f)
-        if waiting_finished:
-            return
-
-        result_list = []
-        for f in future_list:
-            try:
-                result = f.result()
-            except Exception as e:
-                if not new_future.done():
-                    new_future.set_exception(e)
-                    break
-            else:
-                result_list.append(result)
-
-        if not new_future.done():
-            new_future.set_result(result_list)
-
-    for child in waiting_finished:
-        child.add_done_callback(callback)
-
-    return new_future
