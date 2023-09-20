@@ -21,7 +21,7 @@ def net_io(delay):
 @coroutine
 def coro1():
 
-    a = yield 1
+    a = yield 1, 2
     print(a)
 
     yield ev.sleep(0.9)
@@ -33,7 +33,7 @@ def coro1():
 @coroutine
 def coro2():
 
-    a = yield 5
+    a = yield 5, 6
     print(a)
 
     b = yield net_io(3)
@@ -43,17 +43,12 @@ def coro2():
 @coroutine
 def coro3():
 
-    a = yield "a"
-    print(a)
-
     b = yield net_io(2.4)
-    print("coro3", b)
-
     return b
 
 
 @coroutine
-def co4():
+def coro4():
 
     response = yield coro3()
     print("co4:", response)
@@ -61,7 +56,6 @@ def co4():
 
 coro1()
 coro2()
-coro3()
-co4()
+coro4()
 
 ev.loop()
