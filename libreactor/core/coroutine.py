@@ -11,29 +11,29 @@ def coroutine(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
 
-        f = future.Future()
+        result_future = future.Future()
         try:
             result = func(*args, **kwargs)
         except StopIteration as e:
-            f.set_result(getattr(e, "value", None))
+            future.future_set_result(result_future, getattr(e, "value", None))
         except Exception as e:
-            f.set_exception(e)
+            future.future_set_exception(result_future, e)
         else:
             if isinstance(result, types.GeneratorType):
                 try:
                     yielded = next(result)
                 except StopIteration as e:
-                    f.set_result(getattr(e, "value", None))
+                    future.future_set_result(result_future, getattr(e, "value", None))
                 except Exception as e:
-                    f.set_exception(e)
+                    future.future_set_exception(result_future, e)
                 else:
-                    _CoroutineScheduler(result, yielded, f)
+                    _CoroutineScheduler(result, yielded, result_future)
             elif future.is_future(result):
-                future.chain_future(result, f)
+                future.chain_future(result, result_future)
             else:
-                f.set_result(result)
+                future.future_set_result(result_future, result)
 
-        return f
+        return result_future
 
     return wrapper
 
@@ -46,10 +46,8 @@ class _CoroutineScheduler(object):
         self.future = None
         self.result_future = result_future
         self.finished = False
-        self.running = False
 
-        if self._process_yield(yielded):
-            self._schedule()
+        self._process_yield(yielded)
 
     def _process_yield(self, yielded):
 
@@ -58,46 +56,32 @@ class _CoroutineScheduler(object):
         else:
             self.future = future.maybe_future(yielded)
 
-        if not self.future.done():
-            self.future.add_done_callback(self._schedule)
-            return False
-
-        return True
+        future.future_add_done_callback(self.future, lambda f: self._schedule())
 
     def _schedule(self):
 
-        if self.running or self.finished:
+        if self.finished:
             return
 
-        self.running = True
+        f = self.future
+        self.future = None
+
+        assert future.future_is_done(f)
+
         try:
-            self._run_coroutine()
-        finally:
-            self.running = False
-
-    def _run_coroutine(self):
-
-        while 1:
-            if not self.future.done():
-                return
-
             try:
-                try:
-                    value = self.future.result()
-                except Exception as e:
-                    yielded = self.gen.throw(e)
-                else:
-                    yielded = self.gen.send(value)
-            except StopIteration as e:
-                self.finished = True
-                self.result_future.set_result(getattr(e, "value", None))
-                self.result_future = None
-                return
+                value = future.future_get_result(f)
             except Exception as e:
-                self.finished = True
-                self.result_future.set_exception(e)
-                self.result_future = None
-                return
-
-            if not self._process_yield(yielded):
-                return
+                yielded = self.gen.throw(e)
+            else:
+                yielded = self.gen.send(value)
+        except StopIteration as e:
+            self.finished = True
+            future.future_set_result(self.result_future, getattr(e, "value", None))
+            self.result_future = None
+        except Exception as e:
+            self.finished = True
+            future.future_set_exception(self.result_future, e)
+            self.result_future = None
+        else:
+            self._process_yield(yielded)

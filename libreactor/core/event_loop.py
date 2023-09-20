@@ -20,12 +20,7 @@ thread_local = threading.local()
 
 class EventLoop(object):
 
-    def __init__(self, ev_func=None):
-        """
-
-        :param ev_func: auto called on every loop
-        """
-        self._ev_callback = Callback(ev_func) if ev_func else None
+    def __init__(self):
 
         self._time_func = utils.monotonic_time
 
@@ -42,15 +37,14 @@ class EventLoop(object):
         self.waker.enable_reading()
 
     @classmethod
-    def current(cls, ev_func=None):
+    def current(cls):
         """
 
-        :param ev_func:
         :return:
         """
         ev = getattr(thread_local, "ev", None)
         if not ev:
-            ev = cls(ev_func)
+            ev = cls()
             setattr(thread_local, "ev", ev)
 
         return ev
@@ -189,10 +183,6 @@ class EventLoop(object):
 
         return f
 
-    def add_future(self, future, fn):
-
-        future.add_done_callback(lambda f: self.call_soon(fn, f))
-
     def loop(self):
         """
 
@@ -218,9 +208,6 @@ class EventLoop(object):
                 self._handle_events(events)
 
             self._process_timer_event()
-
-            if self._ev_callback:
-                self._ev_callback.run()
 
     def _resize_timer_queue(self):
         """resize time queue"""

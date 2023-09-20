@@ -4,3 +4,5 @@ from .event_loop import EventLoop
 from .event_loop_thread import EventLoopThread
 from .subprocess import Subprocess
 from .channel import Channel
+from .future import *
+from .coroutine import *
