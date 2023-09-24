@@ -44,6 +44,9 @@ def multi_future(fs):
 
     waiting_finished = set(fs)
 
+    if not fs:
+        future_set_result(future, [])
+
     def callback(f):
 
         waiting_finished.discard(f)

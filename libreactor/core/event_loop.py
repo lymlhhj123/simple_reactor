@@ -11,7 +11,7 @@ from .waker import Waker
 from . import io_event
 from .callback import Callback
 from ..common import utils
-from .future import Future
+from .futures import Future
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
