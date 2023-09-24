@@ -28,10 +28,12 @@ class Lock(object):
             return True
 
         waiter = futures.Future()
+
         self._waiters.append(waiter)
         try:
             yield waiter
         finally:
+            # waiter is the first item, so this is fast
             self._waiters.remove(waiter)
 
         self._locked = True
@@ -40,14 +42,13 @@ class Lock(object):
     def release(self):
         """release lock"""
         if self._locked is False:
-            raise RuntimeError("lock is unlocked")
+            raise RuntimeError("release unlocked lock")
 
         self._locked = False
 
-        while self._waiters:
-            waiter = self._waiters.popleft()
+        if self._waiters:
+            waiter = self._waiters[0]
             waiter.future_set_result(waiter, None)
-            break
 
 
 class Condition(object):
@@ -68,9 +69,11 @@ class Condition(object):
         if not self.locked():
             raise RuntimeError("please acquire lock first")
 
+        # release lock first
         self.release()
 
         waiter = futures.Future()
+
         self._waiters.append(waiter)
         try:
             yield waiter
@@ -82,10 +85,11 @@ class Condition(object):
 
     def notify(self, n=1):
         """wake up one coroutine"""
-        while n and self._waiters:
-            waiter = self._waiters.popleft()
-            futures.future_set_result(waiter, None)
+        for waiter in self._waiters:
+            if n == 0:
+                break
 
+            futures.future_set_result(waiter, None)
             n -= 1
 
     def notify_all(self):
