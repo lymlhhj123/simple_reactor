@@ -49,8 +49,7 @@ class _CoroutineScheduler(object):
         self.result_future = result_future
         self.finished = False
 
-        if self._process_yield(yielded):
-            self._schedule()
+        self._process_yield(yielded)
 
     def _process_yield(self, yielded):
         """process yield object, convert to Future"""
@@ -59,46 +58,37 @@ class _CoroutineScheduler(object):
         else:
             self.future = future_mixin.maybe_future(yielded)
 
-        if future_mixin.future_is_done(self.future):
-            return True
-
         future_mixin.future_add_done_callback(self.future, lambda f: self._schedule())
-        return False
 
     def _schedule(self):
         """schedule coroutine to run"""
         if self.finished:
             return
 
-        while True:
-            f = self.future
+        f = self.future
 
-            if not future_mixin.future_is_done(f):
-                return
+        assert future_mixin.future_is_done(f)
 
-            self.future = None
+        self.future = None
 
+        try:
             try:
-                try:
-                    value = future_mixin.future_get_result(f)
-                except Exception as e:
-                    yielded = self.gen.throw(e)
-                else:
-                    yielded = self.gen.send(value)
-            except StopIteration as e:
-                self.finished = True
-                val = getattr(e, "value", None)
-                future_mixin.future_set_result(self.result_future, val)
-                self.result_future = None
-                return
+                value = future_mixin.future_get_result(f)
             except Exception as e:
-                self.finished = True
-                future_mixin.future_set_exception(self.result_future, e)
-                self.result_future = None
-                return
+                yielded = self.gen.throw(e)
             else:
-                if not self._process_yield(yielded):
-                    return
+                yielded = self.gen.send(value)
+        except StopIteration as e:
+            self.finished = True
+            val = getattr(e, "value", None)
+            future_mixin.future_set_result(self.result_future, val)
+            self.result_future = None
+        except Exception as e:
+            self.finished = True
+            future_mixin.future_set_exception(self.result_future, e)
+            self.result_future = None
+        else:
+            self._process_yield(yielded)
 
 
 def sleep(seconds):
