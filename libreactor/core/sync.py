@@ -4,9 +4,10 @@
 lock and condition used by coroutine
 """
 import collections
+import traceback
 from collections import deque
 
-from . import futures
+from . import future_mixin
 from .coroutine import coroutine
 
 
@@ -24,16 +25,17 @@ class Lock(object):
     @coroutine
     def acquire(self):
         """acquire lock"""
-        if self._locked is False:
+        # if lock is unlocked and no others waiting, locked directly
+        if self._locked is False and not self._waiters:
+            self._locked = True
             return True
 
-        waiter = futures.Future()
-
+        waiter = future_mixin.Future()
         self._waiters.append(waiter)
+
         try:
             yield waiter
         finally:
-            # waiter is the first item, so this is fast
             self._waiters.remove(waiter)
 
         self._locked = True
@@ -48,7 +50,7 @@ class Lock(object):
 
         if self._waiters:
             waiter = self._waiters[0]
-            waiter.future_set_result(waiter, None)
+            future_mixin.future_set_result(waiter, None)
 
 
 class Condition(object):
@@ -65,16 +67,16 @@ class Condition(object):
     @coroutine
     def wait(self):
         """wait until notify"""
-
         if not self.locked():
             raise RuntimeError("please acquire lock first")
 
         # release lock first
         self.release()
 
-        waiter = futures.Future()
+        waiter = future_mixin.Future()
 
         self._waiters.append(waiter)
+
         try:
             yield waiter
         finally:
@@ -85,12 +87,15 @@ class Condition(object):
 
     def notify(self, n=1):
         """wake up one coroutine"""
-        for waiter in self._waiters:
-            if n == 0:
-                break
+        assert n >= 1
 
-            futures.future_set_result(waiter, None)
-            n -= 1
+        idx = 0
+        for waiter in self._waiters:
+            future_mixin.future_set_result(waiter, None)
+
+            idx += 1
+            if idx >= n:
+                break
 
     def notify_all(self):
         """wake up all coroutine"""
@@ -117,7 +122,7 @@ class Event(object):
         self._val = 1
 
         for waiter in self._waiters:
-            futures.future_set_result(waiter, None)
+            future_mixin.future_set_result(waiter, None)
 
     def clear(self):
         """set _val = 0"""
@@ -129,7 +134,7 @@ class Event(object):
         if self._val == 1:
             return True
 
-        waiter = futures.Future()
+        waiter = future_mixin.Future()
         self._waiters.append(waiter)
 
         try:

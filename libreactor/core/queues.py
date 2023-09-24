@@ -6,7 +6,7 @@ import collections
 import heapq
 
 from .coroutine import coroutine
-from . import futures
+from . import future_mixin
 from . import sync
 
 
@@ -63,7 +63,7 @@ class Queue(object):
     def put(self, item):
         """put item to queue"""
         while self.full():
-            waiter = futures.Future()
+            waiter = future_mixin.Future()
             self._put_waiters.append(waiter)
 
             try:
@@ -87,7 +87,7 @@ class Queue(object):
         """get item from queue"""
         while self.empty():
 
-            waiter = futures.Future()
+            waiter = future_mixin.Future()
             self._get_waiters.append(waiter)
 
             try:
@@ -107,10 +107,11 @@ class Queue(object):
         finally:
             self._wakeup_waiters(self._put_waiters)
 
-    def _wakeup_waiters(self, waiters):
+    @staticmethod
+    def _wakeup_waiters(waiters):
         """wakeup put waiters or get waiters"""
         if waiters:
-            futures.future_set_result(waiters[0], None)
+            future_mixin.future_set_result(waiters[0], None)
 
     def task_done(self):
         """"""
