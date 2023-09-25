@@ -2,7 +2,7 @@
 
 from libreactor import EventLoop
 from libreactor import coroutine
-from libreactor import Future, future_set_result
+from libreactor import future_set_result, create_future
 
 
 ev = EventLoop.current()
@@ -11,7 +11,7 @@ ev = EventLoop.current()
 def net_io(delay):
     """just like network io"""
 
-    f = Future()
+    f = create_future()
 
     ev.call_later(delay, future_set_result, f, "data")
 
