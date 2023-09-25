@@ -15,7 +15,7 @@ def coroutine(func):
         try:
             result = func(*args, **kwargs)
         except StopIteration as e:
-            val = result_future, getattr(e, "value", None)
+            val = getattr(e, "value", None)
             future_mixin.future_set_result(result_future, val)
         except Exception as e:
             future_mixin.future_set_exception(result_future, e)
@@ -24,7 +24,7 @@ def coroutine(func):
                 try:
                     yielded = next(result)
                 except StopIteration as e:
-                    val = result_future, getattr(e, "value", None)
+                    val = getattr(e, "value", None)
                     future_mixin.future_set_result(result_future, val)
                 except Exception as e:
                     future_mixin.future_set_exception(result_future, e)

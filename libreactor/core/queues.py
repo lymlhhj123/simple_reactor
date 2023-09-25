@@ -29,6 +29,7 @@ class Queue(object):
         self._get_waiters = collections.deque()
         self._unfinished_task = 0
         self._finished = sync.Event()
+        self._finished.set()
 
         self._init()
 
@@ -76,17 +77,17 @@ class Queue(object):
     def put_nowait(self, item):
         """put item to queue"""
         if self.full():
-            raise Full()
+            raise Full("queue is full")
 
         self._put_item(item)
+        self._unfinished_task += 1
         self._finished.clear()
-        self._wakeup_waiters(self._get_waiters)
+        self._wakeup_first_waiters(self._get_waiters)
 
     @coroutine
     def get(self):
         """get item from queue"""
         while self.empty():
-
             waiter = future_mixin.Future()
             self._get_waiters.append(waiter)
 
@@ -100,18 +101,19 @@ class Queue(object):
     def get_nowait(self):
         """get item from queue"""
         if self.empty():
-            raise Empty()
+            raise Empty("queue is empty")
 
-        try:
-            return self._get_item()
-        finally:
-            self._wakeup_waiters(self._put_waiters)
+        item = self._get_item()
+        self._wakeup_first_waiters(self._put_waiters)
+        return item
 
     @staticmethod
-    def _wakeup_waiters(waiters):
+    def _wakeup_first_waiters(waiters):
         """wakeup put waiters or get waiters"""
-        if waiters:
-            future_mixin.future_set_result(waiters[0], None)
+        if not waiters:
+            return
+
+        future_mixin.future_set_result(waiters[0], None)
 
     def task_done(self):
         """"""

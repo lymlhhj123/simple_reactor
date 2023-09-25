@@ -10,13 +10,13 @@ def is_future(f):
     return isinstance(f, Future)
 
 
-def maybe_future(f):
+def maybe_future(fut):
 
-    if is_future(f):
-        return f
+    if is_future(fut):
+        return fut
 
     result_future = Future()
-    future_set_result(result_future, f)
+    future_set_result(result_future, fut)
     return result_future
 
 
@@ -80,35 +80,35 @@ def multi_future(fs):
 
 # future helper function
 
-def future_is_done(future):
+def future_is_done(fut):
 
-    return future.done()
+    return fut.done()
 
 
-def future_add_done_callback(future, callback):
+def future_add_done_callback(fut, callback):
 
     from .event_loop import EventLoop
 
     loop = EventLoop.current()
 
-    future.add_done_callback(lambda f: loop.call_soon(callback, f))
+    fut.add_done_callback(lambda f: loop.call_soon(callback, f))
 
 
-def future_get_result(future):
+def future_get_result(fut):
 
-    return future.result()
-
-
-def future_set_result(future, value):
-
-    future.set_result(value)
+    return fut.result()
 
 
-def future_get_exception(future):
+def future_set_result(fut, value):
 
-    return future.exception()
+    fut.set_result(value)
 
 
-def future_set_exception(future, exc):
+def future_get_exception(fut):
 
-    future.set_exception(exc)
+    return fut.exception()
+
+
+def future_set_exception(fut, exc):
+
+    fut.set_exception(exc)
