@@ -6,7 +6,7 @@ import collections
 import heapq
 
 from .coroutine import coroutine
-from . import future_mixin
+from . import futures
 from . import sync
 
 
@@ -64,7 +64,7 @@ class Queue(object):
     def put(self, item):
         """put item to queue"""
         while self.full():
-            waiter = future_mixin.create_future()
+            waiter = futures.create_future()
             self._put_waiters.append(waiter)
 
             try:
@@ -88,7 +88,7 @@ class Queue(object):
     def get(self):
         """get item from queue"""
         while self.empty():
-            waiter = future_mixin.create_future()
+            waiter = futures.create_future()
             self._get_waiters.append(waiter)
 
             try:
@@ -113,7 +113,7 @@ class Queue(object):
         if not waiters:
             return
 
-        future_mixin.future_set_result(waiters[0], None)
+        futures.future_set_result(waiters[0], None)
 
     def task_done(self):
         """"""

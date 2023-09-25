@@ -20,9 +20,9 @@ def maybe_future(fut):
     if is_future(fut):
         return fut
 
-    result_future = create_future()
-    future_set_result(result_future, fut)
-    return result_future
+    proxy = create_future()
+    future_set_result(proxy, fut)
+    return proxy
 
 
 def chain_future(fut_in, fut_out):

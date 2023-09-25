@@ -6,7 +6,7 @@ lock and condition used by coroutine
 import collections
 from collections import deque
 
-from . import future_mixin
+from . import futures
 from .coroutine import coroutine
 
 
@@ -29,7 +29,7 @@ class Lock(object):
             self._locked = True
             return True
 
-        waiter = future_mixin.create_future()
+        waiter = futures.create_future()
         self._waiters.append(waiter)
 
         try:
@@ -49,7 +49,7 @@ class Lock(object):
 
         if self._waiters:
             waiter = self._waiters[0]
-            future_mixin.future_set_result(waiter, None)
+            futures.future_set_result(waiter, None)
 
 
 class Condition(object):
@@ -72,7 +72,7 @@ class Condition(object):
         # release lock first
         self.release()
 
-        waiter = future_mixin.create_future()
+        waiter = futures.create_future()
 
         self._waiters.append(waiter)
 
@@ -90,7 +90,7 @@ class Condition(object):
 
         idx = 0
         for waiter in self._waiters:
-            future_mixin.future_set_result(waiter, None)
+            futures.future_set_result(waiter, None)
 
             idx += 1
             if idx >= n:
@@ -121,7 +121,7 @@ class Event(object):
         self._val = 1
 
         for waiter in self._waiters:
-            future_mixin.future_set_result(waiter, None)
+            futures.future_set_result(waiter, None)
 
     def clear(self):
         """set _val = 0"""
@@ -133,7 +133,7 @@ class Event(object):
         if self._val == 1:
             return True
 
-        waiter = future_mixin.create_future()
+        waiter = futures.create_future()
         self._waiters.append(waiter)
 
         try:
