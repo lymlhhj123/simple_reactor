@@ -11,7 +11,7 @@ def coroutine(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
 
-        result_future = future_mixin.Future()
+        result_future = future_mixin.create_future()
         try:
             result = func(*args, **kwargs)
         except StopIteration as e:
@@ -95,7 +95,7 @@ def sleep(seconds):
 
     from .event_loop import EventLoop
 
-    f = future_mixin.Future()
+    f = future_mixin.create_future()
 
     EventLoop.current().call_later(seconds, lambda: future_mixin.future_set_result(f, None))
 

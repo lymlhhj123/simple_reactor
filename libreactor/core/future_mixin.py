@@ -1,13 +1,18 @@
 # coding: utf-8
 
-from concurrent import futures
+from concurrent import futures as __futures
 
-Future = futures.Future
+__Future = __futures.Future
+
+
+def create_future():
+
+    return __Future()
 
 
 def is_future(f):
 
-    return isinstance(f, Future)
+    return isinstance(f, __Future)
 
 
 def maybe_future(fut):
@@ -15,41 +20,41 @@ def maybe_future(fut):
     if is_future(fut):
         return fut
 
-    result_future = Future()
+    result_future = create_future()
     future_set_result(result_future, fut)
     return result_future
 
 
-def chain_future(f_in: Future, f_out: Future):
+def chain_future(fut_in, fut_out):
 
     def copy_result(f):
 
-        assert f is f_in
+        assert f is fut_in
 
-        if future_is_done(f_out):
+        if future_is_done(fut_out):
             return
 
         if future_get_exception(f):
-            future_set_exception(f_out, future_get_exception(f))
+            future_set_exception(fut_out, future_get_exception(f))
         else:
-            future_set_result(f_out, future_get_result(f))
+            future_set_result(fut_out, future_get_result(f))
 
-    future_add_done_callback(f_in, copy_result)
-    return f_in
+    future_add_done_callback(fut_in, copy_result)
+    return fut_in
 
 
 def multi_future(fs):
 
-    future = Future()
+    future = create_future()
 
     waiting_finished = set(fs)
 
     if not fs:
         future_set_result(future, [])
 
-    def callback(f):
+    def callback(fut):
 
-        waiting_finished.discard(f)
+        waiting_finished.discard(fut)
         if waiting_finished:
             return
 

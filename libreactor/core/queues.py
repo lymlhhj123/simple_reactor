@@ -64,7 +64,7 @@ class Queue(object):
     def put(self, item):
         """put item to queue"""
         while self.full():
-            waiter = future_mixin.Future()
+            waiter = future_mixin.create_future()
             self._put_waiters.append(waiter)
 
             try:
@@ -88,7 +88,7 @@ class Queue(object):
     def get(self):
         """get item from queue"""
         while self.empty():
-            waiter = future_mixin.Future()
+            waiter = future_mixin.create_future()
             self._get_waiters.append(waiter)
 
             try:

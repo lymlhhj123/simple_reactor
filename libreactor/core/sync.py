@@ -4,7 +4,6 @@
 lock and condition used by coroutine
 """
 import collections
-import traceback
 from collections import deque
 
 from . import future_mixin
@@ -30,7 +29,7 @@ class Lock(object):
             self._locked = True
             return True
 
-        waiter = future_mixin.Future()
+        waiter = future_mixin.create_future()
         self._waiters.append(waiter)
 
         try:
@@ -73,7 +72,7 @@ class Condition(object):
         # release lock first
         self.release()
 
-        waiter = future_mixin.Future()
+        waiter = future_mixin.create_future()
 
         self._waiters.append(waiter)
 
@@ -134,7 +133,7 @@ class Event(object):
         if self._val == 1:
             return True
 
-        waiter = future_mixin.Future()
+        waiter = future_mixin.create_future()
         self._waiters.append(waiter)
 
         try:
