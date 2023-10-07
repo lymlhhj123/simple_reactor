@@ -28,9 +28,12 @@ coming soon
 
 ### coroutine
 [coroutine](example/coroutine/coroutine.py)
+
 [lock](example/coroutine/lock.py)
+
 [condition](example/coroutine/cond.py)
-[queue](example/coroutine/queue.py)
+
+[queue](example/coroutine/queues.py)
 
 ## context
 
