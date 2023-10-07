@@ -2,7 +2,7 @@
 
 import threading
 
-from .event_loop import EventLoop
+from ._loop_helper import get_event_loop
 
 
 class EventLoopThread(object):
@@ -35,7 +35,7 @@ class EventLoopThread(object):
         """
         self._started_event.set()
 
-        event_loop = EventLoop.current()
+        event_loop = get_event_loop()
         with self._cond:
             self._event_loop = event_loop
             self._cond.notify_all()

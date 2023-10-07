@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor import EventLoop
+from libreactor import get_event_loop
 
 
 def call_after_5_sec():
@@ -19,7 +19,7 @@ def call_now():
     print(f"done: call now")
 
 
-ev = EventLoop.current()
+ev = get_event_loop()
 
 ev.call_soon(call_now)
 

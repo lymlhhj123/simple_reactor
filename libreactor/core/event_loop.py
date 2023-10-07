@@ -1,26 +1,28 @@
 # coding: utf-8
 
+import socket
 import errno
 import select
 import threading
+import contextvars
+from concurrent.futures import ThreadPoolExecutor
 
 from .. import poller
 from .timer import Timer
 from .timer_queue import TimerQueue
 from .waker import Waker
 from . import io_event
-from .callback import Callback
 from ..common import utils
+from . import futures
 
 DEFAULT_TIMEOUT = 3.6  # sec
-
-thread_local = threading.local()
 
 
 class EventLoop(object):
 
     def __init__(self):
 
+        self._executor = ThreadPoolExecutor()
         self._time_func = utils.monotonic_time
 
         self._tid = threading.get_native_id()
@@ -34,19 +36,6 @@ class EventLoop(object):
 
         self.waker = Waker(self)
         self.waker.enable_reading()
-
-    @classmethod
-    def current(cls):
-        """
-
-        :return:
-        """
-        ev = getattr(thread_local, "ev", None)
-        if not ev:
-            ev = cls()
-            setattr(thread_local, "ev", ev)
-
-        return ev
 
     def time(self):
         """
@@ -64,11 +53,14 @@ class EventLoop(object):
         :param kwargs:
         :return:
         """
-        cb = Callback(func, *args, **kwargs)
-        with self._mutex:
-            self._callbacks.append(cb)
+        handle = Timer(self, 0, func, *args, **kwargs)
+        try:
+            with self._mutex:
+                self._callbacks.append(handle)
 
-        self.wakeup()
+            self.wakeup()
+        finally:
+            return handle
 
     def call_later(self, delay, func, *args, **kwargs):
         """
@@ -90,19 +82,18 @@ class EventLoop(object):
         :param kwargs:
         :return:
         """
-        cb = Callback(func, *args, **kwargs)
-        return self._create_timer(cb, when)
+        return self._create_timer(when, func, *args, **kwargs)
 
     call_when = call_at
 
-    def _create_timer(self, cb, when):
+    def _create_timer(self, when, fn, *args, **kwargs):
         """
 
         :param cb:
         :param when:
         :return:
         """
-        t = Timer(self, cb, when)
+        t = Timer(self, when, fn, *args, **kwargs)
         try:
             with self._mutex:
                 self._timer_queue.put(t)
@@ -136,6 +127,29 @@ class EventLoop(object):
         :return:
         """
         return threading.get_native_id() == self._tid
+
+    def get_addr_info(self, host, port, family=socket.SOCK_STREAM, type_=socket.AF_INET, proto=socket.IPPROTO_TCP):
+        """dns resolve in another thread"""
+
+        def _fn():
+
+            addr_list = socket.getaddrinfo(host, port, family, type_, proto)
+            return addr_list
+
+        return self.run_in_thread(_fn)
+
+    def run_in_thread(self, fn, *args, **kwargs):
+        """run fn(*args, **kwargs) in another thread"""
+        fut = self._executor.submit(fn, *args, **kwargs)
+        result = futures.create_future()
+
+        def callback(f):
+            assert self.is_in_loop_thread(), "must be run in loop thread"
+            futures.chain_future(f, result)
+
+        futures.future_add_done_callback(fut, callback)
+
+        return result
 
     def update_channel(self, channel):
         """
@@ -239,7 +253,9 @@ class EventLoop(object):
                 ev_mask |= (io_event.EV_WRITE | io_event.EV_READ)
 
             channel = self._channel_map[fd]
-            channel.handle_events(ev_mask)
+
+            ctx = contextvars.Context()
+            ctx.run(channel.handle_events, ev_mask)
 
     def _process_timer_event(self):
         """

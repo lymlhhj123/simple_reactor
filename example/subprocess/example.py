@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from libreactor import EventLoop
+from libreactor import get_event_loop
 from libreactor import Subprocess
 
 
@@ -15,7 +15,7 @@ def on_result(status, stdout, stderr):
     print(status, "stdout: ", stdout, "stderr: ", stderr)
 
 
-ev = EventLoop.current()
+ev = get_event_loop()
 
 Subprocess("uname -a", ev, on_result)
 

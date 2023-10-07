@@ -2,12 +2,12 @@
 
 import random
 
-from libreactor import EventLoop
+from libreactor import get_event_loop
 from libreactor import coroutine
 from libreactor import sleep
 from libreactor import Queue
 
-ev = EventLoop.current()
+ev = get_event_loop()
 
 q = Queue(10)
 

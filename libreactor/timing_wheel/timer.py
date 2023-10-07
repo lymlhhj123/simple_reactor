@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from ..core.callback import Callback
+import contextvars
 
 
 class Timer(object):
@@ -14,11 +14,15 @@ class Timer(object):
         :param kwargs:
         """
         self.expiration = expiration
-        self.callback = Callback(func, *args, **kwargs)
+        self.fn = func
+        self.args = args
+        self.kwargs = kwargs
         self.cancelled = False
 
         self.bucket = None
         self.node = None
+
+        self.ctx = contextvars.Context()
 
     def run(self):
         """
@@ -28,7 +32,7 @@ class Timer(object):
         if self.cancelled:
             return
 
-        self.callback.run()
+        self.ctx.run(self.fn, *self.args, **self.kwargs)
 
     def cancel(self):
         """

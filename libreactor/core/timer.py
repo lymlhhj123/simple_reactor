@@ -2,21 +2,21 @@
 
 import threading
 import functools
+import contextvars
 
 
 @functools.total_ordering
 class Timer(object):
 
-    def __init__(self, event_loop, callback, when):
-        """
+    def __init__(self, event_loop, when, fn, *args, **kwargs):
 
-        :param event_loop:
-        :param callback:
-        :param when:
-        """
-        self._callback = callback
         self._event_loop = event_loop
         self._when = when
+        self._fn = fn
+        self._args = args
+        self._kwargs = kwargs
+
+        self._context = contextvars.Context()
 
         self._lock = threading.Lock()
         self._is_cancelled = False
@@ -30,7 +30,7 @@ class Timer(object):
             if self._is_cancelled:
                 return
 
-        self._callback.run()
+        self._context.run(self._fn, *self._args, **self._kwargs)
 
     def cancel(self):
         """

@@ -1,12 +1,12 @@
 # coding: utf-8
 
-from libreactor import EventLoop
+from libreactor import get_event_loop
 from libreactor import coroutine
 from libreactor import Lock
 from libreactor import sleep
 
 lock = Lock()
-ev = EventLoop.current()
+ev = get_event_loop()
 
 
 @coroutine

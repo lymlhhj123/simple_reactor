@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from libreactor import ClientContext
-from libreactor import EventLoop
+from libreactor import get_event_loop
 from libreactor import TcpClient
 from libreactor import Protocol
 from libreactor import Options
@@ -100,7 +100,7 @@ class MyContext(ClientContext):
         """
 
 
-ev = EventLoop.current()
+ev = get_event_loop()
 
 options = Options()
 options.tcp_no_delay = True

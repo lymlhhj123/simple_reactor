@@ -25,6 +25,22 @@ def maybe_future(fut):
     return proxy
 
 
+def wait_timeout(fut, timeout):
+    """wait fut complete or timeout"""
+    from ._loop_helper import get_event_loop
+
+    def timeout_callback():
+        if future_is_done(fut):
+            return
+
+        fut.set_exception(TimeoutError("future timeout"))
+
+    loop = get_event_loop()
+    handle = loop.call_later(timeout, timeout_callback)
+    future_add_done_callback(fut, lambda _: handle.cancel())
+    return fut
+
+
 def chain_future(fut_in, fut_out):
 
     def copy_result(f):
@@ -40,7 +56,7 @@ def chain_future(fut_in, fut_out):
             future_set_result(fut_out, future_get_result(f))
 
     future_add_done_callback(fut_in, copy_result)
-    return fut_in
+    return fut_out
 
 
 def multi_future(fs):
@@ -92,9 +108,9 @@ def future_is_done(fut):
 
 def future_add_done_callback(fut, callback):
 
-    from .event_loop import EventLoop
+    from ._loop_helper import get_event_loop
 
-    loop = EventLoop.current()
+    loop = get_event_loop()
 
     fut.add_done_callback(lambda f: loop.call_soon(callback, f))
 

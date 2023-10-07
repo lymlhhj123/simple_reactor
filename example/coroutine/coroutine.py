@@ -1,11 +1,11 @@
 # coding: utf-8
 
-from libreactor import EventLoop
+from libreactor import get_event_loop
 from libreactor import coroutine
 from libreactor import future_set_result, create_future
 
 
-ev = EventLoop.current()
+ev = get_event_loop()
 
 
 def net_io(delay):
