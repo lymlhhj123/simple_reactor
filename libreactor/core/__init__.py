@@ -1,6 +1,5 @@
 # coding: utf-8
 
-from .event_loop_thread import create_ev_thread
 from .subprocess import Subprocess
 from .channel import Channel
 from .futures import *

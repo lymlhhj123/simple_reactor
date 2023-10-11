@@ -13,7 +13,6 @@ from .timer_queue import TimerQueue
 from .waker import Waker
 from . import io_event
 from ..common import utils
-from . import futures
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -129,7 +128,7 @@ class EventLoop(object):
         return threading.get_native_id() == self._tid
 
     def get_addr_info(self, host, port, family=socket.SOCK_STREAM, type_=socket.AF_INET, proto=socket.IPPROTO_TCP):
-        """dns resolve in another thread"""
+        """async get addr info"""
 
         def _fn():
 
@@ -141,15 +140,7 @@ class EventLoop(object):
     def run_in_thread(self, fn, *args, **kwargs):
         """run fn(*args, **kwargs) in another thread"""
         fut = self._executor.submit(fn, *args, **kwargs)
-        result = futures.create_future()
-
-        def callback(f):
-            assert self.is_in_loop_thread(), "must be run in loop thread"
-            futures.chain_future(f, result)
-
-        futures.future_add_done_callback(fut, callback)
-
-        return result
+        return fut
 
     def update_channel(self, channel):
         """
