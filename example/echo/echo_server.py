@@ -1,14 +1,13 @@
 # coding: utf-8
 
-from libreactor import ServerContext
+from libreactor import log
 from libreactor import get_event_loop
-from libreactor import TcpServer
+from libreactor import listen_tcp
 from libreactor import Protocol
 from libreactor import Options
-from libreactor.common import logging
 
-logger = logging.get_logger()
-logging.logger_init(logger)
+logger = log.get_logger()
+log.logger_init(logger)
 
 
 class MyProtocol(Protocol):
@@ -22,19 +21,12 @@ class MyProtocol(Protocol):
         self.transport.write(data)
 
 
-class MyContext(ServerContext):
-
-    protocol_cls = MyProtocol
-
-
-ev = get_event_loop()
-
 options = Options()
 options.tcp_no_delay = True
 options.close_on_exec = True
 options.tcp_keepalive = True
 
-server = TcpServer(9527, ev, MyContext(), options)
-server.start()
+loop = get_event_loop()
+listen_tcp(loop, 9527, MyProtocol, options)
 
-ev.loop()
+loop.loop_forever()

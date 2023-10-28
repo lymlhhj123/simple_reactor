@@ -6,8 +6,7 @@ import collections
 import heapq
 
 from .coroutine import coroutine
-from . import futures
-from . import sync
+from . import sync, futures
 
 
 class Empty(Exception):

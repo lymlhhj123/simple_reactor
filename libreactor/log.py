@@ -19,30 +19,22 @@ class _ThreadFilter(logging.Filter):
         return True
 
 
-def _get_default_log():
-    """
-
-    :return:
-    """
-    default_log = logging.getLogger()
-    default_log.setLevel(logging.INFO)
-    return default_log
-
-
 def get_logger():
     """
 
     :return:
     """
-    return _get_default_log()
+    return logging.getLogger()
 
 
-def logger_init(logger):
+def logger_init(logger, level=logging.DEBUG):
     """
 
     :param logger:
+    :param level:
     :return:
     """
+    logger.setLevel(level)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(LOG_FORMAT)
     handler.setFormatter(formatter)

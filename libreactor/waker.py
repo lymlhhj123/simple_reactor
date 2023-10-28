@@ -3,7 +3,7 @@
 import os
 
 from .channel import Channel
-from ..common import fd_helper
+from . import fd_helper
 
 
 class Waker(object):

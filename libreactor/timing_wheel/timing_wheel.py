@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from ..common import utils
+from .. import utils
 from .bucket import Bucket
 
 

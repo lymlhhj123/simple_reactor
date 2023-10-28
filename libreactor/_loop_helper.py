@@ -3,7 +3,7 @@
 import threading
 
 from .event_loop import EventLoop
-from ..common import process_info
+from .common import process_info
 
 
 class _RunningLoop(threading.local):
@@ -16,7 +16,7 @@ _running_loop = _RunningLoop()
 
 def get_event_loop():
     """get event loop, only main thread have"""
-    return _get_loop_global()
+    return _get_loop_main_thread()
 
 
 def _get_loop_main_thread():

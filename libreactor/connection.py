@@ -1,38 +1,39 @@
 # coding: utf-8
 
-from ..core import Channel
-from ..common import logging
-from ..common import error
+from .channel import Channel
+from . import error
+from . import log
 
-
-logger = logging.get_logger()
+logger = log.get_logger()
 
 READ_SIZE = 8192
+DEFAULT_HIGH_WATER = 64 * 1024  # 64KB
+DEFAULT_LOW_WATER = DEFAULT_HIGH_WATER // 4
 
 
-class Transport(object):
+class Connection(object):
 
-    def __init__(self, sock, ctx, ev):
+    def __init__(self, sock, protocol, loop):
         """
 
         :param sock:
-        :param ctx:
-        :param ev:
+        :param protocol:
+        :param loop:
         """
         self.sock = sock
-        self.ctx = ctx
-        self.ev = ev
+        self.protocol = protocol
+        self.loop = loop
 
         self.protocol_paused = False
+        self.high_water = DEFAULT_HIGH_WATER
+        self.low_water = DEFAULT_LOW_WATER
 
-        self.channel = Channel(sock.fileno(), ev)
+        self.channel = Channel(sock.fileno(), loop)
         self.endpoint = None
         self.write_buffer = bytearray()
-        self.protocol = None
 
         self._conn_lost = 0
         self.closing = False
-        self.timeout_timer = None
 
     def fileno(self):
         """
@@ -48,9 +49,8 @@ class Transport(object):
         """
         self.endpoint = addr
 
-        self.protocol = self._make_connection()
+        self._make_connection()
         self.protocol.connection_established()
-        self.ctx.connection_established(self.protocol)
 
     def connection_made(self, addr):
         """
@@ -60,9 +60,8 @@ class Transport(object):
         """
         self.endpoint = addr
 
-        self.protocol = self._make_connection()
+        self._make_connection()
         self.protocol.connection_made()
-        self.ctx.connection_made(self.protocol)
 
     def _make_connection(self):
         """
@@ -73,9 +72,7 @@ class Transport(object):
         self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
 
-        protocol = self.ctx.build_protocol()
-        protocol.make_connection(self.ev, self.ctx, self)
-        return protocol
+        self.protocol.make_connection(self.loop, self)
 
     def write(self, data: bytes):
         """
@@ -83,9 +80,10 @@ class Transport(object):
         :param data:
         :return:
         """
-        assert self.ev.is_in_loop_thread()
+        assert self.loop.is_in_loop_thread()
 
-        if self._conn_lost:
+        if self._conn_lost or self.closing:
+            logger.warn("connection will be closed, can not send data")
             return
 
         if not isinstance(data, bytes):
@@ -98,8 +96,6 @@ class Transport(object):
             if error.is_bad_error(code):
                 self._force_close(error.Reason(code))
                 return
-
-            self.protocol.data_sent(write_size)
 
             data = data[write_size:]
             if not data:
@@ -121,8 +117,6 @@ class Transport(object):
         if error.is_bad_error(code):
             self._force_close(error.Reason(code))
             return
-
-        self.protocol.data_sent(write_size)
 
         del self.write_buffer[:write_size]
 
@@ -161,7 +155,7 @@ class Transport(object):
 
         :return:
         """
-        assert self.ev.is_in_loop_thread()
+        assert self.loop.is_in_loop_thread()
         reason = error.Reason(error.USER_ABORT)
         self._force_close(reason)
 
@@ -183,14 +177,14 @@ class Transport(object):
         self.channel.disable_all()
 
         self._conn_lost += 1
-        self.ev.call_soon(self._connection_lost, reason)
+        self.loop.call_soon(self._connection_lost, reason)
 
     def close(self):
         """
 
         :return:
         """
-        assert self.ev.is_in_loop_thread()
+        assert self.loop.is_in_loop_thread()
 
         if self.closing is True:
             return
@@ -205,7 +199,7 @@ class Transport(object):
         self.channel.disable_writing()
         self._conn_lost += 1
         reason = error.Reason(error.USER_CLOSED)
-        self.ev.call_soon(self._connection_lost, reason)
+        self.loop.call_soon(self._connection_lost, reason)
 
     def _connection_lost(self, reason):
         """
@@ -218,40 +212,7 @@ class Transport(object):
             self.channel.close()
             self.sock.close()
 
-            del self.channel
-            del self.protocol
-            del self.ctx
-            del self.sock
-
-
-class Client(Transport):
-
-    def __init__(self, sock, ctx, ev, connector):
-        """
-
-        :param sock:
-        :param ctx:
-        :param ev:
-        :param connector:
-        """
-        super().__init__(sock, ctx, ev)
-
-        self.connector = connector
-
-    def _connection_lost(self, reason):
-        """
-
-        :param reason:
-        :return:
-        """
-        super()._connection_lost(reason)
-
-        connector = self.connector
-        connector.connection_lost(reason)
-
-        del self.connector
-
-
-class Server(Transport):
-
-    pass
+            self.channel = None
+            self.protocol = None
+            self.sock = None
+            self.loop = None

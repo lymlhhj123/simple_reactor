@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import errno
 import os
 import shlex
 import sys
@@ -8,39 +7,37 @@ import signal
 import traceback
 
 from .channel import Channel
-from ..common import fd_helper
-from ..common import utils
-from ..common import error
+from . import fd_helper
+from . import utils
+from . import error
 
 
-class Subprocess(object):
+class Process(object):
 
-    def __init__(self, args, ev, on_result, shell=False, cwd=None, timeout=60):
+    def __init__(self, cmd, loop, process_protocol, shell=False, cwd=None, timeout=60):
+        """run cmd in subprocess"""
 
-        self.ev = ev
-        self.args = args
+        self.cmd = cmd
+        self.loop = loop
         self.shell = shell
-        self.on_result = on_result
+        self.protocol = process_protocol
         self.cwd = cwd
         self.timeout = timeout
 
-        self.child_pid = -1
+        self.child_pid = None
+        self.stdin_channel = None
         self.stdout_channel = None
         self.stderr_channel = None
-
-        self.stdout = b""
-        self.stderr = b""
-
+        self._channel_closed = 0
         self.timeout_timer = None
 
-        self.ev.call_soon(self._run)
+        self.loop.call_soon(self._run)
 
     def _run(self):
         """
 
         :return:
         """
-        # stdin not used for now
         stdin_read, stdin_write = fd_helper.make_async_pipe()
         stdout_read, stdout_write = fd_helper.make_async_pipe()
         stderr_read, stderr_write = fd_helper.make_async_pipe()
@@ -54,7 +51,7 @@ class Subprocess(object):
                 stderr = traceback.format_exc()
                 os.write(2, stderr.encode("utf-8"))
 
-            sys.exit(255)
+            sys.exit(-1)
 
         self.child_pid = pid
 
@@ -62,11 +59,9 @@ class Subprocess(object):
         fd_helper.close_fd(stdout_write)
         fd_helper.close_fd(stderr_write)
 
-        # stdin_write not used
-        fd_helper.close_fd(stdin_write)
-
-        self.stdout_channel = Channel(stdout_read, self.ev)
-        self.stderr_channel = Channel(stderr_read, self.ev)
+        self.stdin_channel = Channel(stdin_write, self.loop)
+        self.stdout_channel = Channel(stdout_read, self.loop)
+        self.stderr_channel = Channel(stderr_read, self.loop)
 
         self.stdout_channel.set_read_callback(self._on_stdout_read)
         self.stderr_channel.set_read_callback(self._on_stderr_read)
@@ -74,7 +69,7 @@ class Subprocess(object):
         self.stdout_channel.enable_reading()
         self.stderr_channel.enable_reading()
 
-        self.timeout_timer = self.ev.call_later(self.timeout, self._on_timeout)
+        self.timeout_timer = self.loop.call_later(self.timeout, self._on_timeout)
 
     def _execute_child(self, stdin_read, stdin_write, stdout_read,
                        stdout_write, stderr_read, stderr_write):
@@ -106,33 +101,25 @@ class Subprocess(object):
         if self.cwd:
             os.chdir(self.cwd)
 
-        args = self._construct_args()
+        cmd = self._construct_cmd()
 
         if os.environ:
-            os.execvpe(args[0], args, os.environ)
+            os.execvpe(cmd[0], cmd, os.environ)
         else:
-            os.execvp(args[0], args)
+            os.execvp(cmd[0], cmd)
 
-    def _construct_args(self):
+    def _construct_cmd(self):
         """
 
         :return:
         """
-        args = self.args
+        cmd = self.cmd
         if self.shell is True:
-            if isinstance(args, str):
-                args = [args]
-            else:
-                args = " ".join(list(args))
-
-            args = ["/bin/sh", "-c"] + args
+            cmd = ["/bin/sh", "-c"] + [cmd]
         else:
-            if isinstance(args, str):
-                args = shlex.split(args)
-            else:
-                args = list(args)
+            cmd = shlex.split(cmd)
 
-        return args
+        return cmd
 
     def _on_timeout(self):
         """
@@ -140,7 +127,7 @@ class Subprocess(object):
         :return:
         """
         try:
-            os.kill(self.child_pid, signal.SIGKILL)
+            self.kill()
         except Exception as e:
             utils.errno_from_ex(e)
 
@@ -152,15 +139,11 @@ class Subprocess(object):
         :return:
         """
         code, data = self.stdout_channel.read(8192)
-        self.stdout += data
+        self.protocol.data_received(1, data)
 
         if error.is_bad_error(code):
-            fd = self.stdout_channel.fileno()
-            self.stdout_channel.disable_reading()
-            self.stdout_channel.close()
-            self.stdout_channel = None
-            fd_helper.close_fd(fd)
-            self._maybe_done()
+            stdout_channel, self.stdout_channel = self.stdout_channel, None
+            self._close_channel(stdout_channel)
 
     def _on_stderr_read(self):
         """
@@ -168,49 +151,45 @@ class Subprocess(object):
         :return:
         """
         code, data = self.stderr_channel.read(8192)
-        self.stderr += data
+        self.protocol.data_received(2, data)
 
         if error.is_bad_error(code):
-            fd = self.stderr_channel.fileno()
-            self.stderr_channel.disable_reading()
-            self.stderr_channel.close()
-            self.stderr_channel = None
-            fd_helper.close_fd(fd)
-            self._maybe_done()
+            stderr_channel, self.stderr_channel = self.stderr_channel, None
+            self._close_channel(stderr_channel)
 
-    def _maybe_done(self):
-        """
-
-        :return:
-        """
-        if self.stderr_channel or self.stdout_channel:
+    def _close_channel(self, channel):
+        """close stdin/stdout/stderr channel"""
+        if channel.is_closed():
             return
 
-        if self.timeout_timer:
-            self.timeout_timer.cancel()
+        fd = channel.fileno()
+        channel.close()
+        fd_helper.close_fd(fd)
 
-        self._on_result()
+        self._channel_closed += 1
 
-    def _on_result(self):
+        if self._channel_closed == 3:
+            self._process_exited()
+
+    def _process_exited(self):
         """
 
         :return:
         """
         try:
-            _, status = os.waitpid(self.child_pid, 0)
-        except Exception as e:
-            err_code = utils.errno_from_ex(e)
-            # maybe set signal handler
-            if err_code == errno.ECHILD:
-                status = 0
-            else:
-                status = -1
+            pid, status = os.waitpid(self.child_pid, os.WNOHANG)
+        except ChildProcessError:
+            pid, status = None, -1
 
-        self.child_pid = 0
-        self.timeout_timer = None
-
-        stdout, stderr = self.stdout, self.stderr
-        self.on_result(status, stdout, stderr)
+        if pid:
+            reason = error.Reason(status)
+            self.protocol.connection_lost(reason)
+        elif pid == 0:
+            # what happened ??? try kill
+            self.kill()
+        else:
+            reason = error.Reason(error.ESRCH)
+            self.protocol.connection_lost(reason)
 
     def kill(self):
         """kill child process"""
@@ -222,12 +201,10 @@ class Subprocess(object):
 
     def send_signal(self, sig):
         """send signal to child process"""
-        if self.child_pid == -1:
+        if not self.child_pid:
             return
 
         try:
             os.kill(self.child_pid, sig)
         except (OSError, Exception):
             pass
-        finally:
-            self.child_pid = -1

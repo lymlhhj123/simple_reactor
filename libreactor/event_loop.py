@@ -2,17 +2,15 @@
 
 import socket
 import errno
-import select
 import threading
-import contextvars
 from concurrent.futures import ThreadPoolExecutor
 
-from .. import poller
-from .timer import Timer
+from .epoller import EPoller
+from . import io_event
+from . import utils
+from . import timer
 from .timer_queue import TimerQueue
 from .waker import Waker
-from . import io_event
-from ..common import utils
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -31,7 +29,7 @@ class EventLoop(object):
         self._timer_queue = TimerQueue()
 
         self._channel_map = {}
-        self._poller = poller.Poller()
+        self._poller = EPoller()
 
         self.waker = Waker(self)
         self.waker.enable_reading()
@@ -52,7 +50,7 @@ class EventLoop(object):
         :param kwargs:
         :return:
         """
-        handle = Timer(self, 0, func, *args, **kwargs)
+        handle = timer.Handle(self, func, *args, **kwargs)
         try:
             with self._mutex:
                 self._callbacks.append(handle)
@@ -92,7 +90,7 @@ class EventLoop(object):
         :param when:
         :return:
         """
-        t = Timer(self, when, fn, *args, **kwargs)
+        t = timer.TimerHandle(self, when, fn, *args, **kwargs)
         try:
             with self._mutex:
                 self._timer_queue.put(t)
@@ -101,14 +99,14 @@ class EventLoop(object):
         finally:
             self.wakeup()
 
-    def _cancel_timer(self, timer):
+    def _cancel_timer(self, t_handle):
         """internal api, thread safe
 
-        :param timer:
+        :param t_handle:
         :return:
         """
         with self._mutex:
-            self._timer_queue.cancel(timer)
+            self._timer_queue.cancel(t_handle)
 
     def wakeup(self):
         """
@@ -138,7 +136,7 @@ class EventLoop(object):
         return self.run_in_thread(_fn)
 
     def run_in_thread(self, fn, *args, **kwargs):
-        """run fn(*args, **kwargs) in another thread"""
+        """run fn(*args, **kwargs) in another thread, fn can not be coroutine"""
         fut = self._executor.submit(fn, *args, **kwargs)
         return fut
 
@@ -150,12 +148,12 @@ class EventLoop(object):
         """
         assert self.is_in_loop_thread()
 
-        events = 0
+        events = io_event.EV_NONE
         if channel.readable():
-            events |= select.POLLIN
+            events |= io_event.EV_READ
 
         if channel.writable():
-            events |= select.POLLOUT
+            events |= io_event.EV_WRITE
 
         fd = channel.fileno()
         if fd in self._channel_map:
@@ -179,7 +177,7 @@ class EventLoop(object):
         self._channel_map.pop(fd)
         self._poller.unregister(fd)
 
-    def loop(self):
+    def loop_forever(self):
         """
 
         :return:
@@ -187,7 +185,9 @@ class EventLoop(object):
         assert self.is_in_loop_thread()
 
         while True:
-            self._resize_timer_queue()
+
+            with self._mutex:
+                self._resize_timer_queue()
 
             timeout = self._calc_timeout()
 
@@ -219,11 +219,11 @@ class EventLoop(object):
             if self._callbacks:
                 return 0.0
 
-            timer = self._timer_queue.first()
-            if not timer:
+            handle = self._timer_queue.first()
+            if not handle:
                 return DEFAULT_TIMEOUT
 
-        timeout = timer.when - self.time()
+        timeout = handle.when - self.time()
         return min(max(0.0, timeout), DEFAULT_TIMEOUT)
 
     def _handle_events(self, events):
@@ -233,20 +233,18 @@ class EventLoop(object):
         :return:
         """
         for fd, revents in events:
-            ev_mask = 0
-            if revents & select.POLLIN:
+            ev_mask = io_event.EV_NONE
+            if revents & io_event.EV_READ:
                 ev_mask |= io_event.EV_READ
 
-            if revents & select.POLLOUT:
+            if revents & io_event.EV_WRITE:
                 ev_mask |= io_event.EV_WRITE
 
-            if revents & (select.POLLERR | select.POLLHUP):
+            if revents & io_event.EV_ERROR:
                 ev_mask |= (io_event.EV_WRITE | io_event.EV_READ)
 
             channel = self._channel_map[fd]
-
-            ctx = contextvars.Context()
-            ctx.run(channel.handle_events, ev_mask)
+            channel.handle_events(ev_mask)
 
     def _process_timer_event(self):
         """
@@ -258,8 +256,8 @@ class EventLoop(object):
             callbacks, self._callbacks = self._callbacks, []
             timer_list = self._timer_queue.retrieve(now)
 
-        for cb in callbacks:
-            cb.run()
+        for handle in callbacks:
+            handle.run()
 
-        for timer in timer_list:
-            timer.run()
+        for handle in timer_list:
+            handle.run()

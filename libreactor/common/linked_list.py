@@ -29,16 +29,9 @@ class LinkedList(object):
         :param node:
         :return:
         """
-        self._add_node(self.root.prev, node, self.root)
+        parent = self.root.prev
+        child = self.root
 
-    def _add_node(self, parent, node, child):
-        """
-
-        :param parent:
-        :param node:
-        :param child:
-        :return:
-        """
         parent.next_ = node
         node.prev = parent
 
@@ -51,16 +44,12 @@ class LinkedList(object):
         :param node:
         :return:
         """
-        self._remove_node(node.prev, node, node.next_)
+        if node == self.root:
+            return
 
-    def _remove_node(self, parent, node, child):
-        """
+        parent = node.prev
+        child = node.next_
 
-        :param parent:
-        :param node:
-        :param child:
-        :return:
-        """
         node.prev = None
         node.next_ = None
 

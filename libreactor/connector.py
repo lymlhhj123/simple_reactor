@@ -2,43 +2,48 @@
 
 import socket
 
-from ..common import sock_helper
-from ..common import fd_helper
-from ..common import error
-from ..common import logging
-from ..core import Channel
-from ..common import utils
-from .transport import Client
+from .channel import Channel
+from .connection import Connection
+from . import futures
+from . import sock_helper
+from . import fd_helper
+from . import utils
+from . import error
+from . import log
 
-logger = logging.get_logger()
+logger = log.get_logger()
 
 
 class Connector(object):
 
-    def __init__(self, family, endpoint, ctx, ev, options):
-        """
+    def __init__(self, loop, family, endpoint, proto_factory, options):
 
-        :param family:
-        :param endpoint:
-        :param ctx:
-        :param ev:
-        :param options:
-        """
+        self.loop = loop
         self.family = family
         self.endpoint = endpoint
-        self.ctx = ctx
-        self.ev = ev
+        self.proto_factory = proto_factory
         self.options = options
 
         self.sock = None
         self.connect_channel = None
         self.connect_timer = None
 
+        self.connect_fut = None
+
     def connect(self):
         """
 
         :return:
         """
+        sock = self._create_sock()
+
+        self.connect_fut = fut = futures.create_future()
+
+        self._sock_connect(sock)
+        return fut
+
+    def _create_sock(self):
+        """create connect socket"""
         sock = socket.socket(self.family, socket.SOCK_STREAM)
 
         sock_helper.set_sock_async(sock)
@@ -51,16 +56,13 @@ class Connector(object):
 
         fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
-        self._start_connect(sock)
+        return sock
 
-    def _start_connect(self, sock):
+    def _sock_connect(self, sock):
         """
 
-        :param sock:
         :return:
         """
-        assert self.ev.is_in_loop_thread()
-
         try:
             sock.connect(self.endpoint)
         except socket.error as e:
@@ -68,9 +70,9 @@ class Connector(object):
         else:
             code = error.OK
 
-        if code == error.EISCONN or code == error.OK:
+        if code in [error.EISCONN, error.OK]:
             self._connection_established()
-        elif code == error.EINPROGRESS or code == error.EALREADY:
+        elif code in [error.EINPROGRESS, error.EALREADY]:
             self._wait_connection_established(sock)
         else:
             self._connection_failed(code)
@@ -80,13 +82,14 @@ class Connector(object):
 
         :return:
         """
-        channel = Channel(sock.fileno(), self.ev)
+        channel = Channel(sock.fileno(), self.loop)
         channel.set_read_callback(self._do_connect)
         channel.set_write_callback(self._do_connect)
         channel.enable_writing()
 
         timeout = self.options.connect_timeout
-        self.connect_timer = self.ev.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
+        if timeout and timeout > 0:
+            self.connect_timer = self.loop.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
 
         self.sock = sock
         self.connect_channel = channel
@@ -96,7 +99,6 @@ class Connector(object):
 
         :return:
         """
-
         code = sock_helper.get_sock_error(self.sock)
         if error.is_bad_error(code):
             self._connection_failed(code)
@@ -114,25 +116,26 @@ class Connector(object):
 
         if sock_helper.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
-            reason = error.Reason(error.SELF_CONNECT)
-            self._connection_failed(reason)
+            self._connection_failed(error.SELF_CONNECTED)
             return
 
         self.connect_channel.close()
+        self.connect_channel = None
         logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
 
-        conn = Client(self.sock, self.ctx, self.ev, self)
+        sock, self.sock = self.sock, None
 
-        remote_addr = sock_helper.get_remote_addr(self.sock)
+        protocol = self.proto_factory()
+        conn = Connection(sock, protocol, self.loop)
+        remote_addr = sock_helper.get_remote_addr(sock)
         conn.connection_established(remote_addr)
 
-        del self.sock
-        del self.connect_channel
+        fut, self.connect_fut = self.connect_fut, None
+        futures.future_set_result(fut, protocol)
 
-    def _connection_failed(self, reason):
+    def _connection_failed(self, err_code):
         """
         client failed to establish connection
-        :param reason:
         :return:
         """
         self._cancel_timeout_timer()
@@ -140,10 +143,12 @@ class Connector(object):
         self.connect_channel.close()
         self.sock.close()
 
-        del self.sock
-        del self.connect_channel
+        self.sock = None
+        self.connect_channel = None
 
-        self.ctx.connection_failed(self, reason)
+        reason = error.Reason(err_code)
+        fut, self.connect_fut = self.connect_fut, None
+        futures.future_set_exception(fut, reason)
 
     def _cancel_timeout_timer(self):
         """
@@ -153,11 +158,3 @@ class Connector(object):
         if self.connect_timer:
             self.connect_timer.cancel()
             self.connect_timer = None
-
-    def connection_lost(self, reason):
-        """
-
-        :param reason:
-        :return:
-        """
-        self.ctx.connection_lost(self, reason)

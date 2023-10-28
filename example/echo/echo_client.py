@@ -1,14 +1,14 @@
 # coding: utf-8
 
-from libreactor import ClientContext
+from libreactor import log
 from libreactor import get_event_loop
-from libreactor import TcpClient
+from libreactor import connect_tcp
 from libreactor import Protocol
 from libreactor import Options
-from libreactor.common import logging
+from libreactor import coroutine
 
-logger = logging.get_logger()
-logging.logger_init(logger)
+logger = log.get_logger()
+log.logger_init(logger)
 
 
 class MyProtocol(Protocol):
@@ -43,23 +43,23 @@ class MyProtocol(Protocol):
 
         :return:
         """
-        self.start_time = self.event_loop.time()
+        self.start_time = self.loop.time()
 
-        self._timer = self.event_loop.call_later(60, self._count_down)
+        self._timer = self.loop.call_later(60, self._count_down)
 
     def _count_down(self):
         """
 
         :return:
         """
-        now = self.event_loop.time()
+        now = self.loop.time()
         start_time, self.start_time = self.start_time, now
 
         io_count, self.io_count = self.io_count, 0
         ops = io_count / (now - start_time)
         logger.info(f"ops: {ops}")
 
-        self._timer = self.event_loop.call_later(60, self._count_down)
+        self._timer = self.loop.call_later(60, self._count_down)
 
     def send_data(self):
         """
@@ -69,46 +69,22 @@ class MyProtocol(Protocol):
         self.transport.write(b"hello")
 
 
-class MyContext(ClientContext):
-
-    protocol_cls = MyProtocol
-
-    def connection_established(self, protocol):
-        """
-
-        :param protocol:
-        :return:
-        """
-        protocol.start_test()
-
-        protocol.send_data()
-
-    def connection_failed(self, connector, reason):
-        """
-
-        :param connector:
-        :param reason:
-        :return:
-        """
-
-    def connection_lost(self, connector, reason):
-        """
-
-        :param connector:
-        :param reason:
-        :return:
-        """
-
-
-ev = get_event_loop()
-
 options = Options()
 options.tcp_no_delay = True
 options.tcp_keepalive = True
 options.close_on_exec = True
 options.connect_timeout = 5
 
-client = TcpClient("127.0.0.1", 9527, ev, MyContext(), options)
-client.connect()
+loop = get_event_loop()
 
-ev.loop()
+
+@coroutine
+def tcp_client():
+    protocol = yield connect_tcp(loop, "127.0.0.1", 9527, MyProtocol, options)
+    protocol.start_test()
+    protocol.send_data()
+
+
+tcp_client()
+
+loop.loop_forever()

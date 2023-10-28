@@ -2,7 +2,7 @@
 
 from threading import Lock
 
-from ..common import utils
+from .. import utils
 from .timer import Timer
 from .timing_wheel import TimingWheel
 

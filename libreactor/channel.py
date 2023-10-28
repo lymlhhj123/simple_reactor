@@ -3,9 +3,9 @@
 import os
 
 from . import io_event
-from ..common import fd_helper
-from ..common import utils
-from ..common import error
+from . import fd_helper
+from . import error
+from . import utils
 
 
 class Channel(object):

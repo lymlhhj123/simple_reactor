@@ -2,7 +2,7 @@
 
 import heapq
 
-from .timer import Timer
+from .timer import TimerHandle
 
 
 class TimerQueue(object):
@@ -20,13 +20,13 @@ class TimerQueue(object):
         """
         heapq.heappush(self.queue, timer)
 
-    def cancel(self, timer):
+    def cancel(self, handle):
         """
 
-        :param timer:
+        :param handle:
         :return:
         """
-        assert isinstance(timer, Timer)
+        assert isinstance(handle, TimerHandle)
         self.cancelled_count += 1
 
     def first(self):
