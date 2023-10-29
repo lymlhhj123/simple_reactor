@@ -18,7 +18,7 @@ class BloomFilter(object):
         self.false_positive = false_positive
 
         self.m = self._get_bit_array_size()
-        self.k = self._get_hash_count()
+        self.k = self._get_hash_fn_count()
 
         self.bit_array = bitarray.bitarray(self.m)
         self.bit_array.setall(0)
@@ -31,7 +31,7 @@ class BloomFilter(object):
         m = - (self.n * math.log(self.false_positive)) / (math.log(2) ** 2)
         return int(m)
 
-    def _get_hash_count(self):
+    def _get_hash_fn_count(self):
         """
         k = ln(2) * (m / n)
         :return:

@@ -10,6 +10,7 @@ class UDP(object):
         self.loop = loop
 
         self._send_buf = deque()
+        self._connected_addr = None
 
     def send_dgram(self, dgram, addr=None):
 
@@ -18,9 +19,13 @@ class UDP(object):
 
 class UDPServer(UDP):
 
-    pass
+    def listen(self):
+
+        pass
 
 
 class UDPClient(UDP):
 
-    pass
+    def connect(self, addr):
+
+        pass

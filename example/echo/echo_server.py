@@ -3,22 +3,26 @@
 from libreactor import log
 from libreactor import get_event_loop
 from libreactor import listen_tcp
-from libreactor import Protocol
 from libreactor import Options
+from libreactor import coroutine
+from libreactor.protocols import StreamReceiver
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(Protocol):
+class MyProtocol(StreamReceiver):
 
-    def data_received(self, data: bytes):
-        """
+    def connection_made(self):
 
-        :param data:
-        :return:
-        """
-        self.transport.write(data)
+        self.echo()
+
+    @coroutine
+    def echo(self):
+
+        while True:
+            data = yield self.read_line()
+            yield self.write_line(data)
 
 
 options = Options()

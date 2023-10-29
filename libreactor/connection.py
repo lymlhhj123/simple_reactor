@@ -32,6 +32,8 @@ class Connection(object):
         self.endpoint = None
         self.write_buffer = bytearray()
 
+        self._protocol_paused = False
+
         self._conn_lost = 0
         self.closing = False
 
@@ -55,7 +57,6 @@ class Connection(object):
     def connection_made(self, addr):
         """
         server side accept new connection
-        :param addr:
         :return:
         """
         self.endpoint = addr
@@ -105,6 +106,14 @@ class Connection(object):
 
         self.write_buffer.extend(data)
 
+        self._maybe_pause_protocol_write()
+
+    def _maybe_pause_protocol_write(self):
+        """if write buffer size >= high water, pause protocol write"""
+        if not self._protocol_paused and len(self.write_buffer) >= self.high_water:
+            self._protocol_paused = True
+            self.protocol.pause_write()
+
     def _do_write(self):
         """
 
@@ -120,12 +129,19 @@ class Connection(object):
 
         del self.write_buffer[:write_size]
 
-        if self.write_buffer:
-            return
+        if not self.write_buffer:
+            self.channel.disable_writing()
+            if self.closing is True:
+                self._force_close(error.Reason(error.USER_CLOSED))
+                return
 
-        self.channel.disable_writing()
-        if self.closing is True:
-            self._force_close(error.Reason(error.USER_CLOSED))
+        self._maybe_resume_protocol_write()
+
+    def _maybe_resume_protocol_write(self):
+        """if write buffer size <= low water, resume protocol write"""
+        if self._protocol_paused and len(self.write_buffer) <= self.low_water:
+            self._protocol_paused = False
+            self.protocol.resume_write()
 
     def _do_read(self):
         """
@@ -216,3 +232,8 @@ class Connection(object):
             self.protocol = None
             self.sock = None
             self.loop = None
+
+    def closed(self):
+        """return true if connection is closed or closing"""
+
+        return self.closing or self._conn_lost
