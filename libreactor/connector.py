@@ -133,7 +133,7 @@ class Connector(object):
         fut, self.connect_fut = self.connect_fut, None
         futures.future_set_result(fut, protocol)
 
-    def _connection_failed(self, err_code):
+    def _connection_failed(self, errcode):
         """
         client failed to establish connection
         :return:
@@ -146,9 +146,8 @@ class Connector(object):
         self.sock = None
         self.connect_channel = None
 
-        reason = error.Reason(err_code)
         fut, self.connect_fut = self.connect_fut, None
-        futures.future_set_exception(fut, reason)
+        futures.future_set_exception(fut, error.Failure(errcode))
 
     def _cancel_timeout_timer(self):
         """

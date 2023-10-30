@@ -155,7 +155,7 @@ class Channel(object):
             code = utils.errno_from_ex(e)
         else:
             if not data:
-                code = error.PEER_CLOSED
+                code = error.EEOF
             else:
                 code = error.OK
 
@@ -174,7 +174,7 @@ class Channel(object):
             code = utils.errno_from_ex(e)
         else:
             if chunk_size == 0:
-                code = error.PEER_CLOSED
+                code = error.ECONNCLOSED
             else:
                 code = error.OK
 

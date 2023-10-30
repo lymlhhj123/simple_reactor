@@ -95,7 +95,7 @@ class Connection(object):
         if not self.write_buffer:
             code, write_size = self.channel.write(data)
             if error.is_bad_error(code):
-                self._force_close(error.Reason(code))
+                self._force_close(code)
                 return
 
             data = data[write_size:]
@@ -124,7 +124,7 @@ class Connection(object):
 
         code, write_size = self.channel.write(self.write_buffer)
         if error.is_bad_error(code):
-            self._force_close(error.Reason(code))
+            self._force_close(code)
             return
 
         del self.write_buffer[:write_size]
@@ -132,7 +132,7 @@ class Connection(object):
         if not self.write_buffer:
             self.channel.disable_writing()
             if self.closing is True:
-                self._force_close(error.Reason(error.USER_CLOSED))
+                self._force_close(error.ECONNCLOSED)
                 return
 
         self._maybe_resume_protocol_write()
@@ -152,18 +152,17 @@ class Connection(object):
             return
 
         code, data = self.channel.read(READ_SIZE)
-        if error.is_bad_error(code):
-            self._force_close(error.Reason(code))
+        if code == error.EEOF:
+            self.protocol.eof_received()
             return
 
-        self._data_received(data)
+        if error.is_bad_error(code):
+            self._force_close(code)
+            return
 
-    def _data_received(self, data):
-        """
+        if self.closing:  # drop all data
+            return
 
-        :param data:
-        :return:
-        """
         self.protocol.data_received(data)
 
     def abort(self):
@@ -172,13 +171,12 @@ class Connection(object):
         :return:
         """
         assert self.loop.is_in_loop_thread()
-        reason = error.Reason(error.USER_ABORT)
-        self._force_close(reason)
+        self._force_close(error.ECONNABORTED)
 
-    def _force_close(self, reason):
+    def _force_close(self, errcode):
         """
 
-        :param reason:
+        :param errcode:
         :return:
         """
         if self._conn_lost:
@@ -193,7 +191,7 @@ class Connection(object):
         self.channel.disable_all()
 
         self._conn_lost += 1
-        self.loop.call_soon(self._connection_lost, reason)
+        self.loop.call_soon(self._connection_lost, errcode)
 
     def close(self):
         """
@@ -214,16 +212,15 @@ class Connection(object):
         # write buffer is empty, close it
         self.channel.disable_writing()
         self._conn_lost += 1
-        reason = error.Reason(error.USER_CLOSED)
-        self.loop.call_soon(self._connection_lost, reason)
+        self.loop.call_soon(self._connection_lost, error.ECONNCLOSED)
 
-    def _connection_lost(self, reason):
+    def _connection_lost(self, errcode):
         """
 
         :return:
         """
         try:
-            self.protocol.connection_lost(reason)
+            self.protocol.connection_lost(error.Failure(errcode))
         finally:
             self.channel.close()
             self.sock.close()
@@ -235,5 +232,4 @@ class Connection(object):
 
     def closed(self):
         """return true if connection is closed or closing"""
-
         return self.closing or self._conn_lost

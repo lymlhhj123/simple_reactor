@@ -11,7 +11,7 @@ class BaseProtocol(object):
         self.loop = loop
         self.transport = transport
 
-    def connection_lost(self, reason):
+    def connection_lost(self, failure):
         """auto called when connection lost
 
         :return:
@@ -21,29 +21,29 @@ class BaseProtocol(object):
 class Protocol(BaseProtocol):
 
     def connection_made(self):
-        """
-        auto called when server side accept new connection
-        :return:
-        """
+        """called when server side accept new connection"""
 
     def connection_established(self):
-        """
-        auto called when client side connection established
-        :return:
-        """
+        """called when client side connection established"""
 
     def data_received(self, data: bytes):
-        """auto called when data received by transport
+        """called when data received by transport"""
 
-        :param data:
-        :return:
-        """
+    def eof_received(self):
+        """called when peer no more send data"""
 
     def pause_write(self):
-        """auto called when transport write buffer >= high water"""
+        """called when transport write buffer >= high water"""
 
     def resume_write(self):
-        """auto called when transport write buffer <= low water"""
+        """called when transport write buffer <= low water"""
+
+    def close(self):
+        """close transport"""
+        if not self.transport or self.transport.closed():
+            return
+
+        self.transport.close()
 
 
 class ProcessProtocol(BaseProtocol):

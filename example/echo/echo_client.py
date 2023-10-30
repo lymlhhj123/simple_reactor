@@ -14,10 +14,6 @@ log.logger_init(logger)
 
 class MyProtocol(StreamReceiver):
 
-    def __init__(self):
-
-        super(MyProtocol, self).__init__()
-
     @coroutine
     def start_echo(self):
         """

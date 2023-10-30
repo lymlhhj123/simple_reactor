@@ -22,7 +22,7 @@ class MyProtocol(StreamReceiver):
 
         while True:
             data = yield self.read_line()
-            yield self.write_line(data)
+            yield self.write_line(b"ok, data received: " + data)
 
 
 options = Options()

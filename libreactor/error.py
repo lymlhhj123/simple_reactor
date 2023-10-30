@@ -4,17 +4,14 @@ import os
 from errno import *
 
 OK = 0
-SELF_CONNECTED = 65536
-USER_CLOSED = 65537
-USER_ABORT = 65538
-PEER_CLOSED = 65539
-
+ESELFCONNECTED = 1024
+ECONNCLOSED = 1025
+EEOF = 1026
 
 error_map = {
-    SELF_CONNECTED: "tcp self connect",
-    USER_CLOSED: "connection closed by user",
-    USER_ABORT: "connection abort by user",
-    PEER_CLOSED: "connection closed by peer",
+    ESELFCONNECTED: "connection self connect",
+    ECONNCLOSED: "connection closed",
+    EEOF: "eof received",
 }
 
 
@@ -27,23 +24,23 @@ def is_bad_error(err_code):
     return err_code not in [OK, EWOULDBLOCK, EAGAIN]
 
 
-class Reason(Exception):
+class Failure(Exception):
 
-    def __init__(self, err_code):
+    def __init__(self, errcode):
 
-        self._err_code = err_code
+        self._errcode = errcode
 
     def errno(self):
 
-        return self._err_code
+        return self._errcode
 
-    def what(self):
+    def reason(self):
         """
 
         :return:
         """
-        readable = error_map.get(self._err_code)
+        readable = error_map.get(self._errcode)
         if not readable:
-            readable = os.strerror(self._err_code)
+            readable = os.strerror(self._errcode)
 
         return readable
