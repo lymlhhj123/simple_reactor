@@ -27,7 +27,7 @@ class Connector(object):
         self.options = options
 
         self.ssl_options = options.ssl_options
-        self.ssl_handshake = True if self.ssl_options else False
+        self.need_ssl_handshake = True if self.ssl_options else False
 
         self.sock = None
         self.connect_channel = None
@@ -84,10 +84,7 @@ class Connector(object):
             self._connection_failed(code)
 
     def _wait_connection_established(self):
-        """
-
-        :return:
-        """
+        """wait socket connected or failed"""
         channel = Channel(self.sock.fileno(), self.loop)
         channel.set_read_callback(self._do_connect)
         channel.set_write_callback(self._do_connect)
@@ -100,10 +97,7 @@ class Connector(object):
         self.connect_channel = channel
 
     def _connection_established(self):
-        """
-        client side established connection
-        :return:
-        """
+        """client side established connection"""
         self._cancel_timeout_timer()
 
         self.connect_channel.disable_writing()
@@ -113,8 +107,9 @@ class Connector(object):
             self._connection_failed(error.ESELFCONNECTED)
             return
 
-        if self.ssl_options and self.ssl_handshake:
-            self.ssl_handshake = False
+        # socket connected and start ssl handshake
+        if self.ssl_options and self.need_ssl_handshake:
+            self.need_ssl_handshake = False
             self._start_ssl()
             return
 
@@ -169,10 +164,7 @@ class Connector(object):
             self._connection_established()
 
     def _connection_failed(self, errcode):
-        """
-        client failed to establish connection
-        :return:
-        """
+        """client failed to establish connection"""
         self._cancel_timeout_timer()
 
         self.connect_channel.disable_writing()
@@ -186,10 +178,7 @@ class Connector(object):
         futures.future_set_exception(fut, error.Failure(errcode))
 
     def _cancel_timeout_timer(self):
-        """
-
-        :return:
-        """
+        """cancel connect timeout timer"""
         if self.connect_timer:
             self.connect_timer.cancel()
             self.connect_timer = None

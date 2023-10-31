@@ -76,11 +76,7 @@ class Connection(object):
         self.protocol.make_connection(self.loop, self)
 
     def write(self, data: bytes):
-        """
-
-        :param data:
-        :return:
-        """
+        """if buffer is empty, write directly; else append to buffer"""
         assert self.loop.is_in_loop_thread()
 
         if self._conn_lost or self.closing:
@@ -93,9 +89,9 @@ class Connection(object):
 
         # try to write directly
         if not self.write_buffer:
-            code, write_size = self.channel.write(data)
-            if error.is_bad_error(code):
-                self._force_close(code)
+            errcode, write_size = self.channel.write(data)
+            if errcode != error.OK and errcode not in error.IO_WOULD_BLOCK:
+                self._force_close(errcode)
                 return
 
             data = data[write_size:]
@@ -115,16 +111,17 @@ class Connection(object):
             self.protocol.pause_write()
 
     def _do_write(self):
-        """
-
-        :return:
-        """
+        """write buffer data to socket"""
         if self._conn_lost:
             return
 
-        code, write_size = self.channel.write(self.write_buffer)
-        if error.is_bad_error(code):
-            self._force_close(code)
+        errcode, write_size = self.channel.write(self.write_buffer)
+
+        if errcode in error.IO_WOULD_BLOCK:
+            return
+
+        if errcode != error.OK:
+            self._force_close(errcode)
             return
 
         del self.write_buffer[:write_size]
@@ -151,13 +148,17 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        code, data = self.channel.read(READ_SIZE)
-        if code == error.EEOF:
+        errcode, data = self.channel.read(READ_SIZE)
+
+        if errcode in error.IO_WOULD_BLOCK:
+            return
+
+        if errcode == error.EEOF:
             self.protocol.eof_received()
             return
 
-        if error.is_bad_error(code):
-            self._force_close(code)
+        if errcode != error.OK:
+            self._force_close(errcode)
             return
 
         if self.closing:  # drop all data

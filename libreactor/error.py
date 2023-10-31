@@ -22,15 +22,6 @@ error_map = {
 IO_WOULD_BLOCK = [EWOULDBLOCK, EAGAIN, ssl.SSL_ERROR_WANT_READ, ssl.SSL_ERROR_WANT_WRITE]
 
 
-def is_bad_error(err_code):
-    """
-
-    :param err_code:
-    :return:
-    """
-    return err_code not in [OK, EWOULDBLOCK, EAGAIN]
-
-
 class Failure(Exception):
 
     def __init__(self, errcode):

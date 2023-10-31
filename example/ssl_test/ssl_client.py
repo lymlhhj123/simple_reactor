@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import libreactor
 from libreactor import log
 from libreactor import get_event_loop
 from libreactor import connect_tcp
@@ -35,12 +34,10 @@ loop = get_event_loop()
 def tcp_client():
     # connect to www.baidu.com:443 by ssl
     try:
-        protocol = yield connect_tcp(loop, "www.baidu.com", 443, MyProtocol, options)
+        yield connect_tcp(loop, "www.baidu.com", 443, MyProtocol, options)
     except Exception as e:
         print(e)
         return
-
-    protocol.start_echo()
 
 
 tcp_client()

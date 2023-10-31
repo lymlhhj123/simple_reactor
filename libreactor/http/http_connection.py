@@ -25,5 +25,7 @@ class HTTPConnection(object):
 
         header_data = yield self.stream.read_until_regex(b"\r\n\r\n")
 
+        self._parse_header_data(header_data)
+
     def _parse_header_data(self, header_data):
         pass
