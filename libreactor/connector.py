@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import ssl
 import socket
 
 from .channel import Channel
@@ -7,6 +8,7 @@ from .connection import Connection
 from . import futures
 from . import sock_helper
 from . import fd_helper
+from . import ssl_helper
 from . import utils
 from . import error
 from . import log
@@ -24,6 +26,9 @@ class Connector(object):
         self.proto_factory = proto_factory
         self.options = options
 
+        self.ssl_options = options.ssl_options
+        self.ssl_handshake = True if self.ssl_options else False
+
         self.sock = None
         self.connect_channel = None
         self.connect_timer = None
@@ -35,12 +40,13 @@ class Connector(object):
 
         :return:
         """
-        sock = self._create_sock()
+        self.sock = self._create_sock()
 
-        self.connect_fut = fut = futures.create_future()
+        self.connect_fut = futures.create_future()
 
-        self._sock_connect(sock)
-        return fut
+        self._do_connect()
+
+        return self.connect_fut
 
     def _create_sock(self):
         """create connect socket"""
@@ -58,13 +64,13 @@ class Connector(object):
 
         return sock
 
-    def _sock_connect(self, sock):
+    def _do_connect(self):
         """
 
         :return:
         """
         try:
-            sock.connect(self.endpoint)
+            self.sock.connect(self.endpoint)
         except socket.error as e:
             code = utils.errno_from_ex(e)
         else:
@@ -73,16 +79,16 @@ class Connector(object):
         if code in [error.EISCONN, error.OK]:
             self._connection_established()
         elif code in [error.EINPROGRESS, error.EALREADY]:
-            self._wait_connection_established(sock)
+            self._wait_connection_established()
         else:
             self._connection_failed(code)
 
-    def _wait_connection_established(self, sock):
+    def _wait_connection_established(self):
         """
 
         :return:
         """
-        channel = Channel(sock.fileno(), self.loop)
+        channel = Channel(self.sock.fileno(), self.loop)
         channel.set_read_callback(self._do_connect)
         channel.set_write_callback(self._do_connect)
         channel.enable_writing()
@@ -91,21 +97,7 @@ class Connector(object):
         if timeout and timeout > 0:
             self.connect_timer = self.loop.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
 
-        self.sock = sock
         self.connect_channel = channel
-
-    def _do_connect(self):
-        """
-
-        :return:
-        """
-        code = sock_helper.get_sock_error(self.sock)
-        if error.is_bad_error(code):
-            self._connection_failed(code)
-            return
-
-        self.connect_channel.disable_writing()
-        self._connection_established()
 
     def _connection_established(self):
         """
@@ -114,9 +106,16 @@ class Connector(object):
         """
         self._cancel_timeout_timer()
 
+        self.connect_channel.disable_writing()
+
         if sock_helper.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
-            self._connection_failed(error.SELF_CONNECTED)
+            self._connection_failed(error.ESELFCONNECTED)
+            return
+
+        if self.ssl_options and self.ssl_handshake:
+            self.ssl_handshake = False
+            self._start_ssl()
             return
 
         self.connect_channel.close()
@@ -133,6 +132,42 @@ class Connector(object):
         fut, self.connect_fut = self.connect_fut, None
         futures.future_set_result(fut, protocol)
 
+    def _start_ssl(self):
+        """wrap socket to ssl, start handshake"""
+        context = ssl_helper.ssl_client_context()
+        self.sock = ssl_helper.ssl_wrap_socket(
+            ssl_context=context,
+            sock=self.sock,
+            server_hostname=self.ssl_options.server_hostname,
+            server_side=False
+        )
+
+        self._do_ssl_handshake()
+
+    def _do_ssl_handshake(self):
+        """if enable ssl, then do handshake after succeed to connect"""
+        self.connect_channel.set_read_callback(self._do_ssl_handshake)
+
+        try:
+            self.sock.do_handshake()
+        except ssl.SSLError as e:
+            errcode = utils.errno_from_ex(e)
+            if errcode in error.IO_WOULD_BLOCK:
+                self.connect_channel.set_read_callback(self._do_ssl_handshake)
+                self.connect_channel.set_write_callback(self._do_ssl_handshake)
+                self.connect_channel.enable_writing()
+                return
+
+            self._connection_failed(error.ESSL)
+        except socket.error as e:
+            errcode = utils.errno_from_ex(e)
+            self._connection_failed(errcode)
+        except Exception as e:
+            errcode = utils.errno_from_ex(e)
+            self._connection_failed(errcode)
+        else:
+            self._connection_established()
+
     def _connection_failed(self, errcode):
         """
         client failed to establish connection
@@ -140,6 +175,7 @@ class Connector(object):
         """
         self._cancel_timeout_timer()
 
+        self.connect_channel.disable_writing()
         self.connect_channel.close()
         self.sock.close()
 

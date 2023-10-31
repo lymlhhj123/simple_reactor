@@ -26,17 +26,18 @@ class Acceptor(object):
     def start(self):
         """
 
+
         :return:
         """
         assert self.loop.is_in_loop_thread()
 
         channel = Channel(self.sock.fileno(), self.loop)
-        channel.set_read_callback(self._accept_new_connection)
+        channel.set_read_callback(self._do_accept)
         channel.enable_reading()
 
         self.channel = channel
 
-    def _accept_new_connection(self):
+    def _do_accept(self):
         """
 
         :return:

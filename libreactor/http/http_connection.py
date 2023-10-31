@@ -7,7 +7,10 @@ class HTTPConnection(object):
 
         self.stream = stream
 
-    def write_header(self, http_header):
+    def put_request(self, method, url):
+        """send request"""
+
+    def write_header(self, key, value):
         """write http header"""
 
     def end_headers(self):

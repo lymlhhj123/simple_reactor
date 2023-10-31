@@ -125,7 +125,7 @@ class EventLoop(object):
         """
         return threading.get_native_id() == self._tid
 
-    def get_addr_info(self, host, port, family=socket.SOCK_STREAM, type_=socket.AF_INET, proto=socket.IPPROTO_TCP):
+    def get_addr_info(self, host, port, family=socket.AF_UNSPEC, type_=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP):
         """async get addr info"""
 
         def _fn():

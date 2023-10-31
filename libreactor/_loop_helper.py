@@ -16,7 +16,7 @@ _running_loop = _RunningLoop()
 
 def get_event_loop():
     """get event loop, only main thread have"""
-    return _get_loop_main_thread()
+    return _get_loop_global()
 
 
 def _get_loop_main_thread():

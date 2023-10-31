@@ -33,7 +33,7 @@ class StreamReceiver(Protocol):
         self._wakeup_read_waiters()
 
     def eof_received(self):
-        """eof received, wakeup all read waiters"""
+        """eof received, wakeup all read waiters and close transport"""
         self._eof_received = True
 
         self._wakeup_read_waiters()
@@ -52,7 +52,7 @@ class StreamReceiver(Protocol):
     def read(self, size):
         """read some data"""
         fut = futures.create_future()
-        if not self._read_waiters and not self._try_read(fut, SIZE_MODE, size):
+        if self._read_waiters or not self._try_read(fut, SIZE_MODE, size):
             self._read_waiters.append((fut, SIZE_MODE, size))
 
         return fut
@@ -60,7 +60,7 @@ class StreamReceiver(Protocol):
     def read_line(self):
         """read one line"""
         fut = futures.create_future()
-        if not self._read_waiters and not self._try_read(fut, LINE_MODE, self.delimiter):
+        if self._read_waiters or not self._try_read(fut, LINE_MODE, self.delimiter):
             self._read_waiters.append((fut, LINE_MODE, self.delimiter))
 
         return fut
@@ -71,7 +71,7 @@ class StreamReceiver(Protocol):
 
         pattern = re.compile(regex_pattern)
         fut = futures.create_future()
-        if not self._read_waiters and not self._try_read(fut, REGEX_MODE, pattern):
+        if self._read_waiters or not self._try_read(fut, REGEX_MODE, pattern):
             self._read_waiters.append((fut, REGEX_MODE, pattern))
 
         return fut
@@ -144,7 +144,7 @@ class StreamReceiver(Protocol):
 
         fut = futures.create_future()
 
-        if not self._write_waiters and not self._try_write(fut, data):
+        if self._write_waiters or not self._try_write(fut, data):
             self._write_waiters.append((fut, data))
 
         return fut

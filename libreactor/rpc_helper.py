@@ -5,6 +5,7 @@ import socket
 from .coroutine import coroutine
 from . import sock_helper
 from . import fd_helper
+from . import error
 from .connector import Connector
 from .acceptor import Acceptor
 from .options import Options
@@ -14,9 +15,25 @@ from . import const
 @coroutine
 def connect_tcp(loop, host, port, proto_factory, options=Options()):
     """create tcp client"""
-    family = sock_helper.get_family_by_ip(host)
-    connector = Connector(loop, family, (host, port), proto_factory, options)
-    protocol = yield connector.connect()
+    addr_list = yield loop.get_addr_info(host, port)
+    if not addr_list:
+        raise error.Failure(error.EDNS)
+
+    protocol = None
+    ex = None
+    for res in addr_list:
+        af, _, _, _, sa = res
+        connector = Connector(loop, af, sa, proto_factory, options)
+        try:
+            protocol = yield connector.connect()
+            break
+        except error.Failure as e:
+            ex = e
+            continue
+
+    if not protocol:
+        raise ex
+
     return protocol
 
 
