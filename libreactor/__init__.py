@@ -5,5 +5,5 @@ from .rpc_helper import *
 from .coroutine import *
 from .options import *
 from .protocol import *
-from .context import *
+from .factory import *
 from .futures import *

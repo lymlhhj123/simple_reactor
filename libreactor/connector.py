@@ -18,15 +18,15 @@ logger = log.get_logger()
 
 class Connector(object):
 
-    def __init__(self, loop, family, endpoint, proto_factory, options):
+    def __init__(self, loop, family, endpoint, proto_factory, factory, options, ssl_options):
 
         self.loop = loop
         self.family = family
         self.endpoint = endpoint
         self.proto_factory = proto_factory
+        self.factory = factory
         self.options = options
-
-        self.ssl_options = options.ssl_options
+        self.ssl_options = ssl_options
         self.need_ssl_handshake = True if self.ssl_options else False
 
         self.sock = None
@@ -110,7 +110,7 @@ class Connector(object):
         # socket connected and start ssl handshake
         if self.ssl_options and self.need_ssl_handshake:
             self.need_ssl_handshake = False
-            self._start_ssl()
+            self._start_tls()
             return
 
         self.connect_channel.close()
@@ -122,12 +122,12 @@ class Connector(object):
         protocol = self.proto_factory()
         conn = Connection(sock, protocol, self.loop)
         remote_addr = sock_helper.get_remote_addr(sock)
-        conn.connection_established(remote_addr)
+        conn.connection_established(remote_addr, self.factory)
 
         fut, self.connect_fut = self.connect_fut, None
         futures.future_set_result(fut, protocol)
 
-    def _start_ssl(self):
+    def _start_tls(self):
         """wrap socket to ssl, start handshake"""
         context = ssl_helper.ssl_client_context()
         self.sock = ssl_helper.ssl_wrap_socket(

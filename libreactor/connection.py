@@ -44,41 +44,47 @@ class Connection(object):
         """
         return self.sock.fileno()
 
-    def connection_established(self, addr):
-        """
-        client side established connection
-        :return:
-        """
-        self.endpoint = addr
+    def set_write_buffer_size(self, high=None, low=None):
+        """set write buffer high and low water"""
 
-        self._make_connection()
+        if high is None:
+            if low is None:
+                high = DEFAULT_HIGH_WATER
+            else:
+                high = 4 * low
+
+        if low is None:
+            low = high // 4
+
+        self.high_water = high
+        self.low_water = low
+
+        self._maybe_pause_protocol_write()
+
+    def connection_established(self, addr, factory):
+        """client side established connection"""
+        self.endpoint = addr
+        self.protocol.make_connection(self.loop, self, factory)
+
+        self._start_feeding()
         self.protocol.connection_established()
 
-    def connection_made(self, addr):
-        """
-        server side accept new connection
-        :return:
-        """
+    def connection_made(self, addr, factory):
+        """server side accept new connection"""
         self.endpoint = addr
+        self.protocol.make_connection(self.loop, self, factory)
 
-        self._make_connection()
+        self._start_feeding()
         self.protocol.connection_made()
 
-    def _make_connection(self):
-        """
-
-        :return:
-        """
+    def _start_feeding(self):
+        """register callback and read event"""
         self.channel.set_read_callback(self._do_read)
         self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
 
-        self.protocol.make_connection(self.loop, self)
-
     def write(self, data: bytes):
         """if buffer is empty, write directly; else append to buffer"""
-        assert self.loop.is_in_loop_thread()
-
         if self._conn_lost or self.closing:
             logger.warn("connection will be closed, can not send data")
             return

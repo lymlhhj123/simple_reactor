@@ -31,6 +31,6 @@ options.close_on_exec = True
 options.tcp_keepalive = True
 
 loop = get_event_loop()
-listen_tcp(loop, 9527, MyProtocol, options)
+listen_tcp(loop, 9527, MyProtocol, options=options)
 
 loop.loop_forever()

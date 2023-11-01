@@ -5,11 +5,13 @@ class BaseProtocol(object):
 
     loop = None
     transport = None
+    factory = None
 
-    def make_connection(self, loop, transport):
+    def make_connection(self, loop, transport, factory):
         """auto called when make new connection"""
         self.loop = loop
         self.transport = transport
+        self.factory = factory
 
     def connection_lost(self, failure):
         """auto called when connection lost
@@ -44,25 +46,13 @@ class Protocol(BaseProtocol):
             return
 
         self.transport.close()
-
-
-class ProcessProtocol(BaseProtocol):
-
-    def data_received(self, fd, data):
-        """auto called when stdout/stdout data received"""
-
-    def connection_lost(self, reason):
-
-        self.process_end(reason)
-
-    def process_end(self, reason):
-        """auto called when child process exit"""
+        self.transport = None
 
 
 class DatagramProtocol(object):
 
-    def dgram_received(self, dgram):
+    def dgram_received(self, dgram, addr):
         """called when data received from socket"""
 
-    def connection_error(self, reason):
+    def connection_error(self, failure):
         """called when error happened in write"""

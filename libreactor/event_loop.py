@@ -11,6 +11,8 @@ from . import utils
 from . import timer
 from .timer_queue import TimerQueue
 from .waker import Waker
+from . import error
+from .coroutine import coroutine
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -35,11 +37,7 @@ class EventLoop(object):
         self.waker.enable_reading()
 
     def time(self):
-        """
-
-        thread safe
-        :return:
-        """
+        """loop time clock"""
         return self._time_func()
 
     def call_soon(self, func, *args, **kwargs):
@@ -118,19 +116,35 @@ class EventLoop(object):
             self.waker.wake()
 
     def is_in_loop_thread(self):
-        """
 
-        thread safe
-        :return:
-        """
         return threading.get_native_id() == self._tid
 
-    def get_addr_info(self, host, port, family=socket.AF_UNSPEC, type_=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP):
+    @coroutine
+    def ensure_resolved(self, host, port, family=socket.AF_UNSPEC):
+        """dns resolved"""
+        if host == "":
+            host = None
+
+        if not socket.has_ipv6 and family == socket.AF_UNSPEC:
+            # python can be compiled with --disable-ipv6
+            family = socket.AF_INET
+
+        addr_list = yield self.get_addr_info(host, port, family=family)
+        if not addr_list:
+            raise error.Failure(error.EDNS)
+
+        return addr_list
+
+    def get_addr_info(self, host, port,
+                      family=socket.AF_UNSPEC,
+                      type_=socket.SOCK_STREAM,
+                      proto=socket.IPPROTO_TCP,
+                      flags=socket.AI_PASSIVE):
         """async get addr info"""
 
         def _fn():
 
-            addr_list = socket.getaddrinfo(host, port, family, type_, proto)
+            addr_list = socket.getaddrinfo(host, port, family, type_, proto, flags)
             return addr_list
 
         return self.run_in_thread(_fn)

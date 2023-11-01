@@ -34,7 +34,7 @@ loop = get_event_loop()
 def tcp_client():
     # connect to www.baidu.com:443 by ssl
     try:
-        yield connect_tcp(loop, "www.baidu.com", 443, MyProtocol, options)
+        yield connect_tcp(loop, "www.baidu.com", 443, MyProtocol, options=options)
     except Exception as e:
         print(e)
         return

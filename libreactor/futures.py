@@ -2,8 +2,6 @@
 
 from concurrent import futures as __futures
 
-from ._loop_helper import get_event_loop
-
 __Future = __futures.Future
 
 
@@ -38,6 +36,7 @@ def with_timeout(fut, timeout):
 
         fut.set_exception(TimeoutError("future timeout"))
 
+    from ._loop_helper import get_event_loop
     loop = get_event_loop()
     handle = loop.call_later(timeout, _fut_timeout)
     future_add_done_callback(fut, lambda _: handle.cancel())
@@ -114,7 +113,7 @@ def future_add_done_callback(fut, callback):
     """add callback to future, auto called when future is done"""
 
     def _fn(f):
-
+        from ._loop_helper import get_event_loop
         loop = get_event_loop()
         loop.call_soon(callback, f)
 
