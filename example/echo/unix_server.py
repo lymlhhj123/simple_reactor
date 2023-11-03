@@ -24,7 +24,6 @@ class MyProtocol(StreamReceiver):
 
 
 loop = get_event_loop()
-
-loop.listen_tcp(9527, MyProtocol)
+loop.listen_unix("/var/run/my_unix.sock", MyProtocol)
 
 loop.loop_forever()

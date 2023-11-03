@@ -44,9 +44,7 @@ class Acceptor(object):
         return context
 
     def start(self):
-        """start tcp server"""
-        assert self.loop.is_in_loop_thread()
-
+        """start stream msg server"""
         for sock in self.socks:
             channel = Channel(sock.fileno(), self.loop)
 
@@ -85,10 +83,7 @@ class Acceptor(object):
         self._placeholder = open("/dev/null")
 
     def _do_accept_error(self, accept_sock, errcode):
-        """
-
-        :return:
-        """
+        """error happened when do accept"""
         assert errcode != 0
 
         self.socks.remove(accept_sock)
@@ -103,15 +98,16 @@ class Acceptor(object):
 
     def _on_new_connection(self, sock, addr):
         """server accept new connection"""
-        logger.info(f"new connection from {addr}, fd: {sock.fileno()}")
+        logger.info(f"accept connection: {addr}, fd: {sock.fileno()}")
 
         sock_helper.set_sock_async(sock)
 
-        if self.options.tcp_no_delay:
-            sock_helper.set_tcp_no_delay(sock)
+        if sock_helper.is_tcp_sock(sock):
+            if self.options.tcp_no_delay:
+                sock_helper.set_tcp_no_delay(sock)
 
-        if self.options.tcp_keepalive:
-            sock_helper.set_tcp_keepalive(sock)
+            if self.options.tcp_keepalive:
+                sock_helper.set_tcp_keepalive(sock)
 
         fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 

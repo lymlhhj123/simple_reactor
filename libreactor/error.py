@@ -10,6 +10,7 @@ ECONNCLOSED = 1025
 EEOF = 1026
 ESSL = 1027
 EDNS = 1028
+EBADBUF = 1029
 
 error_map = {
     ESELFCONNECTED: "connection self connect",
@@ -17,6 +18,7 @@ error_map = {
     EEOF: "eof received",
     ESSL: "ssl verify failed",
     EDNS: "dns resolved failed",
+    EBADBUF: "invalid buffer limits",
 }
 
 IO_WOULD_BLOCK = [EWOULDBLOCK, EAGAIN, ssl.SSL_ERROR_WANT_READ, ssl.SSL_ERROR_WANT_WRITE]

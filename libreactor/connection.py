@@ -1,8 +1,10 @@
 # coding: utf-8
 
 from .channel import Channel
+from .transport import Transport
 from . import error
 from . import log
+from . import utils
 
 logger = log.get_logger()
 
@@ -11,7 +13,7 @@ DEFAULT_HIGH_WATER = 64 * 1024  # 64KB
 DEFAULT_LOW_WATER = DEFAULT_HIGH_WATER // 4
 
 
-class Connection(object):
+class Connection(Transport):
 
     def __init__(self, sock, protocol, loop):
         """
@@ -38,15 +40,11 @@ class Connection(object):
         self.closing = False
 
     def fileno(self):
-        """
-
-        :return:
-        """
+        """return fd"""
         return self.sock.fileno()
 
-    def set_write_buffer_size(self, high=None, low=None):
+    def set_write_buffer_limits(self, high=None, low=None):
         """set write buffer high and low water"""
-
         if high is None:
             if low is None:
                 high = DEFAULT_HIGH_WATER
@@ -55,6 +53,9 @@ class Connection(object):
 
         if low is None:
             low = high // 4
+
+        if high < low:
+            raise error.Failure(error.EBADBUF)
 
         self.high_water = high
         self.low_water = low
@@ -93,20 +94,19 @@ class Connection(object):
             logger.error(f"only accept bytes, not {type(data)}")
             return
 
-        # try to write directly
         if not self.write_buffer:
-            errcode, write_size = self.channel.write(data)
+            errcode, writes_size = self.write_to_fd(data)
             if errcode != error.OK and errcode not in error.IO_WOULD_BLOCK:
                 self._force_close(errcode)
                 return
 
-            data = data[write_size:]
-            if not data:
-                return
+            data = data[writes_size:]
 
-            self.channel.enable_writing()
+        if not data:
+            return
 
         self.write_buffer.extend(data)
+        self.channel.enable_writing()
 
         self._maybe_pause_protocol_write()
 
@@ -121,16 +121,12 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        errcode, write_size = self.channel.write(self.write_buffer)
-
-        if errcode in error.IO_WOULD_BLOCK:
-            return
-
-        if errcode != error.OK:
+        errcode, write_size = self.write_to_fd(self.write_buffer)
+        if errcode != error.OK and errcode not in error.IO_WOULD_BLOCK:
             self._force_close(errcode)
             return
 
-        del self.write_buffer[:write_size]
+        self.write_buffer = self.write_buffer[write_size:]
 
         if not self.write_buffer:
             self.channel.disable_writing()
@@ -146,6 +142,21 @@ class Connection(object):
             self._protocol_paused = False
             self.protocol.resume_write()
 
+    def write_to_fd(self, data):
+        """write data to socket"""
+        try:
+            write_size = self.sock.send(data)
+        except IOError as e:
+            write_size = 0
+            errcode = utils.errno_from_ex(e)
+        else:
+            if write_size == 0:
+                errcode = error.ECONNCLOSED
+            else:
+                errcode = error.OK
+
+        return errcode, write_size
+
     def _do_read(self):
         """
 
@@ -154,7 +165,7 @@ class Connection(object):
         if self._conn_lost:
             return
 
-        errcode, data = self.channel.read(READ_SIZE)
+        errcode, data = self.read_from_fd()
 
         if errcode in error.IO_WOULD_BLOCK:
             return
@@ -172,12 +183,23 @@ class Connection(object):
 
         self.protocol.data_received(data)
 
-    def abort(self):
-        """force to close connection
+    def read_from_fd(self):
+        """read data from socket"""
+        try:
+            data = self.sock.recv(READ_SIZE)
+        except IOError as e:
+            data = b""
+            errcode = utils.errno_from_ex(e)
+        else:
+            if not data:
+                errcode = error.EEOF
+            else:
+                errcode = error.OK
 
-        :return:
-        """
-        assert self.loop.is_in_loop_thread()
+        return errcode, data
+
+    def abort(self):
+        """force to close connection"""
         self._force_close(error.ECONNABORTED)
 
     def _force_close(self, errcode):

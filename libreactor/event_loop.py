@@ -1,7 +1,7 @@
 # coding: utf-8
 
+import os
 import socket
-import errno
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -11,8 +11,15 @@ from . import utils
 from . import timer
 from .timer_queue import TimerQueue
 from .waker import Waker
-from . import error
 from .coroutine import coroutine
+from . import sock_helper
+from . import fd_helper
+from . import error
+from .connector import Connector
+from .acceptor import Acceptor
+from .options import Options
+from .factory import Factory
+from . import futures
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -120,7 +127,7 @@ class EventLoop(object):
         return threading.get_native_id() == self._tid
 
     @coroutine
-    def ensure_resolved(self, host, port, family=socket.AF_UNSPEC):
+    def ensure_resolved(self, host, port, *, family=socket.AF_UNSPEC, type_=socket.SOCK_STREAM):
         """dns resolved"""
         if host == "":
             host = None
@@ -129,13 +136,11 @@ class EventLoop(object):
             # python can be compiled with --disable-ipv6
             family = socket.AF_INET
 
-        addr_list = yield self.get_addr_info(host, port, family=family)
-        if not addr_list:
-            raise error.Failure(error.EDNS)
+        addr_list = yield self.get_addr_info(host, port, family=family, type_=type_)
 
         return addr_list
 
-    def get_addr_info(self, host, port,
+    def get_addr_info(self, host, port, *,
                       family=socket.AF_UNSPEC,
                       type_=socket.SOCK_STREAM,
                       proto=socket.IPPROTO_TCP,
@@ -208,8 +213,8 @@ class EventLoop(object):
             try:
                 events = self._poller.poll(timeout)
             except Exception as e:
-                err_code = utils.errno_from_ex(e)
-                if err_code != errno.EINTR:
+                errcode = utils.errno_from_ex(e)
+                if errcode != error.EINTR:
                     break
 
                 events = []
@@ -275,3 +280,131 @@ class EventLoop(object):
 
         for handle in timer_list:
             handle.run()
+
+    @coroutine
+    def connect_tcp(self, host, port, proto_factory, *, factory=Factory(), options=Options(), ssl_options=None):
+        """create tcp client"""
+        addr_list = yield self.ensure_resolved(host, port)
+        if not addr_list:
+            raise error.Failure(error.EDNS)
+
+        protocol = None
+        ex = None
+        for res in addr_list:
+            family, sock_type, proto, _, sa = res
+
+            sock = socket.socket(family, sock_type, proto)
+
+            sock_helper.set_sock_async(sock)
+
+            if options.tcp_no_delay:
+                sock_helper.set_tcp_no_delay(sock)
+
+            if options.tcp_keepalive:
+                sock_helper.set_tcp_keepalive(sock)
+
+            fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+            waiter = futures.create_future()
+
+            connector = Connector(self, sock, sa, proto_factory, waiter, factory, options, ssl_options)
+            connector.connect()
+            try:
+                protocol = yield waiter
+                break
+            except error.Failure as e:
+                ex = e
+                continue
+
+        if not protocol:
+            raise ex
+
+        return protocol
+
+    @coroutine
+    def listen_tcp(self, port, proto_factory, *, host=None, factory=Factory(), options=Options(), ssl_options=None):
+        """create tcp server"""
+        addr_list = yield self.ensure_resolved(host, port)
+        if not addr_list:
+            raise error.Failure(error.EDNS)
+
+        socks = []
+        for res in addr_list:
+            af, sock_type, proto, _, sa = res
+
+            sock = socket.socket(af, sock_type, proto)
+
+            if af == socket.AF_INET6:
+                # ipv6 socket only accept ipv6 address
+                sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+
+            sock_helper.set_sock_async(sock)
+
+            if options.reuse_addr:
+                sock_helper.set_reuse_addr(sock)
+
+            fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+            sock.bind(sa)
+            sock.listen(options.backlog)
+            socks.append(sock)
+
+        acceptor = Acceptor(self, socks, proto_factory, factory, options, ssl_options)
+        acceptor.start()
+        return acceptor
+
+    @coroutine
+    def connect_unix(self, sock_path, proto_factory, *, factory=Factory(), options=Options()):
+        """create unix domain client"""
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+        sock_helper.set_sock_async(sock)
+        fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+        waiter = futures.create_future()
+
+        connector = Connector(self, sock, sock_path, proto_factory, waiter, factory, options, None)
+        connector.connect()
+
+        protocol = yield waiter
+        return protocol
+
+    @coroutine
+    def listen_unix(self, sock_path, proto_factory, *, mode=0o755, factory=Factory(), options=Options()):
+        """create unix domain server"""
+
+        lock_file = sock_path + ".lock"
+
+        lock_fd = open(lock_file, "w")
+
+        if not fd_helper.lock_file(lock_fd, blocking=False):
+            raise IOError(f"Failed to lock file: {lock_file}")
+
+        fd_helper.remove_file(sock_path)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+        sock_helper.set_sock_async(sock)
+
+        fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+        if options.reuse_addr:
+            sock_helper.set_reuse_addr(sock)
+
+        sock.bind(sock_path)
+        os.chmod(sock_path, mode)
+        sock.listen(options.backlog)
+
+        acceptor = Acceptor(self, [sock], proto_factory, factory, options, None)
+        acceptor.start()
+        return acceptor
+
+    @coroutine
+    def connect_udp(self):
+        """create udp client"""
+
+    @coroutine
+    def listen_udp(self, port, proto_factory, *, host=None, factory=Factory()):
+        """create udp server"""
+        addr_list = yield self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)

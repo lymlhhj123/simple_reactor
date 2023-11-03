@@ -6,10 +6,10 @@ class Options(object):
     def __init__(self):
 
         self.connect_timeout = 10
-        self.tcp_no_delay = False
-        self.tcp_keepalive = False
+        self.tcp_no_delay = True
+        self.tcp_keepalive = True
         self.reuse_addr = True
-        self.close_on_exec = False
+        self.close_on_exec = True
         self.backlog = 128
 
 

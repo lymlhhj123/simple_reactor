@@ -56,7 +56,7 @@ def close_on_exec(fd, flag=True):
     fcntl.fcntl(fd, fcntl.F_SETFD, flag_new)
 
 
-def lock_file(fd, blocking=True):
+def lock_file(fd, *, blocking=True):
     """
 
     :param fd:
@@ -91,5 +91,13 @@ def close_fd(fd):
     """
     try:
         os.close(fd)
+    except (IOError, OSError):
+        pass
+
+
+def remove_file(file_path):
+    """remove file if exist"""
+    try:
+        os.remove(file_path)
     except (IOError, OSError):
         pass

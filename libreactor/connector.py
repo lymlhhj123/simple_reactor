@@ -7,7 +7,6 @@ from .channel import Channel
 from .connection import Connection
 from . import futures
 from . import sock_helper
-from . import fd_helper
 from . import ssl_helper
 from . import utils
 from . import error
@@ -18,51 +17,30 @@ logger = log.get_logger()
 
 class Connector(object):
 
-    def __init__(self, loop, family, endpoint, proto_factory, factory, options, ssl_options):
+    def __init__(self, loop, sock, endpoint, proto_factory, waiter, factory, options, ssl_options):
 
         self.loop = loop
-        self.family = family
+        self.sock = sock
         self.endpoint = endpoint
         self.proto_factory = proto_factory
         self.factory = factory
         self.options = options
-        self.ssl_options = ssl_options
-        self.need_ssl_handshake = True if self.ssl_options else False
 
-        self.sock = None
-        self.connect_channel = None
+        self.waiter = waiter
+
+        self._ssl_handshaking = True if ssl_options else False
+        self.ssl_options = ssl_options
+
         self.connect_timer = None
 
-        self.connect_fut = None
+        self.connect_channel = Channel(self.sock.fileno(), self.loop)
 
     def connect(self):
         """
 
         :return:
         """
-        self.sock = self._create_sock()
-
-        self.connect_fut = futures.create_future()
-
         self._do_connect()
-
-        return self.connect_fut
-
-    def _create_sock(self):
-        """create connect socket"""
-        sock = socket.socket(self.family, socket.SOCK_STREAM)
-
-        sock_helper.set_sock_async(sock)
-
-        if self.options.tcp_no_delay:
-            sock_helper.set_tcp_no_delay(sock)
-
-        if self.options.tcp_keepalive:
-            sock_helper.set_tcp_keepalive(sock)
-
-        fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
-
-        return sock
 
     def _do_connect(self):
         """
@@ -85,22 +63,17 @@ class Connector(object):
 
     def _wait_connection_established(self):
         """wait socket connected or failed"""
-        channel = Channel(self.sock.fileno(), self.loop)
-        channel.set_read_callback(self._do_connect)
-        channel.set_write_callback(self._do_connect)
-        channel.enable_writing()
+        self.connect_channel.set_read_callback(self._do_connect)
+        self.connect_channel.set_write_callback(self._do_connect)
+        self.connect_channel.enable_writing()
 
         timeout = self.options.connect_timeout
         if timeout and timeout > 0:
             self.connect_timer = self.loop.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
 
-        self.connect_channel = channel
-
     def _connection_established(self):
         """client side established connection"""
         self._cancel_timeout_timer()
-
-        self.connect_channel.disable_writing()
 
         if sock_helper.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
@@ -108,11 +81,12 @@ class Connector(object):
             return
 
         # socket connected and start ssl handshake
-        if self.ssl_options and self.need_ssl_handshake:
-            self.need_ssl_handshake = False
+        if self.ssl_options and self._ssl_handshaking:
+            self._ssl_handshaking = False
             self._start_tls()
             return
 
+        self.connect_channel.disable_writing()
         self.connect_channel.close()
         self.connect_channel = None
         logger.info(f"connection established to {self.endpoint}, fd: {self.sock.fileno()}")
@@ -121,10 +95,9 @@ class Connector(object):
 
         protocol = self.proto_factory()
         conn = Connection(sock, protocol, self.loop)
-        remote_addr = sock_helper.get_remote_addr(sock)
-        conn.connection_established(remote_addr, self.factory)
+        conn.connection_established(self.endpoint, self.factory)
 
-        fut, self.connect_fut = self.connect_fut, None
+        fut, self.waiter = self.waiter, None
         futures.future_set_result(fut, protocol)
 
     def _start_tls(self):
@@ -174,7 +147,7 @@ class Connector(object):
         self.sock = None
         self.connect_channel = None
 
-        fut, self.connect_fut = self.connect_fut, None
+        fut, self.waiter = self.waiter, None
         futures.future_set_exception(fut, error.Failure(errcode))
 
     def _cancel_timeout_timer(self):

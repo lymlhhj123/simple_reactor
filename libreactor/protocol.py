@@ -14,10 +14,15 @@ class BaseProtocol(object):
         self.factory = factory
 
     def connection_lost(self, failure):
-        """auto called when connection lost
+        """auto called when connection lost"""
 
-        :return:
-        """
+    def close(self):
+        """close transport"""
+        if not self.transport or self.transport.closed():
+            return
+
+        self.transport.close()
+        self.transport = None
 
 
 class Protocol(BaseProtocol):
@@ -40,18 +45,10 @@ class Protocol(BaseProtocol):
     def resume_write(self):
         """called when transport write buffer <= low water"""
 
-    def close(self):
-        """close transport"""
-        if not self.transport or self.transport.closed():
-            return
 
-        self.transport.close()
-        self.transport = None
+class DatagramProtocol(BaseProtocol):
 
-
-class DatagramProtocol(object):
-
-    def dgram_received(self, dgram, addr):
+    def datagram_received(self, datagram, addr):
         """called when data received from socket"""
 
     def connection_error(self, failure):

@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import libreactor
 from libreactor import log
 from libreactor import get_event_loop
 from libreactor import coroutine
@@ -11,6 +10,12 @@ log.logger_init(logger)
 
 
 class MyProtocol(StreamReceiver):
+    
+    def __init__(self):
+        
+        super().__init__()
+
+        self.io_count = 0
 
     @coroutine
     def start_echo(self):
@@ -18,23 +23,31 @@ class MyProtocol(StreamReceiver):
 
         :return:
         """
+        self.loop.call_later(60, self.perf_count)
+
         while True:
             yield self.write_line("hello, world")
-            line = yield self.read_line()
-            print(line)
+            yield self.read_line()
 
-            yield libreactor.sleep(1)
+            self.io_count += 1
+
+    def perf_count(self):
+
+        logger.info(f"ops: {self.io_count // 60}")
+        self.io_count = 0
+        self.loop.call_later(60, self.perf_count)
 
 
 loop = get_event_loop()
 
 
 @coroutine
-def tcp_client():
-    protocol = yield loop.connect_tcp("127.0.0.1", 9527, MyProtocol)
+def unix_client():
+
+    protocol = yield loop.connect_unix("/var/run/my_unix.sock", MyProtocol)
     protocol.start_echo()
 
 
-tcp_client()
+unix_client()
 
 loop.loop_forever()

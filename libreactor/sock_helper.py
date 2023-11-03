@@ -80,16 +80,11 @@ def is_self_connect(sock: socket.socket):
     return sock.getsockname() == sock.getpeername()
 
 
-def get_family_by_ip(ip_addr):
-    """
+def is_tcp_sock(sock: socket.socket):
 
-    :param ip_addr:
-    :return:
-    """
-    address = ipaddress.ip_address(ip_addr)
-    if address.version == 4:
-        family = socket.AF_INET
-    else:
-        family = socket.AF_INET6
+    return sock.family in [socket.AF_INET, socket.AF_INET6] and sock.type == socket.SOCK_STREAM
 
-    return family
+
+def is_unix_sock(sock: socket):
+
+    return sock.family == socket.AF_UNIX
