@@ -20,6 +20,7 @@ from .acceptor import Acceptor
 from .options import Options
 from .factory import Factory
 from . import futures
+from .process import Process
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
@@ -127,7 +128,10 @@ class EventLoop(object):
         return threading.get_native_id() == self._tid
 
     @coroutine
-    def ensure_resolved(self, host, port, *, family=socket.AF_UNSPEC, type_=socket.SOCK_STREAM):
+    def ensure_resolved(self, host, port, *,
+                        family=socket.AF_UNSPEC,
+                        type_=socket.SOCK_STREAM,
+                        flags=socket.AI_PASSIVE):
         """dns resolved"""
         if host == "":
             host = None
@@ -136,7 +140,7 @@ class EventLoop(object):
             # python can be compiled with --disable-ipv6
             family = socket.AF_INET
 
-        addr_list = yield self.get_addr_info(host, port, family=family, type_=type_)
+        addr_list = yield self.get_addr_info(host, port, family=family, type_=type_, flags=flags)
 
         return addr_list
 
@@ -379,7 +383,7 @@ class EventLoop(object):
         lock_fd = open(lock_file, "w")
 
         if not fd_helper.lock_file(lock_fd, blocking=False):
-            raise IOError(f"Failed to lock file: {lock_file}")
+            raise IOError(f"Failed to lock file: {lock_file}, maybe service already running")
 
         fd_helper.remove_file(sock_path)
 
@@ -408,3 +412,14 @@ class EventLoop(object):
     def listen_udp(self, port, proto_factory, *, host=None, factory=Factory()):
         """create udp server"""
         addr_list = yield self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)
+
+    @coroutine
+    def subprocess_exec(self, args, **kwargs):
+        """create subprocess to exec shell command"""
+        waiter = futures.create_future()
+
+        Process(self, args, waiter, **kwargs)
+
+        transport = yield waiter
+
+        return transport

@@ -120,7 +120,7 @@ class Channel(object):
         if ev_mask & io_event.EV_WRITE:
             self._on_write()
 
-        if self.is_closed():
+        if self.closed():
             return
 
         if ev_mask & io_event.EV_READ:
@@ -196,7 +196,7 @@ class Channel(object):
         self.write_callback = None
         self._event_loop = None
 
-    def is_closed(self):
+    def closed(self):
         """
 
         :return:

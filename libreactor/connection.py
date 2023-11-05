@@ -65,17 +65,17 @@ class Connection(Transport):
     def connection_established(self, addr, factory):
         """client side established connection"""
         self.endpoint = addr
-        self.protocol.make_connection(self.loop, self, factory)
-
         self._start_feeding()
+
+        self.protocol.make_connection(self.loop, self, factory)
         self.protocol.connection_established()
 
     def connection_made(self, addr, factory):
         """server side accept new connection"""
         self.endpoint = addr
-        self.protocol.make_connection(self.loop, self, factory)
-
         self._start_feeding()
+
+        self.protocol.make_connection(self.loop, self, factory)
         self.protocol.connection_made()
 
     def _start_feeding(self):

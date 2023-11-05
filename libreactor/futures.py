@@ -81,14 +81,12 @@ def multi_future(fs):
             try:
                 result = future_get_result(f)
             except Exception as e:
-                if not future_is_done(final_future):
-                    future_set_exception(final_future, e)
-                    break
+                future_set_exception(final_future, e)
+                break
             else:
                 result_list.append(result)
 
-        if not final_future.done():
-            future_set_result(final_future, result_list)
+        future_set_result(final_future, result_list)
 
     children = set()
     for child in fs:
@@ -112,8 +110,9 @@ def future_is_done(fut):
 def future_add_done_callback(fut, callback):
     """add callback to future, auto called when future is done"""
 
+    from ._loop_helper import get_event_loop
+
     def _fn(f):
-        from ._loop_helper import get_event_loop
         loop = get_event_loop()
         loop.call_soon(callback, f)
 

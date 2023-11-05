@@ -68,8 +68,8 @@ class Acceptor(object):
                 elif errcode in [error.ENFILE, error.ENOMEM, error.ECONNABORTED]:
                     break
                 else:
-                    self._do_accept_error(accept_sock, errcode)
                     logger.error("unknown error happened on do accept: %s", e)
+                    self._do_accept_error(accept_sock, errcode)
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -94,8 +94,6 @@ class Acceptor(object):
         channel.close()
         accept_sock.close()
 
-        # self.loop.call_soon(self.start)
-
     def _on_new_connection(self, sock, addr):
         """server accept new connection"""
         logger.info(f"accept connection: {addr}, fd: {sock.fileno()}")
@@ -112,8 +110,13 @@ class Acceptor(object):
         fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
 
         if self._ssl_context:
-            ssl_helper.ssl_wrap_socket(self._ssl_context, sock, server_side=True)
+            try:
+                ssl_helper.ssl_wrap_socket(self._ssl_context, sock, server_side=True)
+            except Exception as e:
+                logger.exception(f"failed to warp ssl socket, {e}")
+                return
 
         protocol = self.proto_factory()
         conn = Connection(sock, protocol, self.loop)
+
         self.loop.call_soon(conn.connection_made, addr, self.factory)

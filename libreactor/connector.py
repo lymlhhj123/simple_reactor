@@ -114,8 +114,6 @@ class Connector(object):
 
     def _do_ssl_handshake(self):
         """if enable ssl, then do handshake after succeed to connect"""
-        self.connect_channel.set_read_callback(self._do_ssl_handshake)
-
         try:
             self.sock.do_handshake()
         except ssl.SSLError as e:

@@ -1,35 +1,37 @@
 # coding: utf-8
 
 import os
-import shlex
-import sys
-import signal
-import traceback
+import subprocess
+from functools import partial
+from collections import deque
 
 from .channel import Channel
+from .coroutine import coroutine
+from . import futures
 from . import fd_helper
-from . import utils
 from . import error
+from . import log
+
+logger = log.get_logger()
 
 
 class Process(object):
 
-    def __init__(self, cmd, loop, process_protocol, shell=False, cwd=None, timeout=60):
-        """run cmd in subprocess"""
+    def __init__(self, loop, args, waiter, **kwargs):
 
-        self.cmd = cmd
         self.loop = loop
-        self.shell = shell
-        self.protocol = process_protocol
-        self.cwd = cwd
-        self.timeout = timeout
+        self.args = args
+        self.waiter = waiter
+        self.kwargs = kwargs
 
-        self.child_pid = None
-        self.stdin_channel = None
-        self.stdout_channel = None
-        self.stderr_channel = None
-        self._channel_closed = 0
-        self.timeout_timer = None
+        self.child_proc = None
+        self.channel_map = {}
+        self.channel_closed = 0
+
+        self.return_code = None
+        self.stdout = b""
+        self.stderr = b""
+        self.end_waiters = deque()
 
         self.loop.call_soon(self._run)
 
@@ -42,169 +44,172 @@ class Process(object):
         stdout_read, stdout_write = fd_helper.make_async_pipe()
         stderr_read, stderr_write = fd_helper.make_async_pipe()
 
-        pid = os.fork()
-        if pid == 0:
-            try:
-                self._execute_child(stdin_read, stdin_write, stdout_read,
-                                    stdout_write, stderr_read, stderr_write)
-            except (ValueError, Exception):
-                stderr = traceback.format_exc()
-                os.write(2, stderr.encode("utf-8"))
-
-            sys.exit(-1)
-
-        self.child_pid = pid
-
-        fd_helper.close_fd(stdin_read)
-        fd_helper.close_fd(stdout_write)
-        fd_helper.close_fd(stderr_write)
-
-        self.stdin_channel = Channel(stdin_write, self.loop)
-        self.stdout_channel = Channel(stdout_read, self.loop)
-        self.stderr_channel = Channel(stderr_read, self.loop)
-
-        self.stdout_channel.set_read_callback(self._on_stdout_read)
-        self.stderr_channel.set_read_callback(self._on_stderr_read)
-
-        self.stdout_channel.enable_reading()
-        self.stderr_channel.enable_reading()
-
-        self.timeout_timer = self.loop.call_later(self.timeout, self._on_timeout)
-
-    def _execute_child(self, stdin_read, stdin_write, stdout_read,
-                       stdout_write, stderr_read, stderr_write):
-        """
-
-        :return:
-        """
-        fd_helper.close_fd(stdin_write)
-        fd_helper.close_fd(stdout_read)
-        fd_helper.close_fd(stderr_read)
-
-        in_dup = os.dup(stdin_read)
-        out_dup = os.dup(stdout_write)
-        err_dup = os.dup(stderr_write)
-
-        # make sure 0 1 2 is our expected
-        os.dup2(in_dup, 0)
-        os.dup2(out_dup, 1)
-        os.dup2(err_dup, 2)
+        wait_close = [stdin_read, stdout_write, stderr_write]
+        pipes = [stdin_write, stdout_read, stderr_read]
 
         try:
-            max_fd = os.sysconf("SC_OPEN_MAX")
-        except (ValueError, Exception):
-            max_fd = 4096
-
-        # close all fd
-        os.closerange(3, max_fd)
-
-        if self.cwd:
-            os.chdir(self.cwd)
-
-        cmd = self._construct_cmd()
-
-        if os.environ:
-            os.execvpe(cmd[0], cmd, os.environ)
-        else:
-            os.execvp(cmd[0], cmd)
-
-    def _construct_cmd(self):
-        """
-
-        :return:
-        """
-        cmd = self.cmd
-        if self.shell is True:
-            cmd = ["/bin/sh", "-c"] + [cmd]
-        else:
-            cmd = shlex.split(cmd)
-
-        return cmd
-
-    def _on_timeout(self):
-        """
-
-        :return:
-        """
-        try:
-            self.kill()
+            self.child_proc = self._execute_child(stdin_read, stdout_write, stderr_write)
         except Exception as e:
-            utils.errno_from_ex(e)
+            for fd in pipes:
+                fd_helper.close_fd(fd)
 
-        self.timeout_timer = None
+            self.return_code = -1
+            waiter, self.waiter = self.waiter, None
+            futures.future_set_exception(waiter, e)
+        else:
+            channel = Channel(stdin_write, self.loop)
+            channel.set_read_callback(partial(self._on_read, 0))
+            channel.enable_reading()
+            self.channel_map[0] = channel
 
-    def _on_stdout_read(self):
-        """
+            channel = Channel(stdout_read, self.loop)
+            channel.set_read_callback(partial(self._on_read, 1))
+            channel.enable_reading()
+            self.channel_map[1] = channel
 
-        :return:
-        """
-        code, data = self.stdout_channel.read(8192)
-        self.protocol.data_received(1, data)
+            channel = Channel(stderr_read, self.loop)
+            channel.set_read_callback(partial(self._on_read, 2))
+            channel.enable_reading()
+            self.channel_map[2] = channel
 
-        if error.is_bad_error(code):
-            stdout_channel, self.stdout_channel = self.stdout_channel, None
-            self._close_channel(stdout_channel)
+            waiter, self.waiter = self.waiter, None
+            futures.future_set_result(waiter, self)
+        finally:
+            for fd in wait_close:
+                fd_helper.close_fd(fd)
 
-    def _on_stderr_read(self):
-        """
+    def _execute_child(self, in_pipe, out_pipe, err_pipe):
+        """create child process"""
+        return subprocess.Popen(
+            self.args,
+            stdin=in_pipe,
+            stdout=out_pipe,
+            stderr=err_pipe,
+            **self.kwargs
+        )
 
-        :return:
-        """
-        code, data = self.stderr_channel.read(8192)
-        self.protocol.data_received(2, data)
+    def _on_read(self, fd):
+        """called when channel received POLLIN event"""
+        if fd == 0:
+            channel = self.channel_map.pop(fd)
+            channel.disable_all()
+            self._close_channel(channel)
+        else:  # fd == 1 or 2
+            channel = self.channel_map[fd]
+            errcode, data = channel.read(8192)
 
-        if error.is_bad_error(code):
-            stderr_channel, self.stderr_channel = self.stderr_channel, None
-            self._close_channel(stderr_channel)
+            if errcode in error.IO_WOULD_BLOCK:
+                return
+
+            if errcode != error.OK:
+                channel.disable_all()
+                self.channel_map.pop(fd)
+                self._close_channel(channel)
+                return
+
+            if fd == 1:
+                self.stdout += data
+            else:
+                self.stderr += data
 
     def _close_channel(self, channel):
         """close stdin/stdout/stderr channel"""
-        if channel.is_closed():
+        if channel.closed():
             return
 
         fd = channel.fileno()
         channel.close()
         fd_helper.close_fd(fd)
 
-        self._channel_closed += 1
+        self.channel_closed += 1
 
-        if self._channel_closed == 3:
-            self._process_exited()
+        self._maybe_finished()
+
+    def _maybe_finished(self):
+
+        if self.channel_closed != 3:
+            return
+
+        self.loop.call_soon(self._process_exited)
 
     def _process_exited(self):
         """
 
         :return:
         """
+        pid = self.child_proc.pid
         try:
-            pid, status = os.waitpid(self.child_pid, os.WNOHANG)
+            return_pid, status = os.waitpid(pid, os.WNOHANG)
         except ChildProcessError:
-            pid, status = None, -1
+            logger.error(f"No such process: {pid}")
+            return_pid = pid
+            status = 0
 
-        if pid:
-            reason = error.Reason(status)
-            self.protocol.connection_lost(reason)
-        elif pid == 0:
-            # what happened ??? try kill
-            self.kill()
+        if return_pid == 0:
+            return
+
+        assert return_pid == pid
+        self.child_proc = None
+
+        if os.WIFSIGNALED(status):
+            self.return_code = -os.WTERMSIG(status)
         else:
-            reason = error.Reason(error.ESRCH)
-            self.protocol.connection_lost(reason)
+            assert os.WIFEXITED(status)
+            self.return_code = os.WEXITSTATUS(status)
+
+        self._wakeup_waiters()
+
+    def _wakeup_waiters(self):
+        """wakeup all waiters"""
+        while self.end_waiters:
+            fut = self.end_waiters.popleft()
+            futures.future_set_result(fut, None)
+
+    @coroutine
+    def communicate(self):
+        """wait subprocess end and return (stdout, stderr) tuple"""
+        if self.return_code is not None:
+            return self.stdout, self.stderr
+
+        yield self.wait()
+
+        return self.stdout, self.stderr
+
+    @coroutine
+    def wait(self):
+        """wait subprocess end return exit code"""
+        if self.return_code is not None:
+            return self.return_code
+
+        waiter = futures.create_future()
+        self.end_waiters.append(waiter)
+        yield waiter
+
+        return self.return_code
 
     def kill(self):
         """kill child process"""
-        self.send_signal(signal.SIGKILL)
+        if not self._check_proc():
+            return
+
+        self.child_proc.kill()
 
     def terminate(self):
         """stop child process"""
-        self.send_signal(signal.SIGTERM)
+        if not self._check_proc():
+            return
+
+        self.child_proc.terminate()
 
     def send_signal(self, sig):
         """send signal to child process"""
-        if not self.child_pid:
+        if not self._check_proc():
             return
 
-        try:
-            os.kill(self.child_pid, sig)
-        except (OSError, Exception):
-            pass
+        self.child_proc.send_signal(sig)
+
+    def _check_proc(self):
+        """return True if subprocess exist"""
+        if not self.child_proc:
+            return False
+        return True
