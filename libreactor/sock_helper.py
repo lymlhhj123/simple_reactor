@@ -88,3 +88,11 @@ def is_tcp_sock(sock: socket.socket):
 def is_unix_sock(sock: socket):
 
     return sock.family == socket.AF_UNIX
+
+
+def close_sock(sock):
+    """close socket"""
+    try:
+        sock.close()
+    except (socket.error, Exception):
+        pass

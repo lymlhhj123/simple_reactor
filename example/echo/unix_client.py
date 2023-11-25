@@ -2,7 +2,6 @@
 
 from libreactor import log
 from libreactor import get_event_loop
-from libreactor import coroutine
 from libreactor.protocols import StreamReceiver
 
 logger = log.get_logger()
@@ -17,8 +16,7 @@ class MyProtocol(StreamReceiver):
 
         self.io_count = 0
 
-    @coroutine
-    def start_echo(self):
+    async def start_echo(self):
         """
 
         :return:
@@ -26,8 +24,8 @@ class MyProtocol(StreamReceiver):
         self.loop.call_later(60, self.perf_count)
 
         while True:
-            yield self.write_line("hello, world")
-            yield self.read_line()
+            await self.write_line("hello, world")
+            await self.read_line()
 
             self.io_count += 1
 
@@ -41,13 +39,13 @@ class MyProtocol(StreamReceiver):
 loop = get_event_loop()
 
 
-@coroutine
-def unix_client():
+async def unix_client():
 
-    protocol = yield loop.connect_unix("/var/run/my_unix.sock", MyProtocol)
-    protocol.start_echo()
+    protocol = await loop.connect_unix("/var/run/my_unix.sock", MyProtocol)
+
+    loop.run_coroutine(protocol.start_echo)
 
 
-unix_client()
+loop.run_coroutine(unix_client)
 
-loop.loop_forever()
+loop.run_forever()

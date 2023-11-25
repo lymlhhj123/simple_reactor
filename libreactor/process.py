@@ -6,10 +6,9 @@ from functools import partial
 from collections import deque
 
 from .channel import Channel
-from .coroutine import coroutine
 from . import futures
 from . import fd_helper
-from . import error
+from . import errors
 from . import log
 
 logger = log.get_logger()
@@ -31,7 +30,7 @@ class Process(object):
         self.return_code = None
         self.stdout = b""
         self.stderr = b""
-        self.end_waiters = deque()
+        self.exited_waiters = deque()
 
         self.loop.call_soon(self._run)
 
@@ -98,10 +97,11 @@ class Process(object):
             channel = self.channel_map[fd]
             errcode, data = channel.read(8192)
 
-            if errcode in error.IO_WOULD_BLOCK:
+            if errcode in errors.IO_WOULD_BLOCK:
                 return
 
-            if errcode != error.OK:
+            # pipe closed
+            if errcode != errors.OK or not data:
                 channel.disable_all()
                 self.channel_map.pop(fd)
                 self._close_channel(channel)
@@ -141,6 +141,7 @@ class Process(object):
         try:
             return_pid, status = os.waitpid(pid, os.WNOHANG)
         except ChildProcessError:
+            # maybe child process reaped by signal handler
             logger.error(f"No such process: {pid}")
             return_pid = pid
             status = 0
@@ -157,33 +158,31 @@ class Process(object):
             assert os.WIFEXITED(status)
             self.return_code = os.WEXITSTATUS(status)
 
-        self._wakeup_waiters()
+        self._wakeup_exited_waiters()
 
-    def _wakeup_waiters(self):
+    def _wakeup_exited_waiters(self):
         """wakeup all waiters"""
-        while self.end_waiters:
-            fut = self.end_waiters.popleft()
+        while self.exited_waiters:
+            fut = self.exited_waiters.popleft()
             futures.future_set_result(fut, None)
 
-    @coroutine
-    def communicate(self):
+    async def communicate(self):
         """wait subprocess end and return (stdout, stderr) tuple"""
         if self.return_code is not None:
             return self.stdout, self.stderr
 
-        yield self.wait()
+        await self.wait()
 
         return self.stdout, self.stderr
 
-    @coroutine
-    def wait(self):
+    async def wait(self):
         """wait subprocess end return exit code"""
         if self.return_code is not None:
             return self.return_code
 
-        waiter = futures.create_future()
-        self.end_waiters.append(waiter)
-        yield waiter
+        waiter = self.loop.create_future()
+        self.exited_waiters.append(waiter)
+        await waiter
 
         return self.return_code
 

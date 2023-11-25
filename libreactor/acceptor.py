@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import errno
 from functools import partial
 
 from .connection import Connection
@@ -8,7 +9,7 @@ from . import sock_helper
 from . import fd_helper
 from . import ssl_helper
 from . import utils
-from . import error
+from . import errors
 from . import log
 
 logger = log.get_logger()
@@ -61,11 +62,11 @@ class Acceptor(object):
                 sock, addr = accept_sock.accept()
             except Exception as e:
                 errcode = utils.errno_from_ex(e)
-                if errcode in error.IO_WOULD_BLOCK:
+                if errcode in errors.IO_WOULD_BLOCK:
                     break
-                elif errcode == error.EMFILE:
+                elif errcode == errno.EMFILE:
                     self._too_many_open_file(accept_sock)
-                elif errcode in [error.ENFILE, error.ENOMEM, error.ECONNABORTED]:
+                elif errcode in [errno.ENFILE, errno.ENOMEM, errno.ECONNABORTED]:
                     break
                 else:
                     logger.error("unknown error happened on do accept: %s", e)
@@ -79,7 +80,7 @@ class Acceptor(object):
         logger.error("too many open file, accept and close connection")
         self.placeholder.close()
         sock, _ = accept_sock.accept()
-        sock.close()
+        sock_helper.close_sock(sock)
         self._placeholder = open("/dev/null")
 
     def _do_accept_error(self, accept_sock, errcode):
@@ -98,6 +99,14 @@ class Acceptor(object):
         """server accept new connection"""
         logger.info(f"accept connection: {addr}, fd: {sock.fileno()}")
 
+        if self._ssl_context:
+            try:
+                ssl_helper.ssl_wrap_socket(self._ssl_context, sock, server_side=True)
+            except Exception as e:
+                logger.exception(f"failed to warp ssl socket, {e}")
+                sock_helper.close_sock(sock)
+                return
+
         sock_helper.set_sock_async(sock)
 
         if sock_helper.is_tcp_sock(sock):
@@ -108,13 +117,6 @@ class Acceptor(object):
                 sock_helper.set_tcp_keepalive(sock)
 
         fd_helper.close_on_exec(sock.fileno(), self.options.close_on_exec)
-
-        if self._ssl_context:
-            try:
-                ssl_helper.ssl_wrap_socket(self._ssl_context, sock, server_side=True)
-            except Exception as e:
-                logger.exception(f"failed to warp ssl socket, {e}")
-                return
 
         protocol = self.proto_factory()
         conn = Connection(sock, protocol, self.loop)

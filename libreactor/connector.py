@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import ssl
+import errno
 import socket
 
 from .channel import Channel
@@ -9,7 +10,7 @@ from . import futures
 from . import sock_helper
 from . import ssl_helper
 from . import utils
-from . import error
+from . import errors
 from . import log
 
 logger = log.get_logger()
@@ -36,10 +37,7 @@ class Connector(object):
         self.connect_channel = Channel(self.sock.fileno(), self.loop)
 
     def connect(self):
-        """
-
-        :return:
-        """
+        """start connect endpoint"""
         self._do_connect()
 
     def _do_connect(self):
@@ -52,11 +50,11 @@ class Connector(object):
         except socket.error as e:
             code = utils.errno_from_ex(e)
         else:
-            code = error.OK
+            code = errors.OK
 
-        if code in [error.EISCONN, error.OK]:
+        if code in [errno.EISCONN, errors.OK]:
             self._connection_established()
-        elif code in [error.EINPROGRESS, error.EALREADY]:
+        elif code in [errno.EINPROGRESS, errno.EALREADY]:
             self._wait_connection_established()
         else:
             self._connection_failed(code)
@@ -69,7 +67,8 @@ class Connector(object):
 
         timeout = self.options.connect_timeout
         if timeout and timeout > 0:
-            self.connect_timer = self.loop.call_later(timeout, self._connection_failed, error.ETIMEDOUT)
+            exc = ConnectionError("Connection timeout")
+            self.connect_timer = self.loop.call_later(timeout, self._connection_failed, exc)
 
     def _connection_established(self):
         """client side established connection"""
@@ -77,7 +76,8 @@ class Connector(object):
 
         if sock_helper.is_self_connect(self.sock):
             logger.warning("sock is self connect, force close")
-            self._connection_failed(error.ESELFCONNECTED)
+            exc = ConnectionError("sock is self connect")
+            self._connection_failed(exc)
             return
 
         # socket connected and start ssl handshake
@@ -118,35 +118,34 @@ class Connector(object):
             self.sock.do_handshake()
         except ssl.SSLError as e:
             errcode = utils.errno_from_ex(e)
-            if errcode in error.IO_WOULD_BLOCK:
+            if errcode in errors.IO_WOULD_BLOCK:
                 self.connect_channel.set_read_callback(self._do_ssl_handshake)
                 self.connect_channel.set_write_callback(self._do_ssl_handshake)
                 self.connect_channel.enable_writing()
                 return
 
-            self._connection_failed(error.ESSL)
-        except socket.error as e:
-            errcode = utils.errno_from_ex(e)
-            self._connection_failed(errcode)
+            exc = ConnectionError(f"Failed to SSL verify, {e}")
+            self._connection_failed(exc)
         except Exception as e:
-            errcode = utils.errno_from_ex(e)
-            self._connection_failed(errcode)
+            exc = ConnectionError(f"Unknown SSL verify error, {e}")
+            self._connection_failed(exc)
         else:
             self._connection_established()
 
-    def _connection_failed(self, errcode):
+    def _connection_failed(self, exc):
         """client failed to establish connection"""
         self._cancel_timeout_timer()
 
         self.connect_channel.disable_writing()
         self.connect_channel.close()
-        self.sock.close()
+        sock_helper.close_sock(self.sock)
 
         self.sock = None
         self.connect_channel = None
 
-        fut, self.waiter = self.waiter, None
-        futures.future_set_exception(fut, error.Failure(errcode))
+        waiter, self.waiter = self.waiter, None
+
+        futures.future_set_exception(waiter, exc)
 
     def _cancel_timeout_timer(self):
         """cancel connect timeout timer"""

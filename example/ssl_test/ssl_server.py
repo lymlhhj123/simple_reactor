@@ -2,7 +2,6 @@
 
 from libreactor import log
 from libreactor import get_event_loop
-from libreactor import coroutine
 from libreactor import SSLOptions
 from libreactor.protocols import StreamReceiver
 
@@ -14,14 +13,13 @@ class MyProtocol(StreamReceiver):
 
     def connection_made(self):
 
-        self.echo()
+        self.loop.create_task(self.echo())
 
-    @coroutine
-    def echo(self):
+    async def echo(self):
 
         while True:
-            data = yield self.read_line()
-            yield self.write_line(b"ok, data received: " + data)
+            data = await self.read_line()
+            await self.write_line(b"ok, data received: " + data)
 
 
 ssl_options = SSLOptions()
@@ -31,6 +29,7 @@ ssl_options.cert_file = "path_to_cert_file"
 
 loop = get_event_loop()
 
-loop.listen_tcp(9527, MyProtocol, ssl_options=ssl_options)
+coro = loop.listen_tcp(9527, MyProtocol, ssl_options=ssl_options)
+loop.create_task(coro)
 
 loop.loop_forever()

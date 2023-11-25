@@ -29,11 +29,8 @@ class Selector(object):
         :param fd:
         :return:
         """
-        if fd in self.r_list:
-            self.r_list.remove(fd)
-
-        if fd in self.w_list:
-            self.w_list.remove(fd)
+        self.r_list.discard(fd)
+        self.w_list.discard(fd)
 
     def modify(self, fd, event):
         """

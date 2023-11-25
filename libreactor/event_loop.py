@@ -1,8 +1,10 @@
 # coding: utf-8
 
 import os
+import errno
 import socket
 import threading
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 from .epoller import EPoller
@@ -11,21 +13,22 @@ from . import utils
 from . import timer
 from .timer_queue import TimerQueue
 from .waker import Waker
-from .coroutine import coroutine
 from . import sock_helper
 from . import fd_helper
-from . import error
 from .connector import Connector
 from .acceptor import Acceptor
 from .options import Options
-from .factory import Factory
+from .context_factory import Factory
 from . import futures
 from .process import Process
+from .compat import asyncio_loop_adapter
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
 
+@asyncio_loop_adapter
 class EventLoop(object):
+    """this class is duplicated, please use asyncio_loop.AsyncioLoop"""
 
     def __init__(self):
 
@@ -48,15 +51,14 @@ class EventLoop(object):
         """loop time clock"""
         return self._time_func()
 
-    def call_soon(self, func, *args, **kwargs):
-        """
+    def create_future(self):
+        """create future and attach to this loop"""
+        # we don't need to implement all asyncio event loop interface
+        return asyncio.Future(loop=self)
 
-        :param func:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        handle = timer.Handle(self, func, *args, **kwargs)
+    def call_soon(self, func, *args, context=None):
+        """run callback in netx loop"""
+        handle = timer.Handle(self, func, args, context)
         try:
             with self._mutex:
                 self._callbacks.append(handle)
@@ -65,38 +67,19 @@ class EventLoop(object):
         finally:
             return handle
 
-    def call_later(self, delay, func, *args, **kwargs):
-        """
+    def call_later(self, delay, func, *args, context=None):
+        """run callback after delay seconds"""
+        return self._create_timer(self.time() + delay, func, args, context)
 
-        :param delay:
-        :param func:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        return self.call_at(self.time() + delay, func, *args, **kwargs)
-
-    def call_at(self, when, func, *args, **kwargs):
-        """
-
-        :param when:
-        :param func:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        return self._create_timer(when, func, *args, **kwargs)
+    def call_at(self, when, func, *args, context=None):
+        """run callback at specific time"""
+        return self._create_timer(when, func, args, context)
 
     call_when = call_at
 
-    def _create_timer(self, when, fn, *args, **kwargs):
-        """
-
-        :param cb:
-        :param when:
-        :return:
-        """
-        t = timer.TimerHandle(self, when, fn, *args, **kwargs)
+    def _create_timer(self, when, fn, args, context):
+        """schedule callback to run"""
+        t = timer.TimerHandle(self, when, fn, args, context)
         try:
             with self._mutex:
                 self._timer_queue.put(t)
@@ -127,12 +110,12 @@ class EventLoop(object):
 
         return threading.get_native_id() == self._tid
 
-    @coroutine
-    def ensure_resolved(self, host, port, *,
-                        family=socket.AF_UNSPEC,
-                        type_=socket.SOCK_STREAM,
-                        flags=socket.AI_PASSIVE):
-        """dns resolved"""
+    async def ensure_resolved(self, host, port, *,
+                              family=socket.AF_UNSPEC,
+                              type_=socket.SOCK_STREAM,
+                              proto=socket.IPPROTO_TCP,
+                              flags=socket.AI_PASSIVE):
+
         if host == "":
             host = None
 
@@ -140,28 +123,22 @@ class EventLoop(object):
             # python can be compiled with --disable-ipv6
             family = socket.AF_INET
 
-        addr_list = yield self.get_addr_info(host, port, family=family, type_=type_, flags=flags)
+        def _fn():
+
+            addr_info = socket.getaddrinfo(host, port, family, type_, proto, flags)
+            return addr_info
+
+        addr_list = await self.run_in_thread(_fn)
+        if not addr_list:
+            raise ConnectionError(f"Failed to do dns resolved {host}:{port}")
 
         return addr_list
 
-    def get_addr_info(self, host, port, *,
-                      family=socket.AF_UNSPEC,
-                      type_=socket.SOCK_STREAM,
-                      proto=socket.IPPROTO_TCP,
-                      flags=socket.AI_PASSIVE):
-        """async get addr info"""
-
-        def _fn():
-
-            addr_list = socket.getaddrinfo(host, port, family, type_, proto, flags)
-            return addr_list
-
-        return self.run_in_thread(_fn)
-
-    def run_in_thread(self, fn, *args, **kwargs):
-        """run fn(*args, **kwargs) in another thread, fn can not be coroutine"""
+    async def run_in_thread(self, fn, *args, **kwargs):
+        """run fn(*args, **kwargs) in another thread"""
         fut = self._executor.submit(fn, *args, **kwargs)
-        return fut
+        new_future = futures.wrap_future(fut)
+        return await new_future
 
     def update_channel(self, channel):
         """
@@ -200,7 +177,7 @@ class EventLoop(object):
         self._channel_map.pop(fd)
         self._poller.unregister(fd)
 
-    def loop_forever(self):
+    def run_forever(self):
         """
 
         :return:
@@ -218,7 +195,7 @@ class EventLoop(object):
                 events = self._poller.poll(timeout)
             except Exception as e:
                 errcode = utils.errno_from_ex(e)
-                if errcode != error.EINTR:
+                if errcode != errno.EINTR:
                     break
 
                 events = []
@@ -285,16 +262,11 @@ class EventLoop(object):
         for handle in timer_list:
             handle.run()
 
-    @coroutine
-    def connect_tcp(self, host, port, proto_factory, *, factory=Factory(), options=Options(), ssl_options=None):
+    async def connect_tcp(self, host, port, proto_factory, *, factory=Factory(), options=Options(), ssl_options=None):
         """create tcp client"""
-        addr_list = yield self.ensure_resolved(host, port)
-        if not addr_list:
-            raise error.Failure(error.EDNS)
+        addr_list = await self.ensure_resolved(host, port)
 
-        protocol = None
-        ex = None
-        for res in addr_list:
+        for idx, res in enumerate(addr_list):
             family, sock_type, proto, _, sa = res
 
             sock = socket.socket(family, sock_type, proto)
@@ -309,28 +281,20 @@ class EventLoop(object):
 
             fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
 
-            waiter = futures.create_future()
+            waiter = self.create_future()
 
             connector = Connector(self, sock, sa, proto_factory, waiter, factory, options, ssl_options)
             connector.connect()
             try:
-                protocol = yield waiter
-                break
-            except error.Failure as e:
-                ex = e
-                continue
+                return await waiter
+            except Exception as e:
+                if idx == (len(addr_list) - 1):
+                    raise e
 
-        if not protocol:
-            raise ex
-
-        return protocol
-
-    @coroutine
-    def listen_tcp(self, port, proto_factory, *, host=None, factory=Factory(), options=Options(), ssl_options=None):
+    async def listen_tcp(self, port, proto_factory, *, host=None, factory=Factory(),
+                         options=Options(), ssl_options=None):
         """create tcp server"""
-        addr_list = yield self.ensure_resolved(host, port)
-        if not addr_list:
-            raise error.Failure(error.EDNS)
+        addr_list = await self.ensure_resolved(host, port)
 
         socks = []
         for res in addr_list:
@@ -357,8 +321,7 @@ class EventLoop(object):
         acceptor.start()
         return acceptor
 
-    @coroutine
-    def connect_unix(self, sock_path, proto_factory, *, factory=Factory(), options=Options()):
+    async def connect_unix(self, sock_path, proto_factory, *, factory=Factory(), options=Options()):
         """create unix domain client"""
 
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -366,16 +329,14 @@ class EventLoop(object):
         sock_helper.set_sock_async(sock)
         fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
 
-        waiter = futures.create_future()
+        waiter = self.create_future()
 
         connector = Connector(self, sock, sock_path, proto_factory, waiter, factory, options, None)
         connector.connect()
 
-        protocol = yield waiter
-        return protocol
+        return await waiter
 
-    @coroutine
-    def listen_unix(self, sock_path, proto_factory, *, mode=0o755, factory=Factory(), options=Options()):
+    async def listen_unix(self, sock_path, proto_factory, *, mode=0o755, factory=Factory(), options=Options()):
         """create unix domain server"""
 
         lock_file = sock_path + ".lock"
@@ -404,22 +365,17 @@ class EventLoop(object):
         acceptor.start()
         return acceptor
 
-    @coroutine
-    def connect_udp(self):
+    async def connect_udp(self):
         """create udp client"""
 
-    @coroutine
-    def listen_udp(self, port, proto_factory, *, host=None, factory=Factory()):
+    async def listen_udp(self, port, proto_factory, *, host=None, factory=Factory()):
         """create udp server"""
-        addr_list = yield self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)
+        addr_list = await self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)
 
-    @coroutine
-    def subprocess_exec(self, args, **kwargs):
-        """create subprocess to exec shell command"""
-        waiter = futures.create_future()
+    async def subprocess_exec(self, args, **kwargs):
+        """create subprocess to exec linux shell command"""
+        waiter = self.create_future()
 
         Process(self, args, waiter, **kwargs)
 
-        transport = yield waiter
-
-        return transport
+        return await waiter

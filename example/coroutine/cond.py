@@ -3,26 +3,23 @@
 import random
 
 from libreactor import get_event_loop
-from libreactor import coroutine
 from libreactor import sleep
-from libreactor import Condition
 
-ev = get_event_loop()
+loop = get_event_loop()
 
-cond = Condition()
+cond = loop.create_condition()
 
 stack = []
 
 
-@coroutine
-def func1():
+async def func1():
 
     while 1:
-        yield cond.acquire()
+        await cond.acquire()
         print("func1 locked")
 
         while not stack:
-            yield cond.wait()
+            await cond.wait()
 
         assert cond.locked()
         assert len(stack) != 0
@@ -34,19 +31,18 @@ def func1():
         cond.release()
 
 
-@coroutine
-def func2():
+async def func2():
     while 1:
-        yield cond.acquire()
+        await cond.acquire()
         print("func2 locked")
         while stack:
-            yield cond.wait()
+            await cond.wait()
 
         assert cond.locked()
         assert len(stack) == 0
 
         # do something
-        yield sleep(2.5)
+        await sleep(2.5)
 
         stack.append(random.random())
 
@@ -56,8 +52,8 @@ def func2():
         cond.release()
 
 
-func2()
+loop.run_coroutine(func2)
 
-func1()
+loop.run_coroutine(func1)
 
-ev.loop()
+loop.loop_forever()

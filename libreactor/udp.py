@@ -3,7 +3,7 @@
 from collections import deque
 
 from . import utils
-from . import error
+from . import errors
 from .channel import Channel
 from .transport import DatagramTransport
 

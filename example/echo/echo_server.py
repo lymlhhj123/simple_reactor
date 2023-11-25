@@ -2,7 +2,6 @@
 
 from libreactor import log
 from libreactor import get_event_loop
-from libreactor import coroutine
 from libreactor.protocols import StreamReceiver
 
 logger = log.get_logger()
@@ -13,18 +12,18 @@ class MyProtocol(StreamReceiver):
 
     def connection_made(self):
 
-        self.echo()
+        self.loop.run_coroutine(self.echo)
 
-    @coroutine
-    def echo(self):
+    async def echo(self):
 
         while True:
-            data = yield self.read_line()
-            yield self.write_line(b"ok, data received: " + data)
+            data = await self.read_line()
+            await self.write_line(b"ok, data received: " + data)
 
 
 loop = get_event_loop()
 
-loop.listen_tcp(9527, MyProtocol)
+coro = loop.listen_tcp(9527, MyProtocol)
+loop.create_task(coro)
 
 loop.loop_forever()

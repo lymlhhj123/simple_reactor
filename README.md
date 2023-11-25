@@ -3,13 +3,9 @@
 - io event notify library based on reactor mode, support epoll and select.
 - current only support linux, kernel >= 4.14.
 - python >= 3.8.5.
-- support tcp.
-- support coroutine, only used concurrent.futures.Future.
-- not support dns resolver for now.
+- support tcp, unix, udp.
+- support coroutine, completely compatible with asyncio.
 
-## install
-
-coming soon
 
 ## example
 

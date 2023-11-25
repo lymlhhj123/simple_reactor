@@ -7,13 +7,13 @@ import collections
 from collections import deque
 
 from . import futures
-from .coroutine import coroutine
 
 
 class Lock(object):
 
-    def __init__(self):
+    def __init__(self, *, loop):
 
+        self.loop = loop
         self._locked = False
         self._waiters = deque()
 
@@ -21,19 +21,18 @@ class Lock(object):
         """return true if lock is locked"""
         return self._locked
 
-    @coroutine
-    def acquire(self):
+    async def acquire(self):
         """acquire lock"""
         # if lock is unlocked and no others waiting, locked directly
         if self._locked is False and not self._waiters:
             self._locked = True
             return True
 
-        waiter = futures.create_future()
+        waiter = self.loop.create_future()
         self._waiters.append(waiter)
 
         try:
-            yield waiter
+            await waiter
         finally:
             self._waiters.remove(waiter)
 
@@ -54,17 +53,17 @@ class Lock(object):
 
 class Condition(object):
 
-    def __init__(self, lock=None):
+    def __init__(self, *, loop, lock=None):
 
-        self._lock = Lock() if lock is None else lock
+        self.loop = loop
+        self._lock = Lock(loop=loop) if lock is None else lock
         self._waiters = deque()
 
         self.acquire = self._lock.acquire
         self.release = self._lock.release
         self.locked = self._lock.locked
 
-    @coroutine
-    def wait(self):
+    async def wait(self):
         """wait until notify"""
         if not self.locked():
             raise RuntimeError("please acquire lock first")
@@ -72,12 +71,12 @@ class Condition(object):
         # release lock first
         self.release()
 
-        waiter = futures.create_future()
+        waiter = self.loop.create_future()
 
         self._waiters.append(waiter)
 
         try:
-            yield waiter
+            await waiter
         finally:
             self._waiters.remove(waiter)
 
@@ -103,10 +102,10 @@ class Condition(object):
 
 class Event(object):
 
-    def __init__(self):
+    def __init__(self, *, loop):
 
+        self.loop = loop
         self._val = 0
-
         self._waiters = collections.deque()
 
     def is_set(self):
@@ -127,17 +126,16 @@ class Event(object):
         """set _val = 0"""
         self._val = 0
 
-    @coroutine
-    def wait(self):
+    async def wait(self):
         """wait _val == 1"""
         if self._val == 1:
             return True
 
-        waiter = futures.create_future()
+        waiter = self.loop.create_future()
         self._waiters.append(waiter)
 
         try:
-            yield waiter
+            await waiter
         finally:
             self._waiters.remove(waiter)
 

@@ -1,8 +1,8 @@
 # coding: utf-8
 
+import asyncio
 import threading
 
-from .event_loop import EventLoop
 from .common import process_info
 
 
@@ -45,10 +45,8 @@ def _get_loop_global():
 def _get_loop_thread_local():
     """get event loop, one thread one loop"""
     if _running_loop.running_loop is None:
-        _running_loop.running_loop = EventLoop()
+        from .asyncio_loop import AsyncioLoop
+        loop = asyncio.get_event_loop()
+        _running_loop.running_loop = AsyncioLoop(asyncio_loop=loop)
 
     return _running_loop.running_loop
-
-
-
-

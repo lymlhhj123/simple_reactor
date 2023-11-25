@@ -13,7 +13,7 @@ class BaseProtocol(object):
         self.transport = transport
         self.factory = factory
 
-    def connection_lost(self, failure):
+    def connection_lost(self, exc):
         """auto called when connection lost"""
 
     def close(self):
@@ -51,5 +51,5 @@ class DatagramProtocol(BaseProtocol):
     def datagram_received(self, datagram, addr):
         """called when data received from socket"""
 
-    def connection_error(self, failure):
+    def connection_error(self, exc):
         """called when error happened in write"""

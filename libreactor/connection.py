@@ -1,8 +1,10 @@
 # coding: utf-8
 
+import os
+
 from .channel import Channel
 from .transport import Transport
-from . import error
+from . import errors
 from . import log
 from . import utils
 
@@ -16,12 +18,7 @@ DEFAULT_LOW_WATER = DEFAULT_HIGH_WATER // 4
 class Connection(Transport):
 
     def __init__(self, sock, protocol, loop):
-        """
 
-        :param sock:
-        :param protocol:
-        :param loop:
-        """
         self.sock = sock
         self.protocol = protocol
         self.loop = loop
@@ -55,7 +52,7 @@ class Connection(Transport):
             low = high // 4
 
         if high < low:
-            raise error.Failure(error.EBADBUF)
+            raise ValueError("Invalid buffer limits, hing must be greater than low")
 
         self.high_water = high
         self.low_water = low
@@ -96,10 +93,12 @@ class Connection(Transport):
 
         if not self.write_buffer:
             errcode, writes_size = self.write_to_fd(data)
-            if errcode != error.OK and errcode not in error.IO_WOULD_BLOCK:
-                self._force_close(errcode)
+            if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
+                exc = ConnectionError(f"connection write error, {os.strerror(errcode)}")
+                self._force_close(exc)
                 return
 
+            # todo: need to check write_size == 0?
             data = data[writes_size:]
 
         if not data:
@@ -122,8 +121,9 @@ class Connection(Transport):
             return
 
         errcode, write_size = self.write_to_fd(self.write_buffer)
-        if errcode != error.OK and errcode not in error.IO_WOULD_BLOCK:
-            self._force_close(errcode)
+        if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
+            exc = ConnectionError(f"connection write error, {os.strerror(errcode)}")
+            self._force_close(exc)
             return
 
         self.write_buffer = self.write_buffer[write_size:]
@@ -131,7 +131,7 @@ class Connection(Transport):
         if not self.write_buffer:
             self.channel.disable_writing()
             if self.closing is True:
-                self._force_close(error.ECONNCLOSED)
+                self._force_close(None)
                 return
 
         self._maybe_resume_protocol_write()
@@ -150,32 +150,27 @@ class Connection(Transport):
             write_size = 0
             errcode = utils.errno_from_ex(e)
         else:
-            if write_size == 0:
-                errcode = error.ECONNCLOSED
-            else:
-                errcode = error.OK
+            errcode = errors.OK
 
         return errcode, write_size
 
     def _do_read(self):
-        """
-
-        :return:
-        """
+        """handle read event"""
         if self._conn_lost:
             return
 
         errcode, data = self.read_from_fd()
 
-        if errcode in error.IO_WOULD_BLOCK:
+        if errcode in errors.IO_WOULD_BLOCK:
             return
 
-        if errcode == error.EEOF:
+        if errcode != errors.OK:
+            exc = ConnectionError(f"connection read error, {os.strerror(errcode)}")
+            self._force_close(exc)
+            return
+
+        if not data:
             self.protocol.eof_received()
-            return
-
-        if errcode != error.OK:
-            self._force_close(errcode)
             return
 
         if self.closing:  # drop all data
@@ -191,23 +186,17 @@ class Connection(Transport):
             data = b""
             errcode = utils.errno_from_ex(e)
         else:
-            if not data:
-                errcode = error.EEOF
-            else:
-                errcode = error.OK
+            errcode = errors.OK
 
         return errcode, data
 
     def abort(self):
         """force to close connection"""
-        self._force_close(error.ECONNABORTED)
+        exc = ConnectionError("connection aborted by user")
+        self._force_close(exc)
 
-    def _force_close(self, errcode):
-        """
-
-        :param errcode:
-        :return:
-        """
+    def _force_close(self, exc):
+        """force to close connection"""
         if self._conn_lost:
             return
 
@@ -220,13 +209,10 @@ class Connection(Transport):
         self.channel.disable_all()
 
         self._conn_lost += 1
-        self.loop.call_soon(self._connection_lost, errcode)
+        self.loop.call_soon(self._connection_lost, exc)
 
     def close(self):
-        """
-
-        :return:
-        """
+        """close connection"""
         assert self.loop.is_in_loop_thread()
 
         if self.closing is True:
@@ -241,15 +227,12 @@ class Connection(Transport):
         # write buffer is empty, close it
         self.channel.disable_writing()
         self._conn_lost += 1
-        self.loop.call_soon(self._connection_lost, error.ECONNCLOSED)
+        self.loop.call_soon(self._connection_lost, ConnectionError("connection closed by user"))
 
-    def _connection_lost(self, errcode):
-        """
-
-        :return:
-        """
+    def _connection_lost(self, exc):
+        """finally close connection"""
         try:
-            self.protocol.connection_lost(error.Failure(errcode))
+            self.protocol.connection_lost(exc)
         finally:
             self.channel.close()
             self.sock.close()

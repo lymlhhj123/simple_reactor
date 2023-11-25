@@ -40,3 +40,7 @@ class Signaler(object):
 
     def _signal_received(self, sig_num):
         """called when a signal received"""
+
+    def fileno(self):
+
+        return self.reader

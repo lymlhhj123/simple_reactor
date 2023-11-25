@@ -5,22 +5,31 @@ from collections import deque
 
 from ..protocol import Protocol
 from .. import futures
-from .. import error
 
 SIZE_MODE = 0
 LINE_MODE = 1
 REGEX_MODE = 2
 
 
-class StreamReceiver(Protocol):
+class ReadQueueFull(Exception):
 
-    delimiter = b"\n"
+    pass
+
+
+class WriteQueueFull(Exception):
+
+    pass
+
+
+class StreamReceiver(Protocol):
 
     def __init__(self):
 
+        self._read_queue_size = 128
         self._read_waiters = deque()
         self._read_buf = b""
 
+        self._write_queue_size = 128
         self._write_waiters = deque()
         self._write_paused = False
 
@@ -36,127 +45,161 @@ class StreamReceiver(Protocol):
         """eof received, wakeup all read waiters and close transport"""
         self._eof_received = True
 
-        self._wakeup_read_waiters()
-
-        self.close()
+        try:
+            self._wakeup_read_waiters()
+        finally:
+            self.close()
 
     def _wakeup_read_waiters(self):
         """wakeup read waiters"""
         while self._read_waiters:
-            fut, mode, arg = self._read_waiters[0]
-            if not self._try_read(fut, mode, arg):
+            waiter, mode, arg = self._read_waiters[0]
+            if not self._try_read(waiter, mode, arg):
                 break
 
             self._read_waiters.popleft()
 
+    def _check_transport(self):
+        """raise Exception if transport closed or eof received"""
+        if not self.transport or self.transport.closed() or self._eof_received:
+            raise ConnectionError("transport is already closed")
+
+    def _check_read_queue(self):
+        """raise ReadQueueFull() exception if read queue size exceed limits"""
+        if len(self._read_waiters) >= self._read_queue_size:
+            raise ReadQueueFull("read queue is full")
+
     def read(self, size):
-        """read some data"""
-        fut = futures.create_future()
-        if self._read_waiters or not self._try_read(fut, SIZE_MODE, size):
-            self._read_waiters.append((fut, SIZE_MODE, size))
+        """read some data, return Future"""
+        self._check_transport()
 
-        return fut
+        self._check_read_queue()
 
-    def read_line(self):
-        """read one line"""
-        fut = futures.create_future()
-        if self._read_waiters or not self._try_read(fut, LINE_MODE, self.delimiter):
-            self._read_waiters.append((fut, LINE_MODE, self.delimiter))
+        waiter = self.loop.create_future()
+        if self._read_waiters or not self._try_read(waiter, SIZE_MODE, size):
+            self._read_waiters.append((waiter, SIZE_MODE, size))
 
-        return fut
+        return waiter
+
+    def read_line(self, delimiter=b"\r\n"):
+        """read one line, return Future"""
+        self._check_transport()
+
+        self._check_read_queue()
+
+        waiter = self.loop.create_future()
+        if self._read_waiters or not self._try_read(waiter, LINE_MODE, delimiter):
+            self._read_waiters.append((waiter, LINE_MODE, delimiter))
+
+        return waiter
 
     def read_until_regex(self, regex_pattern):
-        """read some data until match regex_pattern"""
+        """read some data until match regex_pattern return Future"""
         assert isinstance(regex_pattern, bytes)
 
+        self._check_transport()
+
+        self._check_read_queue()
+
         pattern = re.compile(regex_pattern)
-        fut = futures.create_future()
-        if self._read_waiters or not self._try_read(fut, REGEX_MODE, pattern):
-            self._read_waiters.append((fut, REGEX_MODE, pattern))
+        waiter = self.loop.create_future()
+        if self._read_waiters or not self._try_read(waiter, REGEX_MODE, pattern):
+            self._read_waiters.append((waiter, REGEX_MODE, pattern))
 
-        return fut
+        return waiter
 
-    def _try_read(self, fut, mode, arg):
+    def _try_read(self, waiter, mode, arg):
         """try read directly from read buffer, return true if read succeed or transport closed"""
-        if not self.transport or self.transport.closed():
-            futures.future_set_exception(fut, error.Failure(error.ECONNCLOSED))
-            return True
-
         if mode == SIZE_MODE:
-            succeed = self._readn(fut, arg)
+            succeed = self._readn(waiter, arg)
         elif mode == LINE_MODE:
-            succeed = self._readline(fut, arg)
+            succeed = self._readline(waiter, arg)
         else:
-            succeed = self._read_until_regex(fut, arg)
+            succeed = self._read_until_regex(waiter, arg)
 
         return succeed
 
-    def _readn(self, fut, size):
+    def _readn(self, waiter, size):
         """read size bytes data from read buffer"""
         if len(self._read_buf) < size:
-            return self._maybe_eof_received(fut)
+            return self._maybe_eof_received(waiter)
 
-        futures.future_set_result(fut, self._read_buf[:size])
+        futures.future_set_result(waiter, self._read_buf[:size])
         self._read_buf = self._read_buf[size:]
         return True
 
-    def _readline(self, fut, delimiter):
+    def _readline(self, waiter, delimiter):
         """read line"""
-        try:
-            line, self._read_buf = self._read_buf.split(delimiter, 1)
-        except ValueError:
-            return self._maybe_eof_received(fut)
+        idx = self._read_buf.find(delimiter)
+        if idx == -1:
+            return self._maybe_eof_received(waiter)
 
-        futures.future_set_result(fut, line)
+        # line must be endswith delimiter
+        pos = idx + len(delimiter)
+        line = self._read_buf[:pos]
+        self._read_buf = self._read_buf[pos:]
+        futures.future_set_result(waiter, line)
         return True
 
-    def _read_until_regex(self, fut, pattern):
+    def _read_until_regex(self, waiter, pattern):
         """read some data until match pattern"""
         match_o = pattern.search(self._read_buf)
         if not match_o:
-            return self._maybe_eof_received(fut)
+            return self._maybe_eof_received(waiter)
 
         end = match_o.end()
         data = self._read_buf[:end]
-        futures.future_set_result(fut, bytes(data))
+        futures.future_set_result(waiter, bytes(data))
         self._read_buf = self._read_buf[end:]
         return True
 
-    def _maybe_eof_received(self, fut):
+    def _maybe_eof_received(self, waiter):
         """read all data if eof received"""
         if self._eof_received:
-            futures.future_set_result(fut, self._read_buf)
+            futures.future_set_result(waiter, self._read_buf)
             self._read_buf = b""
             return True
         else:
             return False
 
-    def write_line(self, line):
-        """write one line, line must be not endswith delimiter"""
+    def write_line(self, line, delimiter=b"\r\n"):
+        """write a line, return Future"""
         if isinstance(line, str):
             line = line.encode("utf-8")
 
-        return self.write(line + self.delimiter)
+        if isinstance(delimiter, str):
+            delimiter = delimiter.encode("utf-8")
+
+        if not line.endswith(delimiter):
+            line = b"".join([line, delimiter])
+
+        return self.write(line)
 
     def write(self, data: bytes):
-        """write some data, data must be bytes"""
-        assert isinstance(data, bytes)
+        """write some bytes, return Future"""
+        self._check_transport()
 
-        fut = futures.create_future()
+        self._check_write_queue()
 
-        if self._write_waiters or not self._try_write(fut, data):
-            self._write_waiters.append((fut, data))
+        if isinstance(data, str):
+            data = data.encode("utf-8")
 
-        return fut
+        waiter = self.loop.create_future()
 
-    def _try_write(self, fut, data):
+        if self._write_paused or self._write_waiters or not self._try_write(waiter, data):
+            self._write_waiters.append((waiter, data))
+
+        return waiter
+
+    def _check_write_queue(self):
+        """raise WriteQueueFull() exception if write queue size exceed limits"""
+        if len(self._write_waiters) >= self._write_queue_size:
+            raise WriteQueueFull("write queue is full")
+
+    def _try_write(self, waiter, data):
         """try to write data to transport, return true if succeed or transport closed"""
-        if not self.transport or self.transport.closed():
-            futures.future_set_exception(fut, error.Failure(error.ECONNCLOSED))
-            return True
-
         self.transport.write(data)
-        futures.future_set_result(fut, len(data))
+        futures.future_set_result(waiter, len(data))
         return True
 
     def pause_write(self):
@@ -171,34 +214,37 @@ class StreamReceiver(Protocol):
 
     def _wakeup_write_waiters(self):
         """wakeup write waiters and write data to transport"""
-        while self._write_waiters and not self._write_paused:
+        while self._write_waiters:
             if self.transport.closed():
                 break
 
-            fut, data = self._write_waiters.popleft()
-            self.transport.write(data)
-            futures.future_set_result(fut, len(data))
+            if self._write_paused:
+                return
 
-    def connection_lost(self, failure):
+            waiter, data = self._write_waiters.popleft()
+            self.transport.write(data)
+            futures.future_set_result(waiter, len(data))
+
+    def connection_lost(self, exc):
         """after connection lost, wakeup all read and write waiters"""
-        self._clean_buf_and_waiters(failure)
+        self._clean_buf_and_waiters(exc)
         self.transport = None
 
     def close(self):
         """close transport and wakeup all waiters"""
         super().close()
 
-        failure = error.Failure(error.ECONNCLOSED)
-        self._clean_buf_and_waiters(failure)
+        exc = ConnectionError("Transport is closed")
+        self._clean_buf_and_waiters(exc)
 
-    def _clean_buf_and_waiters(self, failure):
+    def _clean_buf_and_waiters(self, exc):
         """wakeup all waiters when connection lost"""
         while self._write_waiters:
-            fut, _ = self._write_waiters.popleft()
-            futures.future_set_exception(fut, failure)
+            waiter, _ = self._write_waiters.popleft()
+            futures.future_set_exception(waiter, exc)
 
         while self._read_waiters:
-            fut, _, _ = self._read_waiters.popleft()
-            futures.future_set_exception(fut, failure)
+            waiter, _, _ = self._read_waiters.popleft()
+            futures.future_set_exception(waiter, exc)
 
         self._read_buf = b""

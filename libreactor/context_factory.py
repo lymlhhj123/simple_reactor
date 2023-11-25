@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-class Factory(object):
+class ContextFactory(object):
     """placeholder, nothing to do"""
 
     pass

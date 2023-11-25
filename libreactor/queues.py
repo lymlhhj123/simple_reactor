@@ -5,8 +5,7 @@
 import collections
 import heapq
 
-from .coroutine import coroutine
-from . import sync, futures
+from . import futures
 
 
 class Empty(Exception):
@@ -21,13 +20,16 @@ class Full(Exception):
 
 class Queue(object):
 
-    def __init__(self, max_len=0):
+    def __init__(self, *, loop, max_len=0):
 
+        self.loop = loop
         self._max_len = max_len
         self._put_waiters = collections.deque()
         self._get_waiters = collections.deque()
         self._unfinished_task = 0
-        self._finished = sync.Event()
+        self._finished = loop.create_event()
+
+        # mark all task is done
         self._finished.set()
 
         self._init()
@@ -59,15 +61,14 @@ class Queue(object):
 
         return self.qsize() == self._max_len
 
-    @coroutine
-    def put(self, item):
+    async def put(self, item):
         """put item to queue"""
         while self.full():
-            waiter = futures.create_future()
+            waiter = self.loop.create_future()
             self._put_waiters.append(waiter)
 
             try:
-                yield waiter
+                await waiter
             finally:
                 self._put_waiters.remove(waiter)
 
@@ -83,15 +84,14 @@ class Queue(object):
         self._finished.clear()
         self._wakeup_first_waiters(self._get_waiters)
 
-    @coroutine
-    def get(self):
+    async def get(self):
         """get item from queue"""
         while self.empty():
-            waiter = futures.create_future()
+            waiter = self.loop.create_future()
             self._get_waiters.append(waiter)
 
             try:
-                yield waiter
+                await waiter
             finally:
                 self._get_waiters.remove(waiter)
 
@@ -120,11 +120,10 @@ class Queue(object):
         if self._unfinished_task == 0:
             self._finished.set()
 
-    @coroutine
-    def join(self):
+    async def join(self):
         """wait all task is done"""
         if self._unfinished_task:
-            yield self._finished.wait()
+            await self._finished.wait()
 
 
 class PriorityQueue(Queue):
