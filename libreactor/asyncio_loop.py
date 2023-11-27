@@ -18,6 +18,7 @@ from .common import process_info
 from . import sync
 from . import queues
 from . import io_event
+from . import udp
 from .context_factory import ContextFactory
 
 
@@ -36,6 +37,10 @@ class AsyncioLoop(object):
     def __getattr__(self, item):
         """forward request to asyncio.AbstractEventLoop"""
         return getattr(self.loop, item)
+
+    def get_loop(self):
+        """return asyncio loop"""
+        return self.loop
 
     def is_in_loop_thread(self):
         """return True if we are in loop thread"""
@@ -111,7 +116,7 @@ class AsyncioLoop(object):
         Task(coro, final_future=fut, loop=self)
         return fut
 
-    def run_coroutine(self, coroutine, *args, **kwargs):
+    def run_coroutine_func(self, coroutine, *args, **kwargs):
         """run coroutine function"""
         assert callable(coroutine) and asyncio.iscoroutinefunction(coroutine), "A coroutine function is required"
 
@@ -236,6 +241,65 @@ class AsyncioLoop(object):
         acceptor.start()
         return acceptor
 
+    async def connect_udp(self, host, port, proto_factory, *, factory=ContextFactory(), options=Options()):
+        """create udp client"""
+        addr_list = await self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+
+        remain = collections.deque(addr_list)
+
+        while remain:
+
+            family, sock_type, proto, _, sa = remain.popleft()
+
+            sock = socket.socket(family, sock_type, proto)
+
+            sock_helper.set_sock_async(sock)
+
+            fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+            if options.allow_broadcast:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+            waiter = self.loop.create_future()
+
+            protocol = proto_factory()
+            transport = udp.UDP(self, protocol, sock)
+            transport.connect(sa, factory, waiter)
+
+            try:
+                await waiter
+                return protocol
+            except Exception as e:
+                if not remain:
+                    raise e
+
+    async def listen_udp(self, port, proto_factory, *, host=None, factory=ContextFactory(), options=Options()):
+        """create udp server"""
+        addr_list = await self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+
+        remain = collections.deque(addr_list)
+        while remain:
+            af, sock_type, proto, _, sa = remain.popleft()
+
+            sock = socket.socket(af, sock_type, proto)
+
+            if af == socket.AF_INET6:
+                # ipv6 socket only accept ipv6 address
+                sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+
+            sock_helper.set_sock_async(sock)
+
+            if options.reuse_addr:
+                sock_helper.set_reuse_addr(sock)
+
+            if options.allow_broadcast:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+            fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
+
+            transport = udp.UDP(self, proto_factory(), sock)
+            transport.listen(sa, factory)
+
     async def connect_unix(self, sock_path, proto_factory, *,
                            factory=ContextFactory(), options=Options()):
         """create unix domain client"""
@@ -281,13 +345,6 @@ class AsyncioLoop(object):
         acceptor = Acceptor(self, [sock], proto_factory, factory, options, None)
         acceptor.start()
         return acceptor
-
-    async def connect_udp(self):
-        """create udp client"""
-
-    async def listen_udp(self, port, proto_factory, *, host=None, factory=ContextFactory()):
-        """create udp server"""
-        addr_list = await self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)
 
     async def run_command(self, args, timeout=10):
         """run linux shell command and return (status, stdout, stderr) three tuple"""

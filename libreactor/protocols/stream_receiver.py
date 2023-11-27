@@ -33,6 +33,8 @@ class StreamReceiver(Protocol):
         self._write_waiters = deque()
         self._write_paused = False
 
+        # close transport if eof received
+        self._close_if_eof_received = True
         self._eof_received = False
 
     def data_received(self, data: bytes):
@@ -48,7 +50,8 @@ class StreamReceiver(Protocol):
         try:
             self._wakeup_read_waiters()
         finally:
-            self.close()
+            if self._close_if_eof_received:
+                self.close()
 
     def _wakeup_read_waiters(self):
         """wakeup read waiters"""
@@ -226,16 +229,9 @@ class StreamReceiver(Protocol):
             futures.future_set_result(waiter, len(data))
 
     def connection_lost(self, exc):
-        """after connection lost, wakeup all read and write waiters"""
+        """connection lost, wakeup all read and write waiters"""
         self._clean_buf_and_waiters(exc)
         self.transport = None
-
-    def close(self):
-        """close transport and wakeup all waiters"""
-        super().close()
-
-        exc = ConnectionError("Transport is closed")
-        self._clean_buf_and_waiters(exc)
 
     def _clean_buf_and_waiters(self, exc):
         """wakeup all waiters when connection lost"""

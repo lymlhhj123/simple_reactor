@@ -32,6 +32,6 @@ async def tcp_client():
     await protocol.start_echo()
 
 
-loop.run_coroutine(tcp_client)
+loop.run_coroutine_func(tcp_client)
 
 loop.run_forever()

@@ -66,7 +66,7 @@ class CIDict(MutableMapping):
 
     def __eq__(self, other):
         if isinstance(other, Mapping):
-            other = CaseInsensitiveDict(other)
+            other = CIDict(other)
         else:
             return NotImplemented
         # Compare insensitively
@@ -74,7 +74,7 @@ class CIDict(MutableMapping):
 
     # Copy is required
     def copy(self):
-        return CaseInsensitiveDict(self._store.values())
+        return CIDict(self._store.values())
 
     def __repr__(self):
         return str(dict(self.items()))

@@ -52,8 +52,8 @@ async def func2():
         cond.release()
 
 
-loop.run_coroutine(func2)
+loop.run_coroutine_func(func2)
 
-loop.run_coroutine(func1)
+loop.run_coroutine_func(func1)
 
 loop.loop_forever()

@@ -37,7 +37,7 @@ class Protocol(BaseProtocol):
         """called when data received by transport"""
 
     def eof_received(self):
-        """called when peer no more send data"""
+        """called when peer close write side"""
 
     def pause_write(self):
         """called when transport write buffer >= high water"""
@@ -47,6 +47,9 @@ class Protocol(BaseProtocol):
 
 
 class DatagramProtocol(BaseProtocol):
+
+    def connection_prepared(self):
+        """called when transport is prepare to work"""
 
     def datagram_received(self, datagram, addr):
         """called when data received from socket"""

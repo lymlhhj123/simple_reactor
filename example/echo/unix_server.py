@@ -12,7 +12,7 @@ class MyProtocol(StreamReceiver):
 
     def connection_made(self):
 
-        self.loop.run_coroutine(self.echo)
+        self.loop.run_coroutine_func(self.echo)
 
     async def echo(self):
 

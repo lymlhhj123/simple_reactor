@@ -29,6 +29,6 @@ async def tcp_client():
         return
 
 
-loop.run_coroutine(tcp_client)
+loop.run_coroutine_func(tcp_client)
 
 loop.loop_forever()

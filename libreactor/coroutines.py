@@ -5,7 +5,7 @@ from .loop_helper import get_event_loop
 
 
 async def sleep(seconds):
-
+    """make coroutine sleep seconds"""
     loop = get_event_loop()
 
     f = loop.create_future()

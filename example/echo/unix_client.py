@@ -43,9 +43,9 @@ async def unix_client():
 
     protocol = await loop.connect_unix("/var/run/my_unix.sock", MyProtocol)
 
-    loop.run_coroutine(protocol.start_echo)
+    loop.run_coroutine_func(protocol.start_echo)
 
 
-loop.run_coroutine(unix_client)
+loop.run_coroutine_func(unix_client)
 
 loop.run_forever()

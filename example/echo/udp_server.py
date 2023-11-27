@@ -2,28 +2,27 @@
 
 from libreactor import log
 from libreactor import get_event_loop
-from libreactor.protocols import StreamReceiver
+from libreactor.protocols import DatagramReceiver
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(StreamReceiver):
+class MyProtocol(DatagramReceiver):
 
-    def connection_made(self):
+    def connection_prepared(self):
 
         self.loop.run_coroutine_func(self.echo)
 
     async def echo(self):
 
         while True:
-            data = await self.read_line()
-            await self.write_line(b"ok, data received: " + data)
+            datagram, addr = await self.read()
+            self.send(datagram, addr)
 
 
 loop = get_event_loop()
-
-coro = loop.listen_tcp(9527, MyProtocol)
+coro = loop.listen_udp(9527, MyProtocol)
 loop.create_task(coro)
 
 loop.loop_forever()
