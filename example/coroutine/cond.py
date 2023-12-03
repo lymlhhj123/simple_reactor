@@ -15,41 +15,39 @@ stack = []
 async def func1():
 
     while 1:
-        await cond.acquire()
-        print("func1 locked")
+        async with cond:
+            print("func1 locked")
 
-        while not stack:
-            await cond.wait()
+            while not stack:
+                await cond.wait()
 
-        assert cond.locked()
-        assert len(stack) != 0
+            assert cond.locked()
+            assert len(stack) != 0
 
-        stack.clear()
-        cond.notify()
+            stack.clear()
+            cond.notify()
 
-        print("func1 release")
-        cond.release()
+            print("func1 release")
 
 
 async def func2():
     while 1:
-        await cond.acquire()
-        print("func2 locked")
-        while stack:
-            await cond.wait()
+        async with cond:
+            print("func2 locked")
+            while stack:
+                await cond.wait()
 
-        assert cond.locked()
-        assert len(stack) == 0
+            assert cond.locked()
+            assert len(stack) == 0
 
-        # do something
-        await sleep(2.5)
+            # do something
+            await sleep(2.5)
 
-        stack.append(random.random())
+            stack.append(random.random())
 
-        cond.notify()
+            cond.notify()
 
-        print("func2 release")
-        cond.release()
+            print("func2 release")
 
 
 loop.run_coroutine_func(func2)

@@ -27,6 +27,10 @@ class Signaler(object):
         self.channel.set_read_callback(self._handle_read)
         self.channel.enable_reading()
 
+    def fileno(self):
+        """return file no"""
+        return self.reader
+
     def _install(self, w):
 
         for sig in self.sig_nums:
@@ -35,12 +39,8 @@ class Signaler(object):
 
         signal.set_wakeup_fd(w)
 
-    def _handle_read(self, chan):
+    def _handle_read(self):
         """called when signal received"""
 
     def _signal_received(self, sig_num):
         """called when a signal received"""
-
-    def fileno(self):
-
-        return self.reader

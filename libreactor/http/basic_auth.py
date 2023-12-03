@@ -27,7 +27,7 @@ class Auth(object):
 
 class BasicAuth(Auth):
 
-    def __init__(self, login, password):
+    def __init__(self, login, password=""):
 
         if not isinstance(login, (str, bytes)):
             raise ValueError("")

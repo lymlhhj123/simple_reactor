@@ -3,16 +3,17 @@
 
 class Node(object):
 
-    def __init__(self, v, prev=None, next_=None):
-        """
+    def __init__(self, v, *, args=None):
 
-        :param v:
-        :param prev:
-        :param next_:
-        """
-        self.v = v
-        self.prev = prev
-        self.next_ = next_
+        self.value = v
+        self.args = args
+        self.prev = None
+        self.next_ = None
+
+
+class Empty(Exception):
+
+    pass
 
 
 class LinkedList(object):
@@ -24,11 +25,7 @@ class LinkedList(object):
         self.root.next_ = self.root
 
     def add_node(self, node):
-        """
-
-        :param node:
-        :return:
-        """
+        """add node to end"""
         parent = self.root.prev
         child = self.root
 
@@ -38,12 +35,20 @@ class LinkedList(object):
         node.next_ = child
         child.prev = node
 
-    def remove_node(self, node):
-        """
+    def remove_front(self):
+        """remove first node"""
+        front = self.front()
+        self.remove_node(front)
+        return front
 
-        :param node:
-        :return:
-        """
+    def remove_last(self):
+        """remove last node"""
+        last = self.last()
+        self.remove_node(last)
+        return last
+
+    def remove_node(self, node):
+        """remove node from list"""
         if node == self.root:
             return
 
@@ -57,15 +62,19 @@ class LinkedList(object):
         child.prev = parent
 
     def empty(self):
-        """
-
-        :return:
-        """
+        """return True if list is empty"""
         return self.root.prev == self.root
 
     def front(self):
-        """
+        """return first node, Raise Empty() if list is empty"""
+        if self.empty():
+            raise Empty("list is empty")
 
-        :return:
-        """
         return self.root.next_
+
+    def last(self):
+        """return last node, Raise Empty() if list is empty"""
+        if self.empty():
+            raise Empty("list is empty")
+
+        return self.root.prev

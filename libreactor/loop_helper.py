@@ -5,6 +5,10 @@ import threading
 
 from .common import process_info
 
+GLOBAL = 0
+MAIN = 1
+LOCAL = 2
+
 
 class _RunningLoop(threading.local):
 
@@ -14,9 +18,16 @@ class _RunningLoop(threading.local):
 _running_loop = _RunningLoop()
 
 
-def get_event_loop():
+def get_event_loop(policy=GLOBAL):
     """get event loop, only main thread have"""
-    return _get_loop_global()
+    if policy == GLOBAL:
+        return _get_loop_global()
+    elif policy == MAIN:
+        return _get_loop_main_thread()
+    elif policy == LOCAL:
+        return _get_loop_thread_local()
+    else:
+        raise ValueError("unknown loop policy")
 
 
 def _get_loop_main_thread():

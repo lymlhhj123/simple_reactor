@@ -72,7 +72,7 @@ class StreamReceiver(Protocol):
         if len(self._read_waiters) >= self._read_queue_size:
             raise ReadQueueFull("read queue is full")
 
-    def read(self, size):
+    async def read(self, size):
         """read some data, return Future"""
         self._check_transport()
 
@@ -82,9 +82,9 @@ class StreamReceiver(Protocol):
         if self._read_waiters or not self._try_read(waiter, SIZE_MODE, size):
             self._read_waiters.append((waiter, SIZE_MODE, size))
 
-        return waiter
+        return await waiter
 
-    def read_line(self, delimiter=b"\r\n"):
+    async def read_line(self, delimiter=b"\r\n"):
         """read one line, return Future"""
         self._check_transport()
 
@@ -94,9 +94,9 @@ class StreamReceiver(Protocol):
         if self._read_waiters or not self._try_read(waiter, LINE_MODE, delimiter):
             self._read_waiters.append((waiter, LINE_MODE, delimiter))
 
-        return waiter
+        return await waiter
 
-    def read_until_regex(self, regex_pattern):
+    async def read_until_regex(self, regex_pattern):
         """read some data until match regex_pattern return Future"""
         assert isinstance(regex_pattern, bytes)
 
@@ -109,7 +109,7 @@ class StreamReceiver(Protocol):
         if self._read_waiters or not self._try_read(waiter, REGEX_MODE, pattern):
             self._read_waiters.append((waiter, REGEX_MODE, pattern))
 
-        return waiter
+        return await waiter
 
     def _try_read(self, waiter, mode, arg):
         """try read directly from read buffer, return true if read succeed or transport closed"""
@@ -165,7 +165,7 @@ class StreamReceiver(Protocol):
         else:
             return False
 
-    def write_line(self, line, delimiter=b"\r\n"):
+    async def write_line(self, line, delimiter=b"\r\n"):
         """write a line, return Future"""
         if isinstance(line, str):
             line = line.encode("utf-8")
@@ -176,9 +176,9 @@ class StreamReceiver(Protocol):
         if not line.endswith(delimiter):
             line = b"".join([line, delimiter])
 
-        return self.write(line)
+        return await self.write(line)
 
-    def write(self, data: bytes):
+    async def write(self, data: bytes):
         """write some bytes, return Future"""
         self._check_transport()
 
@@ -192,7 +192,7 @@ class StreamReceiver(Protocol):
         if self._write_paused or self._write_waiters or not self._try_write(waiter, data):
             self._write_waiters.append((waiter, data))
 
-        return waiter
+        return await waiter
 
     def _check_write_queue(self):
         """raise WriteQueueFull() exception if write queue size exceed limits"""

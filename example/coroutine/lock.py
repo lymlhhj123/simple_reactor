@@ -10,27 +10,25 @@ lock = loop.create_lock()
 async def func1():
 
     while True:
-        await lock.acquire()
-        print("func1 locked")
+        async with lock:
+            print("func1 locked")
 
-        # do something
-        await sleep(2.5)
+            # do something
+            await sleep(2.5)
 
-        print("func1 release")
-        lock.release()
+            print("func1 release")
 
 
 async def func2():
 
     while True:
-        await lock.acquire()
-        print("func2 locked")
+        async with lock:
+            print("func2 locked")
 
-        # do something
-        await sleep(5)
+            # do something
+            await sleep(5)
 
-        print("func2 release")
-        lock.release()
+            print("func2 release")
 
 
 loop.run_coroutine_func(func2)

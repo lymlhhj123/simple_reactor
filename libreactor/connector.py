@@ -41,10 +41,7 @@ class Connector(object):
         self._do_connect()
 
     def _do_connect(self):
-        """
-
-        :return:
-        """
+        """start to connect remote addr"""
         try:
             self.sock.connect(self.endpoint)
         except socket.error as e:
@@ -80,10 +77,13 @@ class Connector(object):
             self._connection_failed(exc)
             return
 
-        # socket connected and start ssl handshake
-        if self.ssl_options and self._ssl_handshaking:
+        # start ssl handshake
+        if self._ssl_handshaking:
             self._ssl_handshaking = False
-            self._start_tls()
+            try:
+                self._start_tls()
+            except Exception as e:
+                self._connection_failed(e)
             return
 
         self.connect_channel.disable_writing()
@@ -116,21 +116,15 @@ class Connector(object):
         """if enable ssl, then do handshake after succeed to connect"""
         try:
             self.sock.do_handshake()
+            self._connection_established()
         except ssl.SSLError as e:
             errcode = utils.errno_from_ex(e)
             if errcode in errors.IO_WOULD_BLOCK:
                 self.connect_channel.set_read_callback(self._do_ssl_handshake)
                 self.connect_channel.set_write_callback(self._do_ssl_handshake)
                 self.connect_channel.enable_writing()
-                return
-
-            exc = ConnectionError(f"Failed to SSL verify, {e}")
-            self._connection_failed(exc)
-        except Exception as e:
-            exc = ConnectionError(f"Unknown SSL verify error, {e}")
-            self._connection_failed(exc)
-        else:
-            self._connection_established()
+            else:
+                raise ConnectionError(f"Failed to ssl verify, {e}") from e
 
     def _connection_failed(self, exc):
         """client failed to establish connection"""

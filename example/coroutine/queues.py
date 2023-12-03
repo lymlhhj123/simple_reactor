@@ -7,7 +7,7 @@ from libreactor import sleep
 
 loop = get_event_loop()
 
-q = loop.create_queue(max_len=10)
+q = loop.create_fifo_queue(max_len=10)
 
 
 async def func1():

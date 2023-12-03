@@ -50,18 +50,35 @@ class Lock(object):
             waiter = self._waiters[0]
             futures.future_set_result(waiter, None)
 
+    async def __aenter__(self):
+        """implement async with context manager"""
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """implement async with context manager"""
+        self.release()
+
 
 class Condition(object):
 
     def __init__(self, *, loop, lock=None):
 
         self.loop = loop
-        self._lock = Lock(loop=loop) if lock is None else lock
+        self._lock = lock if lock else Lock(loop=loop)
         self._waiters = deque()
 
         self.acquire = self._lock.acquire
         self.release = self._lock.release
         self.locked = self._lock.locked
+
+    async def __aenter__(self):
+
+        await self.acquire()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+        self.release()
 
     async def wait(self):
         """wait until notify"""
@@ -81,18 +98,18 @@ class Condition(object):
             self._waiters.remove(waiter)
 
         # acquire lock again
-        yield self.acquire()
+        await self.acquire()
 
     def notify(self, n=1):
         """wake up one coroutine"""
         assert n >= 1
 
-        idx = 0
+        i = 0
         for waiter in self._waiters:
             futures.future_set_result(waiter, None)
 
-            idx += 1
-            if idx >= n:
+            i += 1
+            if i >= n:
                 break
 
     def notify_all(self):

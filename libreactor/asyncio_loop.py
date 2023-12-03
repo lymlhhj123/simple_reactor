@@ -26,8 +26,7 @@ class AsyncioLoop(object):
 
     def __init__(self, asyncio_loop: asyncio.AbstractEventLoop):
 
-        self.loop = asyncio_loop
-
+        self._loop = asyncio_loop
         self._tid = process_info.get_tid()
 
         self._reader = set()
@@ -36,11 +35,11 @@ class AsyncioLoop(object):
 
     def __getattr__(self, item):
         """forward request to asyncio.AbstractEventLoop"""
-        return getattr(self.loop, item)
+        return getattr(self._loop, item)
 
-    def get_loop(self):
+    def get_asyncio_loop(self):
         """return asyncio loop"""
-        return self.loop
+        return self._loop
 
     def is_in_loop_thread(self):
         """return True if we are in loop thread"""
@@ -48,16 +47,16 @@ class AsyncioLoop(object):
 
     def create_future(self):
         """return future attach to loop"""
-        return self.loop.create_future()
+        return self._loop.create_future()
 
     def time(self):
         """return loop clock time"""
-        return self.loop.time()
+        return self._loop.time()
 
     def add_callback(self, fn, *args, **kwargs):
         """add callback run at next loop"""
         callback = functools.partial(fn, *args, **kwargs)
-        return self.loop.call_soon(callback)
+        return self._loop.call_soon(callback)
 
     call_soon = add_callback
 
@@ -68,13 +67,13 @@ class AsyncioLoop(object):
     def call_at(self, when, fn, *args, **kwargs):
         """add callback run at specific time"""
         callback = functools.partial(fn, *args, **kwargs)
-        return self.loop.call_at(when, callback)
+        return self._loop.call_at(when, callback)
 
     call_when = call_at
 
     def loop_forever(self):
         """run loop forever"""
-        self.loop.run_forever()
+        self._loop.run_forever()
 
     run_forever = loop_forever
 
@@ -93,8 +92,8 @@ class AsyncioLoop(object):
         event = sync.Event(loop=self)
         return event
 
-    def create_queue(self, max_len=0):
-        """create coroutine queue"""
+    def create_fifo_queue(self, max_len=0):
+        """create coroutine fifo queue"""
         q = queues.Queue(loop=self, max_len=max_len)
         return q
 
@@ -111,14 +110,14 @@ class AsyncioLoop(object):
     def create_task(self, coro):
         """wrap coro to task and schedule task to run"""
         fut = self.create_future()
-        # add callback to consume coro result, nothing to do
+        # add callback to consume coroutine result, nothing to do
         futures.future_add_done_callback(fut, lambda _: None)
         Task(coro, final_future=fut, loop=self)
         return fut
 
     def run_coroutine_func(self, coroutine, *args, **kwargs):
         """run coroutine function"""
-        assert callable(coroutine) and asyncio.iscoroutinefunction(coroutine), "A coroutine function is required"
+        assert callable(coroutine) and asyncio.iscoroutinefunction(coroutine)
 
         coro = coroutine(*args, **kwargs)
         return self.create_task(coro)
@@ -129,20 +128,20 @@ class AsyncioLoop(object):
         if channel.readable():
             if fd not in self._reader:
                 self._reader.add(fd)
-                self.loop.add_reader(fd, self._handle_events, fd, io_event.EV_READ)
+                self._loop.add_reader(fd, self._handle_events, fd, io_event.EV_READ)
         else:
             if fd in self._reader:
                 self._reader.discard(fd)
-                self.loop.remove_reader(fd)
+                self._loop.remove_reader(fd)
 
         if channel.writable():
             if fd not in self._writer:
                 self._writer.add(fd)
-                self.loop.add_writer(fd, self._handle_events, fd, io_event.EV_WRITE)
+                self._loop.add_writer(fd, self._handle_events, fd, io_event.EV_WRITE)
         else:
             if fd in self._writer:
                 self._writer.discard(fd)
-                self.loop.remove_writer(fd)
+                self._loop.remove_writer(fd)
 
         self._channel_map[fd] = channel
 
@@ -154,11 +153,11 @@ class AsyncioLoop(object):
 
         if fd in self._reader:
             self._reader.discard(fd)
-            self.loop.remove_reader(fd)
+            self._loop.remove_reader(fd)
 
         if fd in self._writer:
             self._writer.discard(fd)
-            self.loop.remove_writer(fd)
+            self._loop.remove_writer(fd)
 
         self._channel_map.pop(fd)
 
@@ -173,7 +172,7 @@ class AsyncioLoop(object):
                               proto=socket.IPPROTO_TCP,
                               flags=socket.AI_PASSIVE):
         """resolve host, port to ipaddr pair"""
-        addr_info = await self.loop.getaddrinfo(host, port, family=family, type=type_, proto=proto, flags=flags)
+        addr_info = await self._loop.getaddrinfo(host, port, family=family, type=type_, proto=proto, flags=flags)
         if not addr_info:
             raise ConnectionError(f"Failed to resolve dns {host}:{port}")
         return addr_info
@@ -201,7 +200,7 @@ class AsyncioLoop(object):
 
             fd_helper.close_on_exec(sock.fileno(), options.close_on_exec)
 
-            waiter = self.loop.create_future()
+            waiter = self._loop.create_future()
 
             connector = Connector(self, sock, sa, proto_factory, waiter, factory, options, ssl_options)
             connector.connect()
@@ -260,7 +259,7 @@ class AsyncioLoop(object):
             if options.allow_broadcast:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-            waiter = self.loop.create_future()
+            waiter = self._loop.create_future()
 
             protocol = proto_factory()
             transport = udp.UDP(self, protocol, sock)
