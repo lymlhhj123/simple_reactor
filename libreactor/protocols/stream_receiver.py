@@ -96,6 +96,8 @@ class StreamReceiver(Protocol):
 
         return await waiter
 
+    readline = read_line
+
     async def read_until_regex(self, regex_pattern):
         """read some data until match regex_pattern return Future"""
         assert isinstance(regex_pattern, bytes)

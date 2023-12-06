@@ -1,4 +1,5 @@
 # coding: utf-8
+
 import json
 from urllib.parse import (
     urlsplit,
@@ -16,8 +17,9 @@ from . import const
 class Request(object):
 
     DEFAULT_HEADERS = {
-        "accept": "*/*",
-        "accept_encoding": "",
+        'Accept-Encoding': ', '.join(('gzip', 'deflate')),
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
     }
 
     def __init__(self, method, url, *,
@@ -26,7 +28,7 @@ class Request(object):
 
         self.method = None
         self.url = None
-        self.params = params
+        self.params = params or {}
         self.host = None
         self.path = None
 
@@ -36,7 +38,7 @@ class Request(object):
         self.body = None
 
         self.update_method(method)
-        self.update_url(url, params)
+        self.update_url(url, params or {})
         self.update_headers(headers or {})
         self.update_auth(auth)
         self.update_cookies(cookies)
@@ -90,7 +92,7 @@ class Request(object):
 
         self.url = urlunsplit([scheme, netloc, path, query, fragment])
 
-        login, password = url_parsed.username or url_parsed.password
+        login, password = url_parsed.username, url_parsed.password
         if login:
             self.auth = BasicAuth(login, password or "")
 
@@ -109,8 +111,17 @@ class Request(object):
             if hdr not in self.headers:
                 self.headers[hdr] = value
 
+        # set host
         if "Host" not in self.headers:
             self.headers["Host"] = self.host
+
+        # set default content-type
+        if self.method in const.POST_METHOD and "content-type" not in self.headers:
+            self.headers["content-type"] = "application/octet-stream"
+
+        # set the connection header
+        if "connection" not in self.headers:
+            self.headers["connection"] = "keep-alive"
 
     def update_auth(self, auth):
         """update http auth"""
@@ -127,7 +138,6 @@ class Request(object):
 
     def update_cookies(self, cookies):
         """update http cookies"""
-
         if not cookies:
             return
 
@@ -147,7 +157,6 @@ class Request(object):
 
     def update_body(self, data):
         """update http body. data can be dict, str, bytes or file"""
-
         if not data:
             return
 
@@ -161,6 +170,3 @@ class Request(object):
             self.body = data
         else:
             pass
-
-
-

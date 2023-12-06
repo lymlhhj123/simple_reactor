@@ -1,12 +1,12 @@
 # coding: utf-8
 
 from .response import Response
-from ..coroutine import coroutine
 
 IDLE = 0
 REQ_START = 1
 REQ_SENT = 2
-RESP_RECEIVING = 3
+BODY_SENT = 3
+RESP_RECEIVING = 4
 
 HTTP_VSN = "HTTP/1.1"
 
@@ -21,64 +21,78 @@ class Connection(object):
 
         self._buffer = []
 
-    @coroutine
-    def send_request(self, request):
+    async def send_request(self, request):
         """send request"""
+        self.put_request(request.method, request.url)
+
+        for k, v in request.headers.items():
+            self.put_header(k, v)
+
+        await self.end_headers()
+
+        await self.send_body()
+
+    def put_request(self, method, path):
+        """put http/1.1 first line"""
         if self.state != IDLE:
             raise
 
         self.state = REQ_START
-
-        self._put_request(request.method, request.url)
-
-        for k, v in request.headers:
-            self._put_header(k, v)
-
-        self._end_headers()
-
-        yield self._flush_header()
-
-        yield self._send_body()
-
-    def _put_request(self, method, path):
-        """put http/1.1 first line"""
         first_line = "%s %s %s\r\n" % (method, path, HTTP_VSN)
         self._buffer.append(first_line.encode("ascii"))
 
-    def _put_header(self, key, value):
+    def put_header(self, key, value):
         """write http header"""
+        if self.state != REQ_START:
+            raise
+
         hdr = "%s: %s\r\n" % (key, value)
-        self._buffer.append(hdr)
+        self._buffer.append(hdr.encode("ascii"))
 
-    def _end_headers(self):
+    async def end_headers(self):
         """Send a blank line to the server, signalling the end of the headers."""
-        self._buffer.append("\r\n")
+        if self.state != REQ_START:
+            raise
 
-    @coroutine
-    def _flush_header(self):
+        self._buffer.append(b"\r\n")
 
         header_data = b"".join(self._buffer)
         self._buffer.clear()
 
-        yield self.stream.write(header_data)
+        await self.stream.write(header_data)
 
         self.state = REQ_SENT
 
-    def _send_body(self):
+    async def send_body(self):
         """Send data to the server. This should be used directly only after the
         endheaders() method has been called and before get_response() is called."""
-
-    def get_response(self):
-        """get http response from connection"""
         if self.state != REQ_SENT:
+            raise
+
+        try:
+            pass
+        finally:
+            self.state = BODY_SENT
+
+    async def get_response(self):
+        """get http response from connection"""
+        if self.state != REQ_SENT or self.state != BODY_SENT:
             raise
 
         self.state = RESP_RECEIVING
 
-        builder = Response()
+        resp = Response()
         try:
-            resp = yield builder.build()
+            await resp.feed(self.stream)
         finally:
             self.state = IDLE
 
         return resp
+
+    def close(self):
+        """close http connection"""
+        if not self.stream:
+            return
+
+        stream, self.stream = self.stream, None
+        stream.close()

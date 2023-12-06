@@ -1,60 +1,72 @@
 # coding: utf-8
 
 import json
+from http.cookies import SimpleCookie
 from http import HTTPStatus
-from io import StringIO
 
-from .ci_dict import CIDict
 from . import const
+from .parser import HeaderParser, HttpBodyParser
 
 
 class Response(object):
 
     def __init__(self):
 
-        self.stream = None
+        self.request = None
 
-        self.version = None
-        self.status = None
-        self.reason = None
+        self._stream = None
 
-        self.headers = None
-        self.body = None
+        self._version = None
+        self._status = None
+        self._reason = None
 
-    def feed(self, stream):
+        self._cookies = SimpleCookie()
+        self._headers = None
+        self._data = None
+
+        self._chunked = False
+        self._charset = None
+        self._close_conn = None
+        self._content_length = None
+        self._content_encoding = None
+        self._content_charset = None
+
+    def __repr__(self):
+
+        return f"Response<{self._status}>"
+
+    async def feed(self, stream):
         """read response"""
-        self.stream = stream
+        self._stream = stream
+        try:
+            await self._read_response()
+
+            cookie = self.headers.get("Set-Cookie")
+            if cookie:
+                self._cookies.load(cookie)
+        finally:
+            self._stream = None
+
+    async def _read_response(self):
+        """read response header and body"""
         while True:
-            version, status, reason = yield self._read_status()
+            version, status, reason = await self._read_status()
             if status != HTTPStatus.CONTINUE:
                 break
 
             # drop all headers
-            self.stream.read_until_regex(b"\r\n")
+            await self._stream.read_until_regex(b"\r\n\r\n")
 
-        self.version = version
-        self.status = status
-        self.reason = reason
+        self._version = version
+        self._status = status
+        self._reason = reason
 
-        headers = yield self.stream.read_until_regex(b"\r\n")
-        header_str = headers.decode("iso-8859-1")
-        self._parse_headers(header_str)
+        await self._read_headers()
+        await self._read_body()
 
-        tr_enc = headers.get("transfer-encoding")
-        if tr_enc and tr_enc.lower() == "chunked":
-            body = yield self._read_chunk_data()
-        else:
-            content_length = self._detect_content_length(headers)
-            if content_length:
-                body = yield self.stream.read(content_length)
-            else:
-                body = ""
-
-        self.body = body
-
-    def _read_status(self):
+    async def _read_status(self):
         """read response status line"""
-        line = yield self.stream.readline()
+        line = await self._stream.readline()
         line = line.decode("iso-8859-1")
         if len(line) > const.MAX_HEADER_LENGTH:
             raise ValueError(f"status line too long: {line}")
@@ -81,77 +93,58 @@ class Response(object):
 
         return version, status, reason
 
-    def _parse_headers(self, header_str):
-        """parse response header"""
-        headers = CIDict()
+    async def _read_headers(self):
+        """read response header"""
+        header_parser = HeaderParser(self._stream)
+        header_result = await header_parser.parse()
 
-        string_io = StringIO(header_str)
+        self._headers = header_result.headers
+        self._cookies = header_result.cookies
+        self._close_conn = header_result.should_close
+        self._chunked = header_result.chunked
+        self._content_length = header_result.length
+        self._content_encoding = header_result.encoding
 
-        line = string_io.readline()
-        while line:
-            if line > const.MAX_HEADER_LENGTH:
-                raise ValueError(f"header too long: {line}")
+    async def _read_body(self):
+        """read response body"""
+        body_parser = HttpBodyParser(self._stream, self._chunked,
+                                     self._content_length, self._content_encoding)
+        self._data = await body_parser.parse()
 
-            line = line.strip()
-            if not line:
-                continue
+    @property
+    def headers(self):
+        """return http header"""
+        return self._headers
 
-            try:
-                name, value = line.split(":", 1)
-            except Exception as e:
-                raise ValueError(f"Invalid header: {line}") from e
+    @property
+    def cookies(self):
+        """return response cookies"""
+        return self._cookies
 
-            headers[name] = value
+    @property
+    def status_code(self):
+        """return status code"""
+        return self._status
 
-            if len(headers) > const.MAX_HEADERS:
-                raise ValueError("too more header")
+    def _get_content_charset(self):
+        """return response data charset"""
+        if self._content_charset:
+            return self._content_charset
 
-            line = string_io.readline()
+        # todo
+        return "utf-8"
 
-        self.headers = headers
-
-    @staticmethod
-    def _detect_content_length(headers):
-        """detect response body length"""
-        length = headers.get("content-length")
-        try:
-            length = int(length)
-        except ValueError:
-            length = 0
-        else:
-            if length < 0:  # ignore nonsensical negative lengths
-                length = 0
-
-        return length
-
-    @coroutine
-    def _read_chunk_data(self):
-        """read all chunk data"""
-        data = []
-        while True:
-            magic = yield self.stream.readline(delimiter=b"\r\n")
-            i = magic.find(b";")
-            if i >= 0:
-                magic = magic[:i]  # strip chunk-extensions
-
-            chunk_len = int(magic, 16)
-            if chunk_len == 0:  # last empty chunk
-                yield self.stream.readline()
-                break
-
-            chunk = yield self.stream.read(chunk_len)
-            data.append(chunk)
-
-        return b"".join(data)
-
-    def json(self):
-
-        return json.loads(self._body)
+    def json(self, encoding=None):
+        """return body as json"""
+        return json.loads(self.text(encoding))
 
     def form(self):
 
         pass
 
-    def raw(self):
+    def text(self, encoding=None):
+        """return data as str"""
+        if not encoding:
+            encoding = self._get_content_charset()
 
-        return self._body
+        return self._data.decode(encoding)

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import re
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 
 # the patterns for both name and value are more lenient than RFC
@@ -85,6 +85,11 @@ def encode_params(params):
         return urlencode(params)
 
 
+# The unreserved URI characters (RFC 3986)
+UNRESERVED_SET = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" + "0123456789-._~")
+
+
 def unquote_unreserved(uri):
     """Un-escape any percent-escape sequences in a URI that are unreserved
     characters. This leaves all reserved, illegal and non-ASCII bytes encoded.
@@ -98,7 +103,7 @@ def unquote_unreserved(uri):
             try:
                 c = chr(int(h, 16))
             except ValueError:
-                raise InvalidURL("Invalid percent-escape sequence: '%s'" % h)
+                raise ValueError("Invalid percent-escape sequence: '%s'" % h)
 
             if c in UNRESERVED_SET:
                 parts[i] = c + parts[i][2:]
@@ -124,7 +129,7 @@ def requote_uri(uri):
         # Then quote only illegal characters (do not quote reserved,
         # unreserved, or '%')
         return quote(unquote_unreserved(uri), safe=safe_with_percent)
-    except InvalidURL:
+    except (ValueError, Exception):
         # We couldn't unquote the given URI, so let's try quoting it, but
         # there may be unquoted '%'s in the URI. We need to make sure they're
         # properly quoted so they do not cause issues elsewhere.

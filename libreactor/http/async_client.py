@@ -60,13 +60,14 @@ class AsyncClient(object):
 
     async def request(self, method, url, *, params=None, data=None,
                       headers=None, cookies=None, auth=None, key_file=None,
-                      cert_file=None, timeout=None):
+                      cert_file=None, verify=True, allow_redirect=True, timeout=None):
         """request url"""
         req = Request(method, url, params=params, headers=headers,
                       data=data, cookies=cookies, auth=auth)
 
         conn = await self._connection_from_request(
             req=req,
+            verify=verify,
             key_file=key_file,
             cert_file=cert_file,
             timeout=timeout
@@ -74,15 +75,15 @@ class AsyncClient(object):
 
         try:
             await conn.send_request(req)
-
             resp = await conn.get_response()
+            resp.request = req
         finally:
             conn.close()
 
         return resp
 
-    async def _connection_from_request(self, req, key_file=None, cert_file=None, timeout=None):
-
+    async def _connection_from_request(self, req, verify=True, key_file=None, cert_file=None, timeout=None):
+        """make http connection from http request"""
         parsed = urlsplit(req.url)
         hostname = parsed.hostname
         port = parsed.port
@@ -96,7 +97,7 @@ class AsyncClient(object):
         options.connect_timeout = timeout
         kwargs["options"] = options
 
-        if parsed.scheme == const.HTTPS:
+        if parsed.scheme == const.HTTPS and verify is True:
             ssl_options = SSLOptions()
             ssl_options.server_hostname = hostname
             ssl_options.key_file = key_file
@@ -108,5 +109,5 @@ class AsyncClient(object):
         return Connection(stream)
 
     def close(self):
-
+        """"""
         pass

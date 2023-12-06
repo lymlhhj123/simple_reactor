@@ -5,6 +5,7 @@ import socket
 import asyncio
 import functools
 import collections
+from concurrent.futures import ThreadPoolExecutor
 
 from .tasks import Task
 from .options import Options
@@ -32,6 +33,8 @@ class AsyncioLoop(object):
         self._reader = set()
         self._writer = set()
         self._channel_map = {}
+
+        self._executor = ThreadPoolExecutor(max_workers=8)
 
     def __getattr__(self, item):
         """forward request to asyncio.AbstractEventLoop"""
@@ -165,6 +168,13 @@ class AsyncioLoop(object):
         """handle channel read/write event"""
         channel = self._channel_map[fd]
         channel.handle_events(event)
+
+    async def run_in_executor(self, fn, *args, **kwargs):
+        """run fn(*args, **kwargs) in another thread, not block loop"""
+        func = functools.partial(fn, *args, **kwargs)
+        return await self._loop.run_in_executor(self._executor, func)
+
+    run_in_thread = run_in_executor
 
     async def ensure_resolved(self, host, port, *,
                               family=socket.AF_UNSPEC,

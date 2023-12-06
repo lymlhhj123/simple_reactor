@@ -1,7 +1,31 @@
 # coding: utf-8
 
+import types
+import inspect
+import functools
+
 from . import futures
 from .loop_helper import get_event_loop
+
+
+def coroutine(func):
+    """wrapper func to coroutine"""
+    if inspect.iscoroutinefunction(func):
+        wrapper = func
+    elif inspect.isgeneratorfunction(func):
+        wrapper = types.coroutine(func)
+    else:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+
+            res = func(*args, **kwargs)
+            # res maybe await object
+            if hasattr(res, "__await__"):
+                res = await res
+
+            return res
+
+    return wrapper
 
 
 async def sleep(seconds):
