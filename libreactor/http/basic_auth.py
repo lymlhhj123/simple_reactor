@@ -30,10 +30,10 @@ class BasicAuth(Auth):
     def __init__(self, login, password=""):
 
         if not isinstance(login, (str, bytes)):
-            raise ValueError("")
+            raise ValueError("Invalid login args type, must be str or bytes")
 
         if not isinstance(password, (str, bytes)):
-            raise ValueError()
+            raise ValueError("Invalid password args type, must be str or bytes")
 
         self.login = login
         self.password = password

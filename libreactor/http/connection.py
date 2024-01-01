@@ -7,6 +7,7 @@ REQ_START = 1
 REQ_SENT = 2
 BODY_SENT = 3
 RESP_RECEIVING = 4
+CLOSED = 5
 
 HTTP_VSN = "HTTP/1.1"
 
@@ -30,12 +31,12 @@ class Connection(object):
 
         await self.end_headers()
 
-        await self.send_body()
+        await self.send_body(request.body)
 
     def put_request(self, method, path):
         """put http/1.1 first line"""
         if self.state != IDLE:
-            raise
+            raise ValueError("invalid state, `IDLE` is required")
 
         self.state = REQ_START
         first_line = "%s %s %s\r\n" % (method, path, HTTP_VSN)
@@ -44,7 +45,7 @@ class Connection(object):
     def put_header(self, key, value):
         """write http header"""
         if self.state != REQ_START:
-            raise
+            raise ValueError("invalid state, `REQ_START` is required")
 
         hdr = "%s: %s\r\n" % (key, value)
         self._buffer.append(hdr.encode("ascii"))
@@ -63,21 +64,22 @@ class Connection(object):
 
         self.state = REQ_SENT
 
-    async def send_body(self):
+    async def send_body(self, body):
         """Send data to the server. This should be used directly only after the
         endheaders() method has been called and before get_response() is called."""
         if self.state != REQ_SENT:
-            raise
+            raise ValueError("invalid state, `REQ_SENT` is required")
 
         try:
-            pass
+            if not body:
+                return
         finally:
             self.state = BODY_SENT
 
     async def get_response(self):
         """get http response from connection"""
-        if self.state != REQ_SENT or self.state != BODY_SENT:
-            raise
+        if self.state != BODY_SENT:
+            raise ValueError("invalid state, `BODY_SENT` is required")
 
         self.state = RESP_RECEIVING
 
@@ -94,5 +96,6 @@ class Connection(object):
         if not self.stream:
             return
 
+        self.state = CLOSED
         stream, self.stream = self.stream, None
         stream.close()

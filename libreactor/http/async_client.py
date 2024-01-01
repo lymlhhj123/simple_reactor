@@ -10,6 +10,7 @@ from ..options import (
     SSLOptions
 )
 from . import const
+from .. import errors
 
 
 class AsyncClient(object):
@@ -58,33 +59,71 @@ class AsyncClient(object):
         resp = await self.request(const.METH_TRACE, url, **kwargs)
         return resp
 
-    async def request(self, method, url, *, params=None, data=None,
-                      headers=None, cookies=None, auth=None, key_file=None,
-                      cert_file=None, verify=True, allow_redirect=True, timeout=None):
-        """request url"""
-        req = Request(method, url, params=params, headers=headers,
-                      data=data, cookies=cookies, auth=auth)
+    async def request(self, method, url, *,
+                      params=None, data=None, json=None, files=None,
+                      headers=None, cookies=None, auth=None,
+                      key_file=None, cert_file=None, verify=True,
+                      allow_redirect=True, max_redirects=3, timeout=None):
+        """request url and return response
 
-        conn = await self._connection_from_request(
-            req=req,
-            verify=verify,
-            key_file=key_file,
-            cert_file=cert_file,
-            timeout=timeout
-        )
+        :param method:
+        :param url:
+        :param params:
+        :param data:
+        :param json:
+        :param files: dict, name of file tuple,
+                      for example: {name: (filename, fileobject or file data, content_type, custom_headers)}
+        :param headers:
+        :param cookies:
+        :param auth:
+        :param key_file:
+        :param cert_file:
+        :param verify:
+        :param allow_redirect:
+        :param max_redirects:
+        :param timeout:
+        """
+        redirects = 0
+        history = []
+        while True:
+            req = Request(method, url, params=params, headers=headers,
+                          data=data, json=json, files=files, cookies=cookies, auth=auth)
 
-        try:
-            await conn.send_request(req)
-            resp = await conn.get_response()
-            resp.request = req
-        finally:
-            conn.close()
+            conn = await self._connection_from_url(
+                url=req.url,
+                verify=verify,
+                key_file=key_file,
+                cert_file=cert_file,
+                timeout=timeout
+            )
 
+            try:
+                await conn.send_request(req)
+                resp = await conn.get_response()
+
+                if resp.status_code not in const.REDIRECTS_CODE or not allow_redirect:
+                    break
+
+                # handle url redirect
+                history.append(resp)
+                redirects += 1
+
+                if max_redirects and redirects > max_redirects:
+                    raise errors.TooManyRedirects(f"too many redirects, {history}")
+
+                url = resp.headers.get(const.LOCATION) or resp.headers.get(const.URI)
+                if not url:
+                    break
+            finally:
+                conn.close()
+
+        resp.request = req
+        resp.history = history
         return resp
 
-    async def _connection_from_request(self, req, verify=True, key_file=None, cert_file=None, timeout=None):
-        """make http connection from http request"""
-        parsed = urlsplit(req.url)
+    async def _connection_from_url(self, url, verify=True, key_file=None, cert_file=None, timeout=None):
+        """make http connection from url"""
+        parsed = urlsplit(url)
         hostname = parsed.hostname
         port = parsed.port
 
@@ -111,3 +150,11 @@ class AsyncClient(object):
     def close(self):
         """"""
         pass
+
+    async def __aenter__(self):
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+        self.close()

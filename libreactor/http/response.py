@@ -1,10 +1,11 @@
 # coding: utf-8
 
-import json
 from http.cookies import SimpleCookie
 from http import HTTPStatus
 
 from . import const
+from . import utils
+from .. import errors
 from .parser import HeaderParser, HttpBodyParser
 
 
@@ -13,6 +14,7 @@ class Response(object):
     def __init__(self):
 
         self.request = None
+        self.history = None
 
         self._stream = None
 
@@ -36,12 +38,12 @@ class Response(object):
         return f"Response<{self._status}>"
 
     async def feed(self, stream):
-        """read response"""
+        """read response until finished or raise exc"""
         self._stream = stream
         try:
             await self._read_response()
 
-            cookie = self.headers.get("Set-Cookie")
+            cookie = self.headers.get(const.SET_COOKIE)
             if cookie:
                 self._cookies.load(cookie)
         finally:
@@ -69,7 +71,9 @@ class Response(object):
         line = await self._stream.readline()
         line = line.decode("iso-8859-1")
         if len(line) > const.MAX_HEADER_LENGTH:
-            raise ValueError(f"status line too long: {line}")
+            raise errors.BadStatusLine(f"status line too long: {line}")
+
+        line = line.strip()
 
         try:
             version, status, reason = line.split(None, 2)
@@ -81,29 +85,29 @@ class Response(object):
                 version, status, reason = "", -1, ""
 
         if not version.startswith("HTTP/"):
-            raise ValueError("bad status line, invalid version")
+            raise errors.BadStatusLine(f"bad status line: {line}, invalid version")
 
         # The status code must be 100 < status < 999
         try:
             status = int(status)
             if status < 100 or status > 999:
-                raise ValueError(f"bad status line: {line}, invalid status code")
+                raise errors.BadStatusLine(f"bad status line: {line}, invalid status code")
         except ValueError:
-            raise ValueError(f"bad status line: {line}, invalid status code")
+            raise errors.BadStatusLine(f"bad status line: {line}, invalid status code")
 
         return version, status, reason
 
     async def _read_headers(self):
         """read response header"""
         header_parser = HeaderParser(self._stream)
-        header_result = await header_parser.parse()
+        parsed_result = await header_parser.parse()
 
-        self._headers = header_result.headers
-        self._cookies = header_result.cookies
-        self._close_conn = header_result.should_close
-        self._chunked = header_result.chunked
-        self._content_length = header_result.length
-        self._content_encoding = header_result.encoding
+        self._headers = parsed_result.headers
+        self._cookies = parsed_result.cookies
+        self._close_conn = parsed_result.should_close
+        self._chunked = parsed_result.chunked
+        self._content_length = parsed_result.length
+        self._content_encoding = parsed_result.encoding
 
     async def _read_body(self):
         """read response body"""
@@ -126,6 +130,11 @@ class Response(object):
         """return status code"""
         return self._status
 
+    @property
+    def keep_alive(self):
+        """return Connection header"""
+        return self._close_conn
+
     def _get_content_charset(self):
         """return response data charset"""
         if self._content_charset:
@@ -136,15 +145,15 @@ class Response(object):
 
     def json(self, encoding=None):
         """return body as json"""
-        return json.loads(self.text(encoding))
-
-    def form(self):
-
-        pass
+        return utils.json_loads(self.text(encoding))
 
     def text(self, encoding=None):
         """return data as str"""
         if not encoding:
             encoding = self._get_content_charset()
 
-        return self._data.decode(encoding)
+        return self.content().decode(encoding)
+
+    def content(self):
+        """return raw body data"""
+        return self._data

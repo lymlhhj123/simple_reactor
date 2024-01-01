@@ -29,9 +29,9 @@ class Acceptor(object):
         self.placeholder = open("/dev/null")
         self.channel_map = {}
 
-        self._ssl_context = self._make_ssl_context()
+        self._ssl_context = self._create_ssl_context()
 
-    def _make_ssl_context(self):
+    def _create_ssl_context(self):
         """create server side ssl context"""
         if not self.ssl_options:
             return

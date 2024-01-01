@@ -5,7 +5,10 @@ import socket
 import asyncio
 import functools
 import collections
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    ProcessPoolExecutor,
+)
 
 from .tasks import Task
 from .options import Options
@@ -34,7 +37,11 @@ class AsyncioLoop(object):
         self._writer = set()
         self._channel_map = {}
 
-        self._executor = ThreadPoolExecutor(max_workers=8)
+        self._thread_executor = ThreadPoolExecutor(max_workers=8)
+        # set default thread executor
+        self._loop.set_default_executor(self._thread_executor)
+
+        self._process_executor = ProcessPoolExecutor(max_workers=8)
 
     def __getattr__(self, item):
         """forward request to asyncio.AbstractEventLoop"""
@@ -169,12 +176,15 @@ class AsyncioLoop(object):
         channel = self._channel_map[fd]
         channel.handle_events(event)
 
-    async def run_in_executor(self, fn, *args, **kwargs):
+    async def run_in_thread(self, fn, *args, **kwargs):
         """run fn(*args, **kwargs) in another thread, not block loop"""
         func = functools.partial(fn, *args, **kwargs)
-        return await self._loop.run_in_executor(self._executor, func)
+        return await self._loop.run_in_executor(self._thread_executor, func)
 
-    run_in_thread = run_in_executor
+    async def run_in_process(self, fn, *args, **kwargs):
+        """run fn(*args, **kwargs) in another process, not block loop"""
+        func = functools.partial(fn, *args, **kwargs)
+        return await self._loop.run_in_executor(self._process_executor, func)
 
     async def ensure_resolved(self, host, port, *,
                               family=socket.AF_UNSPEC,

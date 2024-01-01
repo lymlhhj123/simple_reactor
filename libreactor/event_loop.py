@@ -18,15 +18,13 @@ from . import fd_helper
 from .connector import Connector
 from .acceptor import Acceptor
 from .options import Options
-from .context_factory import Factory
+from .context_factory import ContextFactory
 from . import futures
 from .process import Process
-from .compat import asyncio_loop_adapter
 
 DEFAULT_TIMEOUT = 3.6  # sec
 
 
-@asyncio_loop_adapter
 class EventLoop(object):
     """this class is duplicated, please use asyncio_loop.AsyncioLoop"""
 
@@ -50,11 +48,6 @@ class EventLoop(object):
     def time(self):
         """loop time clock"""
         return self._time_func()
-
-    def create_future(self):
-        """create future and attach to this loop"""
-        # we don't need to implement all asyncio event loop interface
-        return asyncio.Future(loop=self)
 
     def call_soon(self, func, *args, context=None):
         """run callback in netx loop"""
@@ -291,7 +284,7 @@ class EventLoop(object):
                 if idx == (len(addr_list) - 1):
                     raise e
 
-    async def listen_tcp(self, port, proto_factory, *, host=None, factory=Factory(),
+    async def listen_tcp(self, port, proto_factory, *, host=None, factory=ContextFactory(),
                          options=Options(), ssl_options=None):
         """create tcp server"""
         addr_list = await self.ensure_resolved(host, port)
@@ -321,7 +314,7 @@ class EventLoop(object):
         acceptor.start()
         return acceptor
 
-    async def connect_unix(self, sock_path, proto_factory, *, factory=Factory(), options=Options()):
+    async def connect_unix(self, sock_path, proto_factory, *, factory=ContextFactory(), options=Options()):
         """create unix domain client"""
 
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -336,7 +329,7 @@ class EventLoop(object):
 
         return await waiter
 
-    async def listen_unix(self, sock_path, proto_factory, *, mode=0o755, factory=Factory(), options=Options()):
+    async def listen_unix(self, sock_path, proto_factory, *, mode=0o755, factory=ContextFactory(), options=Options()):
         """create unix domain server"""
 
         lock_file = sock_path + ".lock"
@@ -368,7 +361,7 @@ class EventLoop(object):
     async def connect_udp(self):
         """create udp client"""
 
-    async def listen_udp(self, port, proto_factory, *, host=None, factory=Factory()):
+    async def listen_udp(self, port, proto_factory, *, host=None, factory=ContextFactory()):
         """create udp server"""
         addr_list = await self.ensure_resolved(host, port, type_=socket.SOCK_DGRAM)
 

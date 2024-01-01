@@ -11,3 +11,23 @@ IO_WOULD_BLOCK = [
     ssl.SSL_ERROR_WANT_READ,
     ssl.SSL_ERROR_WANT_WRITE
 ]
+
+
+class InvalidURL(Exception):
+
+    pass
+
+
+class InvalidHeader(Exception):
+
+    pass
+
+
+class BadStatusLine(Exception):
+
+    pass
+
+
+class TooManyRedirects(Exception):
+
+    pass

@@ -5,8 +5,9 @@ from collections import namedtuple
 from http.cookies import SimpleCookie
 
 from . import const
+from .. import errors
 from .ci_dict import CIDict
-from .compress_util import ZibDecompressor
+from .compress_util import ZLibDecompressor
 from ..loop_helper import get_event_loop
 
 
@@ -32,7 +33,7 @@ class HeaderParser(object):
         if resp_cookie:
             cookies.load(resp_cookie)
 
-        should_close = None
+        should_close = True
         conn = headers.get("connection")
         if conn:
             conn = conn.lower()
@@ -48,7 +49,7 @@ class HeaderParser(object):
             if te.lower() == "chunked":
                 chunked = True
             else:
-                raise ValueError("Request has invalid `Transfer-Encoding`")
+                raise errors.InvalidHeader("Request has invalid `Transfer-Encoding`")
         else:
             length = headers.get("content-length")
             if length:
@@ -61,7 +62,7 @@ class HeaderParser(object):
                         length = 0
 
         if chunked and length is not None:
-            raise ValueError("Transfer-Encoding can't be present with Content-Length")
+            raise errors.InvalidHeader("Transfer-Encoding can't be present with Content-Length")
 
         # encoding
         encoding = None
@@ -82,10 +83,10 @@ class HeaderParser(object):
         line = io_stream.readline()
         while line:
             if len(line) > self.max_line_size:
-                raise ValueError(f"line too long: {line}")
+                raise errors.InvalidHeader(f"header line too long: {line}")
 
             line = line.rstrip()
-            if not line:  # empty line: \r\n
+            if not line:  # header end line: \r\n
                 break
 
             # continuation lines
@@ -97,19 +98,22 @@ class HeaderParser(object):
                     last_value = []
 
                     if len(headers) > self.max_headers:
-                        raise ValueError("too more headers found")
+                        raise errors.InvalidHeader(f"too more headers found, {len(headers)}")
 
                 try:
                     name, value = line.split(":", 1)
                     value = value.lstrip(" \t")
                 except Exception as e:
-                    raise ValueError(f"Invalid header line: {line}") from e
+                    raise errors.InvalidHeader(f"Invalid header line: {line}") from e
 
                 last_name = name
                 last_value.append(value)
 
             # next line
             line = io_stream.readline()
+
+        if last_name and last_value:
+            headers[last_name] = "".join(last_value)
 
         return headers
 
@@ -124,7 +128,7 @@ class HttpBodyParser(object):
         self._encoding = encoding
 
         if encoding:
-            self._decompressor = ZibDecompressor(encoding, loop=get_event_loop())
+            self._decompressor = ZLibDecompressor(encoding, loop=get_event_loop())
         else:
             self._decompressor = None
 
@@ -135,6 +139,7 @@ class HttpBodyParser(object):
         elif self._length:
             data = await self._read_length_data()
         else:
+            # todo: return empty data or read until eof
             data = b""
 
         if not self._decompressor:
@@ -158,6 +163,7 @@ class HttpBodyParser(object):
                 break
 
             chunk = await self._stream.read(chunk_len)
+            # chunk end `\r\n`
             await self._stream.readline()
 
             data.append(chunk)

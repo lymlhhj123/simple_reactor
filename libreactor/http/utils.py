@@ -1,6 +1,10 @@
 # coding: utf-8
 
 import re
+import json
+import uuid
+import typing
+import mimetypes
 from urllib.parse import urlencode, quote
 
 
@@ -134,3 +138,39 @@ def requote_uri(uri):
         # there may be unquoted '%'s in the URI. We need to make sure they're
         # properly quoted so they do not cause issues elsewhere.
         return quote(uri, safe=safe_without_percent)
+
+
+def json_dumps(data):
+    """dumps data to json"""
+    if isinstance(data, dict):
+        data = json.dumps(data)
+
+    return data
+
+
+def json_loads(data):
+    """loads data to dict"""
+    return json.loads(data)
+
+
+def to_key_value_list(data):
+
+    if not data:
+        return []
+
+    if isinstance(data, typing.MutableMapping):
+        data = data.items()
+
+    return list(data)
+
+
+def guess_content_type(filename, default="application/octet-stream"):
+    """guess content-type of filename"""
+    if filename:
+        return mimetypes.guess_type(filename)[0] or default
+    return default
+
+
+def choose_boundary():
+    """return boundary generate by uuid"""
+    return uuid.uuid4().hex

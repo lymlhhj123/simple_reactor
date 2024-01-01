@@ -17,7 +17,7 @@ class Task(object):
         self.finished = False
 
         # start to run coroutine
-        self._process_yield(None)
+        self.loop.call_soon(self._process_yield, None)
 
     def _process_yield(self, yielded):
         """handle yield or await object"""

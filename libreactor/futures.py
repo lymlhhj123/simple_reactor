@@ -6,14 +6,19 @@ from concurrent.futures import Future as __Future
 from .loop_helper import get_event_loop
 
 
-def is_future(f):
-    """return ture if f is future"""
+def is_concurrent_future(f):
+    """return true if f is concurrent.futures.Future"""
+    return isinstance(f, __Future)
+
+
+def is_asyncio_future(f):
+    """return ture if f is asyncio.Future"""
     return isinstance(f, asyncio.Future)
 
 
 def maybe_future(fut):
     """wrap fut to future"""
-    if is_future(fut):
+    if is_asyncio_future(fut):
         return fut
 
     loop = get_event_loop()
@@ -77,19 +82,23 @@ def multi_future(fs):
     return final_future
 
 
+gather = multi_future
+
+
 def chain_future(src, dst):
     """chain two future, when src is done, then copy result to dst.
 
-    src can be concurrent.futures.Future, dst must be asyncio.Future"""
+    src can be concurrent.futures.Future or asyncio.Future, dst must be asyncio.Future
+    """
 
-    if not isinstance(src, __Future) and not is_future(src):
+    if not is_concurrent_future(src) and not is_asyncio_future(src):
         raise ValueError("A Future is required for src argument")
 
-    if not is_future(dst):
+    if not is_asyncio_future(dst):
         raise ValueError("A asyncio.Future is required for dst argument")
 
     def _copy_result(f):
-
+        """copy src result to dst when src is done"""
         assert f is src
 
         if future_is_done(dst):
@@ -109,10 +118,10 @@ def chain_future(src, dst):
 
 def wrap_future(fut):
     """wrap concurrent.futures.Future to asyncio.Future"""
-    if is_future(fut):
+    if is_asyncio_future(fut):
         return fut
 
-    assert isinstance(fut, __Future), "A concurrent.futures.Future is required"
+    assert is_concurrent_future(fut), "A concurrent.futures.Future is required"
 
     loop = get_event_loop()
     new_future = loop.create_future()
@@ -124,24 +133,28 @@ def wrap_future(fut):
 
 def future_is_done(fut):
     """return true if future is done"""
+    assert is_asyncio_future(fut)
 
     return fut.done()
 
 
 def future_add_done_callback(fut, callback):
     """add callback to future, auto called when future is done"""
+    assert is_asyncio_future(fut)
 
     fut.add_done_callback(callback)
 
 
 def future_get_result(fut):
     """get result from future"""
+    assert is_asyncio_future(fut)
 
     return fut.result()
 
 
 def future_set_result(fut, value):
     """set result to future"""
+    assert is_asyncio_future(fut)
 
     if future_is_done(fut):
         return
@@ -151,12 +164,14 @@ def future_set_result(fut, value):
 
 def future_get_exception(fut):
     """get exception from future"""
+    assert is_asyncio_future(fut)
 
     return fut.exception()
 
 
 def future_set_exception(fut, exc):
     """set exception to future"""
+    assert is_asyncio_future(fut)
 
     if future_is_done(fut):
         return
