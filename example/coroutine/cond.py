@@ -2,8 +2,8 @@
 
 import random
 
-from libreactor import get_event_loop
-from libreactor import sleep
+from simple_reactor import get_event_loop
+from simple_reactor import sleep
 
 loop = get_event_loop()
 

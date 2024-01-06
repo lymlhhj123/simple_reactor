@@ -1,7 +1,7 @@
 # coding: utf-8
 
-from libreactor import get_event_loop
-from libreactor import TimerScheduler
+from simple_reactor import get_event_loop
+from simple_reactor import TimerScheduler
 
 
 ev = get_event_loop()

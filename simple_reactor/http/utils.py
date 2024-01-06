@@ -154,11 +154,14 @@ def json_loads(data):
 
 
 def to_key_value_list(data):
-
+    """transform data to a list of tuples"""
     if not data:
         return []
 
-    if isinstance(data, typing.MutableMapping):
+    if isinstance(data, (str, bytes, bool, int)):
+        raise ValueError('cannot encode objects that are not 2-tuples')
+
+    if isinstance(data, typing.Mapping):
         data = data.items()
 
     return list(data)

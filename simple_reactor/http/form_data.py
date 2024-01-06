@@ -29,3 +29,8 @@ class FormData(object):
     def boundary(self):
         """return boundary"""
         return self._boundary
+
+    async def iter_fields(self):
+        """async iter fields"""
+        for field in self._multi_parts:
+            yield field

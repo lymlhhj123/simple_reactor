@@ -6,7 +6,7 @@ from http import HTTPStatus
 from . import const
 from . import utils
 from .. import errors
-from .parser import HeaderParser, HttpBodyParser
+from .http_reader import HttpHeaderReader, HttpBodyReader
 
 
 class Response(object):
@@ -16,7 +16,7 @@ class Response(object):
         self.request = None
         self.history = None
 
-        self._stream = None
+        self._conn = None
 
         self._version = None
         self._status = None
@@ -37,9 +37,9 @@ class Response(object):
 
         return f"Response<{self._status}>"
 
-    async def feed(self, stream):
+    async def feed(self, conn):
         """read response until finished or raise exc"""
-        self._stream = stream
+        self._conn = conn
         try:
             await self._read_response()
 
@@ -47,60 +47,58 @@ class Response(object):
             if cookie:
                 self._cookies.load(cookie)
         finally:
-            self._stream = None
+            self._conn = None
 
     async def _read_response(self):
         """read response header and body"""
-        while True:
-            version, status, reason = await self._read_status()
-            if status != HTTPStatus.CONTINUE:
-                break
-
-            # drop all headers
-            await self._stream.read_until_regex(b"\r\n\r\n")
-
-        self._version = version
-        self._status = status
-        self._reason = reason
-
+        await self._read_status()
         await self._read_headers()
         await self._read_body()
 
     async def _read_status(self):
         """read response status line"""
-        line = await self._stream.readline()
-        line = line.decode("iso-8859-1")
-        if len(line) > const.MAX_HEADER_LENGTH:
-            raise errors.BadStatusLine(f"status line too long: {line}")
+        protocol = self._conn.get_protocol()
+        while True:
+            line = await protocol.readline()
+            line = line.decode("iso-8859-1")
+            if len(line) > const.MAX_HEADER_LENGTH:
+                raise errors.BadStatusLine(f"status line too long: {line}")
 
-        line = line.strip()
+            line = line.strip()
 
-        try:
-            version, status, reason = line.split(None, 2)
-        except ValueError:
             try:
-                version, status = line.split(None, 1)
-                reason = ""
+                version, status, reason = line.split(None, 2)
             except ValueError:
-                version, status, reason = "", -1, ""
+                try:
+                    version, status = line.split(None, 1)
+                    reason = ""
+                except ValueError:
+                    version, status, reason = "", -1, ""
 
-        if not version.startswith("HTTP/"):
-            raise errors.BadStatusLine(f"bad status line: {line}, invalid version")
+            if not version.startswith("HTTP/"):
+                raise errors.BadStatusLine(f"bad status line: {line}, invalid version")
 
-        # The status code must be 100 < status < 999
-        try:
-            status = int(status)
-            if status < 100 or status > 999:
+            # The status code must be 100 < status < 999
+            try:
+                status = int(status)
+                if status < 100 or status > 999:
+                    raise errors.BadStatusLine(f"bad status line: {line}, invalid status code")
+            except ValueError:
                 raise errors.BadStatusLine(f"bad status line: {line}, invalid status code")
-        except ValueError:
-            raise errors.BadStatusLine(f"bad status line: {line}, invalid status code")
 
-        return version, status, reason
+            if status != HTTPStatus.CONTINUE:
+                self._version = version
+                self._status = status
+                self._reason = reason
+                break
+
+            # drop all headers
+            await protocol.read_until_regex(b"\r\n\r\n")
 
     async def _read_headers(self):
         """read response header"""
-        header_parser = HeaderParser(self._stream)
-        parsed_result = await header_parser.parse()
+        header_reader = HttpHeaderReader(self._conn)
+        parsed_result = await header_reader.read()
 
         self._headers = parsed_result.headers
         self._cookies = parsed_result.cookies
@@ -111,9 +109,9 @@ class Response(object):
 
     async def _read_body(self):
         """read response body"""
-        body_parser = HttpBodyParser(self._stream, self._chunked,
+        body_reader = HttpBodyReader(self._conn, self._chunked,
                                      self._content_length, self._content_encoding)
-        self._data = await body_parser.parse()
+        self._data = await body_reader.read()
 
     @property
     def headers(self):

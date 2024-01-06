@@ -1,14 +1,14 @@
 # coding: utf-8
 
-import libreactor
-from libreactor import log
-from libreactor.http import AsyncClient
+import simple_reactor
+from simple_reactor import log
+from simple_reactor.http import AsyncClient
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-loop = libreactor.get_event_loop()
+loop = simple_reactor.get_event_loop()
 
 
 async def fetch_url():

@@ -158,10 +158,10 @@ class Request(object):
 
         self.headers[const.COOKIE] = c.output(header="", sep=";").strip()
 
-    def update_body(self, data, json, files):
+    def update_body(self, data=None, json=None, files=None):
         """update http body.
 
-        data can be dict, str, bytes;
+        data can be dict, tuple, str, bytes or has read() method;
         json is python dict object;
         files is file object tuple map
         """
@@ -187,6 +187,7 @@ class Request(object):
             # send form-data by chunked
             self.headers[const.TRANSFER_ENCODING] = "chunked"
         else:
+            # read() method must be read bytes
             if hasattr(data, "read"):
                 self.headers[const.TRANSFER_ENCODING] = "chunked"
             else:

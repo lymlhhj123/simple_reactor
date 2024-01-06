@@ -1,9 +1,9 @@
 # coding: utf-8
 
-import libreactor
+import simple_reactor
 
 
-loop = libreactor.get_event_loop()
+loop = simple_reactor.get_event_loop()
 
 
 def test_gen():
@@ -12,17 +12,17 @@ def test_gen():
     return 5
 
 
-@libreactor.coroutine
+@simple_reactor.coroutine
 def coro():
     # return generator directly
     return test_gen()
 
 
-@libreactor.coroutine
+@simple_reactor.coroutine
 def func():
 
     fut = loop.create_future()
-    loop.call_later(4, libreactor.future_set_result, fut, None)
+    loop.call_later(4, simple_reactor.future_set_result, fut, None)
     yield fut
 
     return "data"

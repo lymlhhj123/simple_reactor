@@ -1,8 +1,8 @@
 # coding: utf-8
 
-from libreactor import log
-from libreactor import get_event_loop
-from libreactor.protocols import StreamReceiver
+from simple_reactor import log
+from simple_reactor import get_event_loop
+from simple_reactor.protocols import StreamReceiver
 
 logger = log.get_logger()
 log.logger_init(logger)

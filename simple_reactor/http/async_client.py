@@ -144,8 +144,8 @@ class AsyncClient(object):
 
             kwargs["ssl_options"] = ssl_options
 
-        stream = await self.loop.connect_tcp(hostname, port, proto_factory=StreamReceiver, **kwargs)
-        return Connection(stream)
+        protocol = await self.loop.connect_tcp(hostname, port, proto_factory=StreamReceiver, **kwargs)
+        return Connection(protocol)
 
     def close(self):
         """"""

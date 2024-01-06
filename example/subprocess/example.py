@@ -1,7 +1,7 @@
 # coding: utf-8
 
-from libreactor import get_event_loop
-from libreactor import log
+from simple_reactor import get_event_loop
+from simple_reactor import log
 
 logger = log.get_logger()
 log.logger_init(logger)

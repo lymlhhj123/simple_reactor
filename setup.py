@@ -28,7 +28,7 @@ def get_version():
 setup(
     zip_safe=False,
     include_package_data=True,
-    name="libreactor",
+    name="python3-simple_reactor",
     description="io notify based on reactor mode",
     version=get_version(),
     author="Jun Hu",

@@ -15,17 +15,19 @@ HEADER_FIELD = ["headers", "cookies", "should_close", "chunked", "length", "enco
 HeaderResult = namedtuple("HeaderResult", HEADER_FIELD)
 
 
-class HeaderParser(object):
+class HttpHeaderReader(object):
 
-    def __init__(self, stream, max_line_size=const.MAX_HEADER_LENGTH, max_headers=const.MAX_HEADERS):
+    def __init__(self, connection, max_line_size=const.MAX_HEADER_LENGTH, max_headers=const.MAX_HEADERS):
 
-        self._stream = stream
+        self._conn = connection
         self.max_line_size = max_line_size
         self.max_headers = max_headers
 
-    async def parse(self):
-        """parse http header"""
-        raw_bytes = await self._stream.read_until_regex(b"\r\n\r\n")
+    async def read(self):
+        """read http header"""
+        protocol = self._conn.get_protocol()
+
+        raw_bytes = await protocol.read_until_regex(b"\r\n\r\n")
         headers = self._parse_header(raw_bytes.decode("iso-8859-1"))
 
         cookies = SimpleCookie()
@@ -118,11 +120,11 @@ class HeaderParser(object):
         return headers
 
 
-class HttpBodyParser(object):
+class HttpBodyReader(object):
 
-    def __init__(self, stream, chunked, length, encoding):
+    def __init__(self, connection, chunked, length, encoding):
 
-        self._stream = stream
+        self._conn = connection
         self._chunked = chunked
         self._length = length
         self._encoding = encoding
@@ -132,12 +134,14 @@ class HttpBodyParser(object):
         else:
             self._decompressor = None
 
-    async def parse(self):
+    async def read(self):
         """read http body and parse it"""
+        protocol = self._conn.get_protocol()
+
         if self._chunked:
-            data = await self._read_chunk_data()
+            data = await self._read_chunk_data(protocol)
         elif self._length:
-            data = await self._read_length_data()
+            data = await self._read_length_data(protocol)
         else:
             # todo: return empty data or read until eof
             data = b""
@@ -147,11 +151,11 @@ class HttpBodyParser(object):
 
         return await self._decompressor.decompress(data)
 
-    async def _read_chunk_data(self):
+    async def _read_chunk_data(self, protocol):
         """read chunk data"""
         data = []
         while True:
-            magic = await self._stream.readline()
+            magic = await protocol.readline()
             i = magic.find(b";")
             if i >= 0:
                 magic = magic[:i]  # strip chunk-extensions
@@ -159,17 +163,17 @@ class HttpBodyParser(object):
             chunk_len = int(magic, 16)
             if chunk_len == 0:  # empty chunk
                 # read last \r\n
-                await self._stream.readline()
+                await protocol.readline()
                 break
 
-            chunk = await self._stream.read(chunk_len)
+            chunk = await protocol.read(chunk_len)
             # chunk end `\r\n`
-            await self._stream.readline()
+            await protocol.readline()
 
             data.append(chunk)
 
         return b"".join(data)
 
-    async def _read_length_data(self):
+    async def _read_length_data(self, protocol):
         """read fixed length data"""
-        return await self._stream.read(self._length)
+        return await protocol.read(self._length)
