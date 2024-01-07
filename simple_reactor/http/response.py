@@ -42,10 +42,6 @@ class Response(object):
         self._conn = conn
         try:
             await self._read_response()
-
-            cookie = self.headers.get(const.SET_COOKIE)
-            if cookie:
-                self._cookies.load(cookie)
         finally:
             self._conn = None
 
@@ -133,7 +129,7 @@ class Response(object):
         """return Connection header"""
         return self._close_conn
 
-    def _get_content_charset(self):
+    def _detect_content_charset(self):
         """return response data charset"""
         if self._content_charset:
             return self._content_charset
@@ -148,10 +144,10 @@ class Response(object):
     def text(self, encoding=None):
         """return data as str"""
         if not encoding:
-            encoding = self._get_content_charset()
+            encoding = self._detect_content_charset()
 
         return self.content().decode(encoding)
 
     def content(self):
-        """return raw body data"""
+        """return raw body data as bytes"""
         return self._data

@@ -31,12 +31,12 @@ class HttpHeaderReader(object):
         headers = self._parse_header(raw_bytes.decode("iso-8859-1"))
 
         cookies = SimpleCookie()
-        resp_cookie = headers.get("Set-Cookie")
+        resp_cookie = headers.get(const.SET_COOKIE)
         if resp_cookie:
             cookies.load(resp_cookie)
 
         should_close = True
-        conn = headers.get("connection")
+        conn = headers.get(const.CONNECTION)
         if conn:
             conn = conn.lower()
             if conn == "keep-alive":
@@ -46,14 +46,14 @@ class HttpHeaderReader(object):
 
         chunked = False
         length = None
-        te = headers.get("transfer-encoding")
+        te = headers.get(const.TRANSFER_ENCODING)
         if te is not None:
             if te.lower() == "chunked":
                 chunked = True
             else:
                 raise errors.InvalidHeader("Request has invalid `Transfer-Encoding`")
         else:
-            length = headers.get("content-length")
+            length = headers.get(const.CONTENT_LENGTH)
             if length:
                 try:
                     length = int(length)
@@ -68,7 +68,7 @@ class HttpHeaderReader(object):
 
         # encoding
         encoding = None
-        enc = headers.get("content-encoding")
+        enc = headers.get(const.CONTENT_ENCODING)
         if enc:
             enc = enc.lower()
             if enc in ("gzip", "deflate"):

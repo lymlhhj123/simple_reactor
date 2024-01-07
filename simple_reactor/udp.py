@@ -63,16 +63,18 @@ class UDP(DatagramTransport):
 
     def _handle_read(self):
         """do read event"""
-        errcode, (datagram, addr) = self._read_from_fd()
+        while True:
+            errcode, (datagram, addr) = self._read_from_fd()
 
-        if errcode in errors.IO_WOULD_BLOCK:
-            return
+            if errcode in errors.IO_WOULD_BLOCK:
+                break
 
-        if errcode != errors.OK:
-            self.protocol.connection_error(errcode)
-            return
+            if errcode != errors.OK:
+                exc = ConnectionError(f"udp read error, {os.strerror(errcode)}")
+                self.protocol.connection_error(exc)
+                break
 
-        self.protocol.datagram_received(datagram, addr)
+            self.protocol.datagram_received(datagram, addr)
 
     def _read_from_fd(self):
         """read datagram from socket"""
@@ -102,18 +104,28 @@ class UDP(DatagramTransport):
         if ip_address.version != self.ip_address.version:
             raise ValueError("ip version is not matched")
 
-        if not self.send_buf:
-            errcode = self._write_to_fd(datagram, addr)
-            if errcode == errors.OK:
-                return
-
-            if errcode not in errors.IO_WOULD_BLOCK:
-                exc = ConnectionError(f"connection write error, {os.strerror(errcode)}")
-                self.protocol.connection_error(exc)
-                return
-
+        # just write to buffer
         self.send_buf.append((datagram, addr))
         self.channel.enable_writing()
+
+    def _handle_write(self):
+        """do write event"""
+        while self.send_buf:
+            datagram, addr = self.send_buf[0]
+            errcode = self._write_to_fd(datagram, addr)
+
+            if errcode in errors.IO_WOULD_BLOCK:
+                break
+
+            self.send_buf.popleft()
+
+            if errcode != errors.OK:
+                exc = ConnectionError(f"udp write error, {os.strerror(errcode)}")
+                self.protocol.connection_error(exc)
+                break
+
+        if not self.send_buf:
+            self.channel.disable_writing()
 
     def _write_to_fd(self, datagram, addr):
         """write datagram to socket"""
@@ -125,22 +137,6 @@ class UDP(DatagramTransport):
             errcode = errors.OK
 
         return errcode
-
-    def _handle_write(self):
-        """do write event"""
-        while self.send_buf:
-
-            datagram, addr = self.send_buf.popleft()
-
-            errcode = self._write_to_fd(datagram, addr)
-
-            if errcode in errors.IO_WOULD_BLOCK:
-                break
-
-            if errcode != errors.OK:
-                exc = ConnectionError(f"connection write error, {os.strerror(errcode)}")
-                self.protocol.connection_error(exc)
-                break
 
     def closed(self):
         """return True if connection is closed"""
