@@ -1,9 +1,9 @@
-# libreactor
+# simple reactor
 
 - io event notify library based on reactor mode, support epoll and select.
 - current only support linux, kernel >= 4.14.
 - python >= 3.8.5.
-- support tcp, unix, udp.
+- support tcp, unix, udp, http/1.1 client.
 - support coroutine, completely compatible with asyncio.
 
 

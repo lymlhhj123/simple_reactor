@@ -187,7 +187,6 @@ class Request(object):
             # send form-data by chunked
             self.headers[const.TRANSFER_ENCODING] = "chunked"
         else:
-            # read() method must be read bytes
             if hasattr(data, "read"):
                 self.headers[const.TRANSFER_ENCODING] = "chunked"
             else:

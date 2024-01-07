@@ -4,13 +4,6 @@ from . import const
 from .response import Response
 from .http_writer import HttpHeaderWriter, HttpBodyWriter
 
-IDLE = 0
-REQ_START = 1
-REQ_SENT = 2
-BODY_SENT = 3
-RESP_RECEIVING = 4
-CLOSED = 5
-
 HTTP_VSN = "HTTP/1.1"
 
 
@@ -31,6 +24,7 @@ class Connection(object):
 
     async def send_request(self, request):
         """send request to the server"""
+        # send request and get response, then again
         async with self._lock:
             await self._put_first_line(request.method, request.url)
 
@@ -60,7 +54,7 @@ class Connection(object):
         await body_writer.write(body, chunked)
 
     async def _get_response(self):
-        """get http response"""
+        """get http response from the server"""
         resp = Response()
         await resp.feed(self)
         return resp

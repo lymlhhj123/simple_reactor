@@ -98,9 +98,7 @@ class AsyncClient(object):
             )
 
             try:
-                await conn.send_request(req)
-                resp = await conn.get_response()
-
+                resp = await conn.send_request(req)
                 if resp.status_code not in const.REDIRECTS_CODE or not allow_redirect:
                     break
 

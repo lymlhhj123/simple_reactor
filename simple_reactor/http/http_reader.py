@@ -151,7 +151,8 @@ class HttpBodyReader(object):
 
         return await self._decompressor.decompress(data)
 
-    async def _read_chunk_data(self, protocol):
+    @staticmethod
+    async def _read_chunk_data(protocol):
         """read chunk data"""
         data = []
         while True:
@@ -161,8 +162,7 @@ class HttpBodyReader(object):
                 magic = magic[:i]  # strip chunk-extensions
 
             chunk_len = int(magic, 16)
-            if chunk_len == 0:  # empty chunk
-                # read last \r\n
+            if chunk_len == 0:  # last empty chunk end
                 await protocol.readline()
                 break
 

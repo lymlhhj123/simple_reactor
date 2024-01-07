@@ -15,7 +15,7 @@ async def fetch_url():
     async_client = AsyncClient(loop=loop)
     try:
         # https://www.jianshu.com/p/e23a1e917d19
-        resp = await async_client.get("https://www.baidu.com/")
+        resp = await async_client.get("https://www.jianshu.com/p/e23a1e917d19")
     except Exception as e:
         logger.exception(e)
     else:

@@ -92,7 +92,7 @@ class Response(object):
                 self._reason = reason
                 break
 
-            # drop all headers
+            # drop all headers when status == 100, and read again until status != 100
             await protocol.read_until_regex(b"\r\n\r\n")
 
     async def _read_headers(self):

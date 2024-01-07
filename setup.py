@@ -14,6 +14,7 @@ if sys.version_info < py_version:
 install_requires = [
     "bitarray >= 2.7.4",
     "mmh3 >= 4.0.0",
+    "urllib3 >= 1.25.8",
 ]
 
 
@@ -28,7 +29,7 @@ def get_version():
 setup(
     zip_safe=False,
     include_package_data=True,
-    name="python3-simple_reactor",
+    name="simple_reactor",
     description="io notify based on reactor mode",
     version=get_version(),
     author="Jun Hu",
