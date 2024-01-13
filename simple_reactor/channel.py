@@ -30,7 +30,7 @@ class Channel(object):
         self.write_callback = callback
 
     def fileno(self):
-        """return fileno about this channel"""
+        """return fileno belong to this channel"""
         return self._fd
 
     def readable(self):
@@ -94,28 +94,28 @@ class Channel(object):
             self.read_callback()
 
     def read(self, chunk_size):
-        """read data form fd"""
+        """helper function, read data form fd"""
         try:
             data = os.read(self._fd, chunk_size)
         except IOError as e:
             data = b""
-            code = utils.errno_from_ex(e)
+            errcode = utils.errno_from_ex(e)
         else:
-            code = errors.OK
+            errcode = errors.OK
 
-        return code, data
+        return errcode, data
 
     def write(self, data):
-        """write data to fd"""
+        """helper function, write data to fd"""
         try:
             chunk_size = os.write(self._fd, data)
         except IOError as e:
             chunk_size = 0
-            code = utils.errno_from_ex(e)
+            errcode = utils.errno_from_ex(e)
         else:
-            code = errors.OK
+            errcode = errors.OK
 
-        return code, chunk_size
+        return errcode, chunk_size
 
     def close(self):
         """close channel"""

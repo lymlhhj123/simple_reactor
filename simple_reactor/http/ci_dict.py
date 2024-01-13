@@ -1,6 +1,6 @@
 # coding: utf-8
 
-"""this class is copy from requests lib"""
+"""this class is copy from python-requests lib"""
 
 from collections import OrderedDict
 from typing import Mapping, MutableMapping

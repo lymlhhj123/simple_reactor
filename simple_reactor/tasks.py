@@ -49,6 +49,14 @@ class Task(object):
         if self.finished:
             return
 
+        # maybe final_future is cancelled
+        if futures.future_is_done(self.final_future):
+            self.finished = True
+            self._coroutine_finished()
+            self.final_future = None
+            self.await_fut = None
+            return
+
         fut, self.await_fut = self.await_fut, None
         assert futures.future_is_done(fut)
 

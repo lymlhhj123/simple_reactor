@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 
 from .request import Request
 from .connection import Connection
-from ..protocols import StreamReceiver
+from ..protocols import IOStream
 from ..options import (
     Options,
     SSLOptions
@@ -142,7 +142,7 @@ class AsyncClient(object):
 
             kwargs["ssl_options"] = ssl_options
 
-        protocol = await self.loop.connect_tcp(hostname, port, proto_factory=StreamReceiver, **kwargs)
+        protocol = await self.loop.connect_tcp(hostname, port, proto_factory=IOStream, **kwargs)
         return Connection(protocol)
 
     def close(self):

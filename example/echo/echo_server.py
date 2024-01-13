@@ -2,13 +2,13 @@
 
 from simple_reactor import log
 from simple_reactor import get_event_loop
-from simple_reactor.protocols import StreamReceiver
+from simple_reactor.protocols import IOStream
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(StreamReceiver):
+class MyProtocol(IOStream):
 
     def connection_made(self):
 
@@ -17,8 +17,14 @@ class MyProtocol(StreamReceiver):
     async def echo(self):
 
         while True:
-            data = await self.read_line()
-            await self.write_line(b"ok, data received: " + data)
+            try:
+                data = await self.readline()
+                await self.writeline(b"ok, data received: " + data)
+            except Exception as e:
+                logger.exception(e)
+                break
+
+        self.transport.close()
 
 
 loop = get_event_loop()

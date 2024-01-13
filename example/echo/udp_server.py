@@ -2,13 +2,13 @@
 
 from simple_reactor import log
 from simple_reactor import get_event_loop
-from simple_reactor.protocols import DatagramReceiver
+from simple_reactor.protocols import IODatagram
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(DatagramReceiver):
+class MyProtocol(IODatagram):
 
     def connection_prepared(self):
 
@@ -18,7 +18,7 @@ class MyProtocol(DatagramReceiver):
 
         while True:
             datagram, addr = await self.read()
-            self.send(datagram, addr)
+            await self.send(datagram, addr)
 
 
 loop = get_event_loop()

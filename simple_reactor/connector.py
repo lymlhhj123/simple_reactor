@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import ssl
 import errno
 import socket
 
@@ -19,7 +18,7 @@ logger = log.get_logger()
 class Connector(object):
 
     def __init__(self, loop, sock, endpoint, proto_factory, waiter, factory, options, ssl_options):
-
+        """stream connection connector"""
         self.loop = loop
         self.sock = sock
         self.endpoint = endpoint
@@ -79,13 +78,15 @@ class Connector(object):
 
         # start ssl handshake
         if self._ssl_handshaking:
-            self._ssl_handshaking = False
             try:
                 self._start_tls()
             except Exception as e:
                 self._connection_failed(e)
-            return
+        else:
+            self._connection_ok()
 
+    def _connection_ok(self):
+        """the final callback when connection is established"""
         self.connect_channel.disable_writing()
         self.connect_channel.close()
         self.connect_channel = None
@@ -116,15 +117,17 @@ class Connector(object):
         """if enable ssl, then do handshake after succeed to connect"""
         try:
             self.sock.do_handshake()
-            self._connection_established()
-        except ssl.SSLError as e:
+        except Exception as e:
             errcode = utils.errno_from_ex(e)
             if errcode in errors.IO_WOULD_BLOCK:
                 self.connect_channel.set_read_callback(self._do_ssl_handshake)
                 self.connect_channel.set_write_callback(self._do_ssl_handshake)
                 self.connect_channel.enable_writing()
             else:
-                raise ConnectionError(f"Failed to ssl verify, {e}") from e
+                exc = ConnectionError(f"Failed to verify ssl, {e}")
+                self._connection_failed(exc)
+        else:
+            self._connection_ok()
 
     def _connection_failed(self, exc):
         """client failed to establish connection"""

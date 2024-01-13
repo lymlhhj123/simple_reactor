@@ -3,18 +3,18 @@
 import simple_reactor
 from simple_reactor import log
 from simple_reactor import get_event_loop
-from simple_reactor.protocols import DatagramReceiver
+from simple_reactor.protocols import IODatagram
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(DatagramReceiver):
+class MyProtocol(IODatagram):
 
     async def start_echo(self):
 
         while True:
-            self.send("hello, world")
+            await self.send("hello, world")
             datagram, addr = await self.read()
             print("data received:", datagram, addr)
 

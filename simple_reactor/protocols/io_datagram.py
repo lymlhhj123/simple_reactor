@@ -11,7 +11,7 @@ class ReadQueueFull(Exception):
     pass
 
 
-class DatagramReceiver(DatagramProtocol):
+class IODatagram(DatagramProtocol):
 
     def __init__(self):
 

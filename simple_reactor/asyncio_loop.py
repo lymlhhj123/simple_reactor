@@ -127,7 +127,7 @@ class AsyncioLoop(object):
 
     def run_coroutine_func(self, coroutine, *args, **kwargs):
         """run coroutine function"""
-        assert callable(coroutine) and asyncio.iscoroutinefunction(coroutine)
+        assert asyncio.iscoroutinefunction(coroutine)
 
         coro = coroutine(*args, **kwargs)
         return self.create_task(coro)

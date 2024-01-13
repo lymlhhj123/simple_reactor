@@ -3,13 +3,13 @@
 import simple_reactor
 from simple_reactor import log
 from simple_reactor import get_event_loop
-from simple_reactor.protocols import StreamReceiver
+from simple_reactor.protocols import IOStream
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(StreamReceiver):
+class MyProtocol(IOStream):
 
     async def start_echo(self):
         """
@@ -17,11 +17,18 @@ class MyProtocol(StreamReceiver):
         :return:
         """
         while True:
-            await self.write_line("hello, world")
-            line = await self.read_line()
-            print("line received:", line)
+            try:
+                await self.writeline("hello, world")
+                line = await self.readline()
+            except Exception as e:
+                logger.exception(e)
+                break
 
+            line = line.decode("utf-8")
+            logger.info("line received: %s", line)
             await simple_reactor.sleep(1)
+
+        self.transport.close()
 
 
 loop = get_event_loop()

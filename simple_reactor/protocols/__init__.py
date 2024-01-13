@@ -1,4 +1,4 @@
 # coding: utf-8
 
-from .stream_receiver import StreamReceiver
-from .datagram_receiver import DatagramReceiver
+from .io_stream import IOStream
+from .io_datagram import IODatagram

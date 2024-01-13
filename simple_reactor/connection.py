@@ -85,29 +85,27 @@ class Connection(Transport):
         """if buffer is empty, write directly; else append to buffer"""
         if self._conn_lost or self.closing:
             logger.warn("connection will be closed, can not send data")
-            return
+            return False
 
         if not isinstance(data, bytes):
             logger.error(f"only accept bytes, not {type(data)}")
-            return
+            return False
 
         if not self.write_buffer:
             errcode, writes_size = self.write_to_fd(data)
             if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
                 exc = ConnectionError(f"connection write error, {os.strerror(errcode)}")
                 self._force_close(exc)
-                return
+                return False
 
-            # todo: need to check write_size == 0?
             data = data[writes_size:]
 
-        if not data:
-            return
+        if data:
+            self.write_buffer.extend(data)
+            self.channel.enable_writing()
+            self._maybe_pause_protocol_write()
 
-        self.write_buffer.extend(data)
-        self.channel.enable_writing()
-
-        self._maybe_pause_protocol_write()
+        return True
 
     def _maybe_pause_protocol_write(self):
         """if write buffer size >= high water, pause protocol write"""

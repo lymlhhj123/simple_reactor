@@ -3,13 +3,13 @@
 from simple_reactor import log
 from simple_reactor import get_event_loop
 from simple_reactor import SSLOptions
-from simple_reactor.protocols import StreamReceiver
+from simple_reactor.protocols import IOStream
 
 logger = log.get_logger()
 log.logger_init(logger)
 
 
-class MyProtocol(StreamReceiver):
+class MyProtocol(IOStream):
 
     pass
 
