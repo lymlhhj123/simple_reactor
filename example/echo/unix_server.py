@@ -17,8 +17,14 @@ class MyProtocol(IOStream):
     async def echo(self):
 
         while True:
-            data = await self.read_line()
-            await self.write_line(b"ok, data received: " + data)
+            try:
+                data = await self.readline()
+                await self.writeline(b"ok, data received: " + data)
+            except Exception as e:
+                logger.exception(e)
+                break
+
+        self.close()
 
 
 loop = get_event_loop()

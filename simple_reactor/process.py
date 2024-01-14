@@ -35,10 +35,7 @@ class Process(object):
         self.loop.call_soon(self._run)
 
     def _run(self):
-        """
-
-        :return:
-        """
+        """use subprocess.Popen() run command"""
         stdin_read, stdin_write = fd_helper.make_async_pipe()
         stdout_read, stdout_write = fd_helper.make_async_pipe()
         stderr_read, stderr_write = fd_helper.make_async_pipe()
@@ -126,7 +123,7 @@ class Process(object):
         self._maybe_finished()
 
     def _maybe_finished(self):
-
+        """check if process is exited"""
         if self.channel_closed != 3:
             return
 

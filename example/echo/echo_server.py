@@ -24,7 +24,7 @@ class MyProtocol(IOStream):
                 logger.exception(e)
                 break
 
-        self.transport.close()
+        self.close()
 
 
 loop = get_event_loop()

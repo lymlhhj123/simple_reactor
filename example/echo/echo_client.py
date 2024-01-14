@@ -28,7 +28,7 @@ class MyProtocol(IOStream):
             logger.info("line received: %s", line)
             await simple_reactor.sleep(1)
 
-        self.transport.close()
+        self.close()
 
 
 loop = get_event_loop()

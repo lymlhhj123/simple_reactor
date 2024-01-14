@@ -80,7 +80,7 @@ class UDP(DatagramTransport):
         """read datagram from socket"""
         try:
             datagram, addr = self.sock.recvfrom(1500)
-        except IOError as e:
+        except Exception as e:
             errcode = utils.errno_from_ex(e)
             datagram, addr = None, None
         else:

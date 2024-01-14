@@ -31,3 +31,8 @@ class BadStatusLine(Exception):
 class TooManyRedirects(Exception):
 
     pass
+
+
+class NotEnoughData(Exception):
+
+    pass

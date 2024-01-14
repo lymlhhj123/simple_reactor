@@ -1,15 +1,23 @@
 # coding: utf-8
 
-import re
 from collections import deque
 
+from ..data_buffer import DataBuffer
 from ..protocol import Protocol
 from .. import futures
+from ..errors import NotEnoughData
 
 SIZE_MODE = 0
 LINE_MODE = 1
 REGEX_MODE = 2
 EOF_MODE = 3
+
+READABLE = {
+    SIZE_MODE: "size mode",
+    LINE_MODE: "line mode",
+    REGEX_MODE: "regex mode",
+    EOF_MODE: "eof mode",
+}
 
 
 class IOStream(Protocol):
@@ -17,7 +25,7 @@ class IOStream(Protocol):
     def __init__(self):
 
         self._read_waiters = deque(maxlen=128)
-        self._read_buf = b""
+        self._read_buffer = DataBuffer()
 
         self._write_paused = False
         self._eof_received = False
@@ -26,7 +34,7 @@ class IOStream(Protocol):
 
     def data_received(self, data: bytes):
         """add data to buf, and wakeup read waiters"""
-        self._read_buf += data
+        self._read_buffer.extend(data)
 
         self._wakeup_read_waiters()
 
@@ -44,35 +52,37 @@ class IOStream(Protocol):
         """wakeup read waiters"""
         while self._read_waiters:
             waiter, mode, arg = self._read_waiters[0]
-            if not self._try_read(waiter, mode, arg):
+            succeed, data = self._try_read(mode, arg)
+            if not succeed:
                 break
 
+            futures.future_set_result(waiter, data)
             self._read_waiters.popleft()
 
     async def read(self, size, timeout=10):
-        """read some data until len(data) == size, default timeout is 10 seconds"""
+        """if size > 0, return data until len(data) == size; if size == -1, return data we can read"""
+        assert size > 0 or size == -1, "size must be > 0 or == -1"
+
         return await self._read_data(SIZE_MODE, size, timeout)
 
     readn = read
 
     async def readline(self, delimiter=b"\r\n", timeout=10):
-        """read line which end with delimiter, default timeout is 10 seconds"""
-        assert isinstance(delimiter, bytes)
+        """read line which end with delimiter"""
+        assert isinstance(delimiter, bytes), "delimiter type must be bytes"
 
         return await self._read_data(LINE_MODE, delimiter, timeout)
 
     read_line = readline
 
     async def read_until_regex(self, regex_pattern, timeout=10):
-        """read some data until match regex_pattern, default timeout is 10 seconds"""
-        assert isinstance(regex_pattern, bytes)
+        """read some data until match regex_pattern"""
+        assert isinstance(regex_pattern, bytes), "regex_pattern type must be bytes"
 
-        pattern = re.compile(regex_pattern)
-
-        return await self._read_data(REGEX_MODE, pattern, timeout)
+        return await self._read_data(REGEX_MODE, regex_pattern, timeout)
 
     async def read_until_eof(self, timeout=10):
-        """read until eof received"""
+        """read data until eof received"""
         return await self._read_data(EOF_MODE, None, timeout)
 
     def _read_data(self, mode, args, timeout):
@@ -80,89 +90,81 @@ class IOStream(Protocol):
         self._check_transport()
 
         waiter = self.loop.create_future()
-        if self._read_waiters or not self._try_read(waiter, mode, args):
-            self._read_waiters.append((waiter, mode, args))
+        if not self._read_waiters:
+            succeed, data = self._try_read(mode, args)
+            if succeed:
+                futures.future_set_result(waiter, data)
 
+        if not futures.future_is_done(waiter):
+            self._read_waiters.append((waiter, mode, args))
             if timeout > 0:
-                self.loop.call_later(timeout, self._waiter_timeout, waiter, mode, args)
+                self.loop.call_later(timeout, self._read_timeout, waiter, mode, args)
 
         return waiter
-
-    def _waiter_timeout(self, waiter, mode, arg):
-        """read operation is timeout"""
-        if futures.future_is_done(waiter):
-            return
-
-        self._read_waiters.remove((waiter, mode, arg))
-
-        futures.future_set_exception(waiter, TimeoutError("read timeout"))
 
     def _check_transport(self):
         """raise Exception if transport closed"""
         if not self.transport or self.transport.closed():
             raise ConnectionError("transport is already closed")
 
-    def _try_read(self, waiter, mode, arg):
+    def _read_timeout(self, waiter, mode, arg):
+        """read operation is timeout"""
+        if futures.future_is_done(waiter):
+            return
+
+        self._read_waiters.remove((waiter, mode, arg))
+
+        readable = READABLE.get(mode, "unknown")
+        exc = TimeoutError(f"read operation timeout, mode: {readable}, arg: {arg}")
+        futures.future_set_exception(waiter, exc)
+
+    def _try_read(self, mode, arg):
         """try read directly from read buffer, return true if read succeed or eof received"""
-        if mode == SIZE_MODE:
-            succeed = self._readn(waiter, arg)
-        elif mode == LINE_MODE:
-            succeed = self._readline(waiter, arg)
-        elif mode == REGEX_MODE:
-            succeed = self._read_until_regex(waiter, arg)
-        else:
-            succeed = self._read_until_eof(waiter)
+        succeed = True
+        try:
+            if mode == SIZE_MODE:
+                data = self._readn(arg)
+            elif mode == LINE_MODE:
+                data = self._readline(arg)
+            elif mode == REGEX_MODE:
+                data = self._read_regex(arg)
+            else:
+                data = self._read_until_eof()
+        except NotEnoughData:
+            # if read failed and mode is not EOF, check eof received
+            if mode != EOF_MODE and self._eof_received:
+                data = self._read_buffer.read_all()
+            else:
+                succeed = False
+                data = b""
 
-        # if read failed, check eof received
-        if not succeed and self._eof_received:
-            futures.future_set_result(waiter, self._read_buf)
-            self._read_buf = b""
-            succeed = True
+        try:
+            return succeed, data
+        finally:
+            self._read_buffer.trim()
 
-        return succeed
+    def _readn(self, size):
+        """read size data"""
+        data = self._read_buffer.readn(size)
+        return data
 
-    def _readn(self, waiter, size):
-        """read size bytes data from read buffer"""
-        if len(self._read_buf) < size:
-            return False
+    def _readline(self, delimiter):
+        """read one line"""
+        data = self._read_buffer.readline(delimiter)
+        return data
 
-        futures.future_set_result(waiter, self._read_buf[:size])
-        self._read_buf = self._read_buf[size:]
-        return True
+    def _read_regex(self, regex_pattern):
+        """read data matched regex"""
+        data = self._read_buffer.read_regex(regex_pattern)
+        return data
 
-    def _readline(self, waiter, delimiter):
-        """read line"""
-        idx = self._read_buf.find(delimiter)
-        if idx == -1:
-            return False
-
-        # line must be endswith delimiter
-        pos = idx + len(delimiter)
-        line = self._read_buf[:pos]
-        self._read_buf = self._read_buf[pos:]
-        futures.future_set_result(waiter, line)
-        return True
-
-    def _read_until_regex(self, waiter, pattern):
-        """read some data until match pattern"""
-        match_o = pattern.search(self._read_buf)
-        if not match_o:
-            return False
-
-        end = match_o.end()
-        data = self._read_buf[:end]
-        futures.future_set_result(waiter, bytes(data))
-        self._read_buf = self._read_buf[end:]
-        return True
-
-    def _read_until_eof(self, waiter):
+    def _read_until_eof(self):
         """read data until eof received"""
         if not self._eof_received:
-            return False
+            raise NotEnoughData()
 
-        data, self._read_buf = self._read_buf, b""
-        futures.future_set_result(waiter, data)
-        return True
+        data = self._read_buffer.read_all()
+        return data
 
     async def writeline(self, line, delimiter=b"\r\n"):
         """write a line"""
@@ -192,12 +194,16 @@ class IOStream(Protocol):
         self.transport.write(data)
 
     def pause_write(self):
-        """transport write buffer >= high water mark, pause write"""
+        """transport write buffer >= high watermark, pause write"""
         self._write_paused = True
 
     def resume_write(self):
-        """transport write buffer <= low water mark, resume write"""
+        """transport write buffer <= low watermark, resume write"""
         self._write_paused = False
+
+    def close(self):
+        """close io stream"""
+        self.transport.close()
 
     def connection_lost(self, exc):
         """connection lost, wakeup all read waiters"""
@@ -209,4 +215,4 @@ class IOStream(Protocol):
             waiter, _, _ = self._read_waiters.popleft()
             futures.future_set_exception(waiter, exc)
 
-        self._read_buf = b""
+        self._read_buffer.clear()

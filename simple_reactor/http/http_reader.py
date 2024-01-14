@@ -15,7 +15,7 @@ HEADER_FIELD = ["headers", "cookies", "should_close", "chunked", "length", "enco
 HeaderResult = namedtuple("HeaderResult", HEADER_FIELD)
 
 
-class HttpHeaderReader(object):
+class HeaderReader(object):
 
     def __init__(self, connection, max_line_size=const.MAX_HEADER_LENGTH, max_headers=const.MAX_HEADERS):
 
@@ -120,7 +120,7 @@ class HttpHeaderReader(object):
         return headers
 
 
-class HttpBodyReader(object):
+class BodyReader(object):
 
     def __init__(self, connection, chunked, length, encoding):
 

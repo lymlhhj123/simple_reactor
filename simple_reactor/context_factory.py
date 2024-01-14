@@ -2,4 +2,5 @@
 
 
 class ContextFactory(object):
-    """placeholder, nothing to do"""
+
+    pass

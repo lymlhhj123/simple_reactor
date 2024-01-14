@@ -40,7 +40,7 @@ class CIDict(MutableMapping):
         self.update(data, **kwargs)
 
     def __setitem__(self, key, value):
-        # Use the lowercased key for lookups, but store the actual
+        # Use the lower-cased key for lookups, but store the actual
         # key alongside the value.
         self._store[key.lower()] = (key, value)
 
@@ -51,7 +51,7 @@ class CIDict(MutableMapping):
         del self._store[key.lower()]
 
     def __iter__(self):
-        return (casedkey for casedkey, mappedvalue in self._store.values())
+        return (cased_key for cased_key, mapped_value in self._store.values())
 
     def __len__(self):
         return len(self._store)
@@ -59,8 +59,8 @@ class CIDict(MutableMapping):
     def lower_items(self):
         """Like iteritems(), but with all lowercase keys."""
         return (
-            (lowerkey, keyval[1])
-            for (lowerkey, keyval)
+            (lower_key, keyval[1])
+            for (lower_key, keyval)
             in self._store.items()
         )
 

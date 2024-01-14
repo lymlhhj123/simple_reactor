@@ -69,7 +69,7 @@ class Acceptor(object):
                     break
                 else:
                     logger.error("unknown error happened on do accept: %s", e)
-                    self._do_accept_error(accept_sock, errcode)
+                    self._do_accept_error(accept_sock)
                     break
             else:
                 self._on_new_connection(sock, addr)
@@ -82,10 +82,8 @@ class Acceptor(object):
         sock_helper.close_sock(sock)
         self._placeholder = open("/dev/null")
 
-    def _do_accept_error(self, accept_sock, errcode):
+    def _do_accept_error(self, accept_sock):
         """error happened when do accept"""
-        assert errcode != 0
-
         self.socks.remove(accept_sock)
         fd = accept_sock.fileno()
         channel = self.channel_map.pop(fd)

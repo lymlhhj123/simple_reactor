@@ -6,7 +6,7 @@ from http import HTTPStatus
 from . import const
 from . import utils
 from .. import errors
-from .http_reader import HttpHeaderReader, HttpBodyReader
+from .http_reader import HeaderReader, BodyReader
 
 
 class Response(object):
@@ -93,7 +93,7 @@ class Response(object):
 
     async def _read_headers(self):
         """read response header"""
-        header_reader = HttpHeaderReader(self._conn)
+        header_reader = HeaderReader(self._conn)
         parsed_result = await header_reader.read()
 
         self._headers = parsed_result.headers
@@ -105,8 +105,9 @@ class Response(object):
 
     async def _read_body(self):
         """read response body"""
-        body_reader = HttpBodyReader(self._conn, self._chunked,
-                                     self._content_length, self._content_encoding)
+        body_reader = BodyReader(self._conn, self._chunked,
+                                 self._content_length,
+                                 self._content_encoding)
         self._data = await body_reader.read()
 
     @property

@@ -3,7 +3,7 @@
 from .form_data import FormData
 
 
-class HttpHeaderWriter(object):
+class HeaderWriter(object):
 
     def __init__(self, connection):
 
@@ -22,7 +22,7 @@ class HttpHeaderWriter(object):
         await protocol.write(b"".join(buffer))
 
 
-class HttpBodyWriter(object):
+class BodyWriter(object):
 
     def __init__(self, connection):
 

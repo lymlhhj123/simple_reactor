@@ -146,7 +146,7 @@ class AsyncClient(object):
         return Connection(protocol)
 
     def close(self):
-        """"""
+        """close http client"""
         pass
 
     async def __aenter__(self):

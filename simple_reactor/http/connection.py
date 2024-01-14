@@ -2,7 +2,7 @@
 
 from . import const
 from .response import Response
-from .http_writer import HttpHeaderWriter, HttpBodyWriter
+from .http_writer import HeaderWriter, BodyWriter
 
 HTTP_VSN = "HTTP/1.1"
 
@@ -24,7 +24,6 @@ class Connection(object):
 
     async def send_request(self, request):
         """send request to the server"""
-        # send request and get response, then again
         async with self._lock:
             await self._put_first_line(request.method, request.url)
 
@@ -42,7 +41,7 @@ class Connection(object):
 
     async def _put_headers(self, headers):
         """send header to the server"""
-        header_writer = HttpHeaderWriter(self)
+        header_writer = HeaderWriter(self)
         await header_writer.write(headers)
 
     async def _send_body(self, body, chunked):
@@ -50,7 +49,7 @@ class Connection(object):
         if not body:
             return
 
-        body_writer = HttpBodyWriter(self)
+        body_writer = BodyWriter(self)
         await body_writer.write(body, chunked)
 
     async def _get_response(self):

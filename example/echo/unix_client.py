@@ -16,18 +16,27 @@ class MyProtocol(IOStream):
 
         self.io_count = 0
 
+        self._timer = None
+
     async def start_echo(self):
         """
 
         :return:
         """
-        self.loop.call_later(60, self.perf_count)
+        self._timer = self.loop.call_later(60, self.perf_count)
 
         while True:
-            await self.write_line("hello, world")
-            await self.read_line()
+            try:
+                await self.writeline("hello, world")
+                await self.readline()
+            except Exception as e:
+                logger.exception(e)
+                break
 
-            self.io_count += 1
+            self.io_count += 2
+
+        self._timer.cancel()
+        self.close()
 
     def perf_count(self):
 

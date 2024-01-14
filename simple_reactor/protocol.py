@@ -17,12 +17,7 @@ class BaseProtocol(object):
         """auto called when connection lost"""
 
     def close(self):
-        """close transport"""
-        if not self.transport or self.transport.closed():
-            return
-
-        self.transport.close()
-        self.transport = None
+        """close protocol"""
 
 
 class Protocol(BaseProtocol):
