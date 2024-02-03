@@ -2,8 +2,6 @@
 
 import ssl
 
-from . import ssl_helper
-
 
 class Field(object):
 
