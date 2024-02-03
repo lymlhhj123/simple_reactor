@@ -36,7 +36,11 @@ class Acceptor(object):
         if not self.ssl_options:
             return
 
-        ssl_context = self.ssl_options.ssl_server_ctx
+        if self.ssl_options.ssl_server_ctx:
+            ssl_context = self.ssl_options.ssl_server_ctx
+        else:
+            ssl_context = ssl_helper.ssl_server_context()
+
         cert_file, key_file = self.ssl_options.cert_file, self.ssl_options.key_file
         if cert_file or key_file:
             ssl_context.load_cert_chain(cert_file, key_file)

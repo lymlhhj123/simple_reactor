@@ -47,7 +47,7 @@ class IOStream(Protocol):
         try:
             self._wakeup_read_waiters()
         finally:
-            # todo: if buffer size is small, and we want to read size > buffer size, it will cause dead lock
+            # if buffer size is small, and we want to read size > buffer size, it will cause dead lock
             # example: buffer size is 100 bytes, and we call self.read(200), then read() will never success
             # self._maybe_pause_reading()
 

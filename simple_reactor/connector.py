@@ -2,7 +2,6 @@
 
 import os
 import errno
-import socket
 
 from .channel import Channel
 from .connection import Connection
@@ -100,7 +99,11 @@ class Connector(object):
 
     def _start_tls(self):
         """wrap socket to ssl, start handshake"""
-        ssl_context = self.ssl_options.ssl_client_ctx
+        if self.ssl_options.ssl_client_ctx:
+            ssl_context = self.ssl_options.ssl_client_ctx
+        else:
+            ssl_context = ssl_helper.ssl_client_context()
+
         self.sock = ssl_helper.ssl_wrap_socket(
             ssl_context=ssl_context,
             sock=self.sock,

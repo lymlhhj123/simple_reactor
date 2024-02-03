@@ -1,7 +1,5 @@
 # coding: utf-8
 
-import ssl
-
 from . import attrs
 
 
