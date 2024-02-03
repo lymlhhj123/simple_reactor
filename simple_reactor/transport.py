@@ -21,6 +21,14 @@ class BaseTransport(object):
 class ReadTransport(BaseTransport):
 
     @abc.abstractmethod
+    def pause_reading(self):
+        """pause reading data from fd"""
+
+    @abc.abstractmethod
+    def resume_reading(self):
+        """resume reading data from fd"""
+
+    @abc.abstractmethod
     def read_from_fd(self):
         """reda data from fd"""
 
@@ -28,7 +36,7 @@ class ReadTransport(BaseTransport):
 class WriteTransport(BaseTransport):
 
     @abc.abstractmethod
-    def set_write_buffer_limits(self):
+    def set_write_buffer_limits(self, high=None, low=None):
         """set write buffer high and low water"""
 
     @abc.abstractmethod

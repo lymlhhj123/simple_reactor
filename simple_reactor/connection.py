@@ -23,7 +23,6 @@ class Connection(Transport):
         self.protocol = protocol
         self.loop = loop
 
-        self.protocol_paused = False
         self.high_water = DEFAULT_HIGH_WATER
         self.low_water = DEFAULT_LOW_WATER
 
@@ -39,6 +38,14 @@ class Connection(Transport):
     def fileno(self):
         """return fd"""
         return self.sock.fileno()
+
+    def pause_reading(self):
+        """pause reading data from socket"""
+        self.channel.disable_reading()
+
+    def resume_reading(self):
+        """resume reading data from socket"""
+        self.channel.enable_reading()
 
     def set_write_buffer_limits(self, high=None, low=None):
         """set write buffer high and low water"""
@@ -64,12 +71,14 @@ class Connection(Transport):
         if write buffer size >= high water and protocol not paused, pause protocol write
         if write buffer size <= low water and protocol paused, resume protocol write
         """
-        if self._protocol_paused and len(self.write_buffer) <= self.low_water:
-            self._protocol_paused = False
-            self.protocol.resume_write()
-        elif not self._protocol_paused and len(self.write_buffer) >= self.high_water:
-            self._protocol_paused = True
-            self.protocol.pause_write()
+        if len(self.write_buffer) <= self.low_water:
+            if self._protocol_paused:
+                self._protocol_paused = False
+                self.protocol.resume_write()
+        elif len(self.write_buffer) >= self.high_water:
+            if not self._protocol_paused:
+                self._protocol_paused = True
+                self.protocol.pause_write()
 
     def connection_established(self, addr, factory):
         """client side established connection"""
@@ -88,7 +97,7 @@ class Connection(Transport):
         self.protocol.connection_made()
 
     def _start_feeding(self):
-        """register callback and read event"""
+        """register callback and enable read event"""
         self.channel.set_read_callback(self._do_read)
         self.channel.set_write_callback(self._do_write)
         self.channel.enable_reading()
@@ -100,10 +109,10 @@ class Connection(Transport):
             return False
 
         if not isinstance(data, bytes):
-            logger.error(f"only accept bytes, not {type(data)}")
+            logger.error(f"write method requires bytes, not {type(data)}")
             return False
 
-        # if buffer is empty, write directly
+        # if buffer is empty, try to write directly
         if not self.write_buffer:
             errcode, writes_size = self.write_to_fd(data)
             if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:

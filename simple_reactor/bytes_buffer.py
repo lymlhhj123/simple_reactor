@@ -4,19 +4,28 @@ import re
 
 from .errors import NotEnoughData
 
+DEFAULT_SIZE = 4 * 1024 * 1024  # default is 4MB
 
-class DataBuffer(object):
 
-    def __init__(self, empty=bytes()):
+class BytesBuffer(object):
+    """bytes buffer"""
 
-        self._empty = empty
-        self._buffer = empty
+    def __init__(self, buffer_size=DEFAULT_SIZE):
+
+        self._empty = b""
+        self._buffer = b""
+
+        self._buffer_size = buffer_size
 
         self._read_pos = 0
 
     def empty(self):
         """return True if buffer can't readable"""
         return True if len(self._buffer) == self._read_pos else False
+
+    def full(self):
+        """return True if buffer is full"""
+        return self.size() >= self._buffer_size
 
     def size(self):
         """return all buffer size"""
@@ -25,6 +34,13 @@ class DataBuffer(object):
     def readable_size(self):
         """return readable buffer size"""
         return len(self._buffer) - self._read_pos
+
+    def set_buffer_size(self, size):
+        """reset buffer size, min value must be >= DEFAULT_SIZE"""
+        if size <= DEFAULT_SIZE:
+            return
+
+        self._buffer_size = size
 
     def read_all(self):
         """read all buffer data"""

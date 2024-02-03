@@ -1,24 +1,27 @@
 # coding: utf-8
 
+import ssl
+
+from . import attrs
+
 
 class Options(object):
 
-    def __init__(self):
-
-        self.dns_resolve_timeout = 10
-        self.connect_timeout = 10
-        self.tcp_no_delay = True
-        self.tcp_keepalive = True
-        self.reuse_addr = True
-        self.close_on_exec = True
-        self.backlog = 128
-        self.allow_broadcast = False
+    dns_resolve_timeout = attrs.Int(5)
+    connect_timeout = attrs.Int(10)
+    backlog = attrs.Int(128)
+    tcp_no_delay = attrs.Bool()
+    tcp_keepalive = attrs.Bool()
+    reuse_addr = attrs.Bool()
+    close_on_exec = attrs.Bool()
+    allow_broadcast = attrs.Bool()
 
 
 class SSLOptions(object):
 
-    def __init__(self):
-
-        self.server_hostname = None
-        self.cert_file = None
-        self.key_file = None
+    handshake_timeout = attrs.Int(10)
+    ssl_client_ctx = attrs.SSLClientContext()
+    ssl_server_ctx = attrs.SSLServerContext()
+    server_hostname = attrs.String()
+    cert_file = attrs.String()
+    key_file = attrs.String()

@@ -1,8 +1,9 @@
 # coding: utf-8
 
+import logging
 from collections import deque
 
-from ..data_buffer import DataBuffer
+from ..bytes_buffer import BytesBuffer
 from ..protocol import Protocol
 from .. import futures
 from ..errors import NotEnoughData
@@ -19,24 +20,44 @@ READABLE = {
     EOF_MODE: "eof mode",
 }
 
+logger = logging.getLogger()
+
 
 class IOStream(Protocol):
 
     def __init__(self):
 
         self._read_waiters = deque(maxlen=128)
-        self._read_buffer = DataBuffer()
+        self._read_buffer = BytesBuffer()
 
+        self._encoding = "utf-8"
         self._write_paused = False
         self._eof_received = False
 
+        self._read_paused = False
         self._close_if_eof_received = True
 
-    def data_received(self, data: bytes):
-        """add data to buf, and wakeup read waiters"""
-        self._read_buffer.extend(data)
+    def set_encoding(self, encoding):
+        """set content charset"""
+        self._encoding = encoding
 
-        self._wakeup_read_waiters()
+    def data_received(self, data: bytes):
+        """add data to buffer, and wakeup read waiters"""
+        self._read_buffer.extend(data)
+        try:
+            self._wakeup_read_waiters()
+        finally:
+            # todo: if buffer size is small, and we want to read size > buffer size, it will cause dead lock
+            # example: buffer size is 100 bytes, and we call self.read(200), then read() will never success
+            # self._maybe_pause_reading()
+
+            pass
+
+    def _maybe_pause_reading(self):
+        """check if we need pause reading"""
+        if self._read_buffer.full() and not self._read_paused:
+            self._read_paused = True
+            self.transport.pause_reading()
 
     def eof_received(self):
         """eof received, wakeup all read waiters and close transport"""
@@ -68,7 +89,7 @@ class IOStream(Protocol):
     readn = read
 
     async def readline(self, delimiter=b"\r\n", timeout=10):
-        """read line which end with delimiter"""
+        """read line until end with delimiter"""
         assert isinstance(delimiter, bytes), "delimiter type must be bytes"
 
         return await self._read_data(LINE_MODE, delimiter, timeout)
@@ -100,12 +121,20 @@ class IOStream(Protocol):
             if timeout > 0:
                 self.loop.call_later(timeout, self._read_timeout, waiter, mode, args)
 
+        # self._maybe_resume_reading()
+
         return waiter
 
     def _check_transport(self):
         """raise Exception if transport closed"""
         if not self.transport or self.transport.closed():
             raise ConnectionError("transport is already closed")
+
+    def _maybe_resume_reading(self):
+        """check if we need resume reading"""
+        if not self._read_buffer.full() and not self._eof_received and self._read_paused:
+            self._read_paused = False
+            self.transport.resume_reading()
 
     def _read_timeout(self, waiter, mode, arg):
         """read operation is timeout"""
@@ -119,7 +148,7 @@ class IOStream(Protocol):
         futures.future_set_exception(waiter, exc)
 
     def _try_read(self, mode, arg):
-        """try read directly from read buffer, return true if read succeed or eof received"""
+        """try read directly from read buffer"""
         succeed = True
         try:
             if mode == SIZE_MODE:
@@ -131,7 +160,7 @@ class IOStream(Protocol):
             else:
                 data = self._read_until_eof()
         except NotEnoughData:
-            # if read failed and mode is not EOF, check eof received
+            # mode is not EOF, check if eof received
             if mode != EOF_MODE and self._eof_received:
                 data = self._read_buffer.read_all()
             else:
@@ -167,12 +196,12 @@ class IOStream(Protocol):
         return data
 
     async def writeline(self, line, delimiter=b"\r\n"):
-        """write a line"""
+        """write a line, line can end with delimiter"""
         if isinstance(line, str):
-            line = line.encode("utf-8")
+            line = line.encode(self._encoding)
 
         if isinstance(delimiter, str):
-            delimiter = delimiter.encode("utf-8")
+            delimiter = delimiter.encode(self._encoding)
 
         if not line.endswith(delimiter):
             line = b"".join([line, delimiter])
@@ -181,14 +210,18 @@ class IOStream(Protocol):
 
     write_line = writeline
 
-    async def write(self, data: bytes):
-        """write some bytes, data must be bytes"""
-        assert isinstance(data, bytes)
-
+    async def write(self, data):
+        """write some bytes, data can be bytes or str"""
         self._check_transport()
 
         if self._write_paused:
             raise BufferError("write buffer is exceed high water mark, write paused")
+
+        if isinstance(data, str):
+            data = data.encode(self._encoding)
+
+        if not isinstance(data, bytes):
+            raise ValueError(f"data must be bytes, not {type(data)}")
 
         # write directly, transport has write-buffer limit
         self.transport.write(data)

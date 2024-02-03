@@ -36,12 +36,12 @@ class Acceptor(object):
         if not self.ssl_options:
             return
 
-        context = ssl_helper.ssl_server_context()
+        ssl_context = self.ssl_options.ssl_server_ctx
         cert_file, key_file = self.ssl_options.cert_file, self.ssl_options.key_file
         if cert_file or key_file:
-            context.load_cert_chain(cert_file, key_file)
+            ssl_context.load_cert_chain(cert_file, key_file)
 
-        return context
+        return ssl_context
 
     def start(self):
         """start stream msg server"""

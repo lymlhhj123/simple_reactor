@@ -23,7 +23,10 @@ from . import sync
 from . import queues
 from . import io_event
 from . import udp
+from . import log
 from .context_factory import ContextFactory
+
+logger = log.get_logger()
 
 
 class AsyncioLoop(object):
@@ -338,13 +341,19 @@ class AsyncioLoop(object):
     async def listen_unix(self, sock_path, proto_factory, *,
                           mode=0o755, factory=ContextFactory(), options=Options()):
         """create unix domain server"""
-
         lock_file = sock_path + ".lock"
 
-        lock_fd = open(lock_file, "w")
+        try:
+            lock_fd = open(lock_file, "w")
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to open file: {lock_file}, err: {e}")
+            raise
 
-        if not fd_helper.lock_file(lock_fd, blocking=False):
-            raise IOError(f"Failed to lock file: {lock_file}, maybe service already running")
+        try:
+            fd_helper.lock_file(lock_fd, blocking=False)
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to lock file: {lock_file}, err: {e}")
+            raise
 
         fd_helper.remove_file(sock_path)
 
@@ -366,13 +375,17 @@ class AsyncioLoop(object):
         return acceptor
 
     async def run_command(self, args, timeout=10):
-        """run linux shell command and return (status, stdout, stderr) three tuple"""
+        """run linux shell command and return (status, stdout, stderr) tuple"""
         process = await self.subprocess_exec(args, shell=True)
 
+        timer = None
         if timeout and timeout > 0:
-            self.call_later(timeout, process.kill)
+            timer = self.call_later(timeout, process.kill)
 
         stdout, stderr = await process.communicate()
+
+        if timer:
+            timer.cancel()
 
         return_code = process.return_code
 

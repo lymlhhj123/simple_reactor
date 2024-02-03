@@ -67,11 +67,7 @@ def lock_file(fd, *, blocking=True):
     if blocking is False:
         flags |= fcntl.LOCK_NB
 
-    try:
-        fcntl.flock(fd, flags)
-        return True
-    except (IOError, OSError):
-        return False
+    fcntl.flock(fd, flags)
 
 
 def unlock_file(fd):
