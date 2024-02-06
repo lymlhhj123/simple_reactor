@@ -6,46 +6,45 @@ from .. import futures
 from ..protocol import DatagramProtocol
 
 
-class ReadQueueFull(Exception):
-
-    pass
-
-
 class IODatagram(DatagramProtocol):
 
     def __init__(self):
 
-        self._read_buf = deque()
+        self._read_buffer = deque()
 
-        self._read_waiters = deque()
-        self._read_waiter_size = 128
+        self._read_waiters = deque(maxlen=128)
 
         self._max_packet_size = 1500
 
     def datagram_received(self, datagram, addr):
         """append data to buffer and wakeup read waiters"""
-        self._read_buf.append((datagram, addr))
+        self._read_buffer.append((datagram, addr))
         self._wakeup_read_waiters()
 
     def _wakeup_read_waiters(self):
         """wakeup read waiters when datagram received"""
         while self._read_waiters:
             waiter = self._read_waiters[0]
-            if not self._try_read(waiter):
+            ok, data = self._try_read()
+            if not ok:
                 break
 
+            futures.future_set_result(waiter, data)
             self._read_waiters.popleft()
 
-    async def read(self):
+    async def read(self, timeout=10):
         """read datagram"""
         self._check_transport()
 
-        self._check_read_queue()
+        if not self._read_waiters:
+            ok, data = self._try_read()
+            if ok:
+                return data
 
         waiter = self.loop.create_future()
-
-        if self._read_waiters or not self._try_read(waiter):
-            self._read_waiters.append(waiter)
+        self._read_waiters.append(waiter)
+        if timeout and timeout > 0:
+            self.loop.call_later(timeout, self._read_timeout, waiter)
 
         return await waiter
 
@@ -54,19 +53,23 @@ class IODatagram(DatagramProtocol):
         if not self.transport or self.transport.closed():
             raise ConnectionError("transport is closed")
 
-    def _check_read_queue(self):
-        """raise ReadQueueFull if read queue size is exceed limit"""
-        if len(self._read_waiters) >= self._read_waiter_size:
-            raise ReadQueueFull("read queue is full")
+    def _read_timeout(self, waiter):
+        """read datagram timeout"""
+        if futures.future_is_done(waiter):
+            return
 
-    def _try_read(self, fut):
+        self._read_waiters.remove(waiter)
+
+        exc = TimeoutError(f"datagram read operation timeout")
+        futures.future_set_exception(waiter, exc)
+
+    def _try_read(self):
         """read datagram from buffer"""
-        if not self._read_buf:
-            return False
+        if not self._read_buffer:
+            return False, None
 
-        data = self._read_buf.popleft()
-        futures.future_set_result(fut, data)
-        return True
+        data = self._read_buffer.popleft()
+        return True, data
 
     async def send(self, datagram, addr=None):
         """send datagram to remote addr, addr can be None if we are client"""
@@ -87,7 +90,6 @@ class IODatagram(DatagramProtocol):
     def connection_lost(self, exc):
         """transport will be closed, wakeup all read waiters"""
         self._clean_waiters(exc)
-        self.transport = None
 
     def _clean_waiters(self, exc):
         """wakeup all waiters"""
@@ -95,4 +97,4 @@ class IODatagram(DatagramProtocol):
             waiter = self._read_waiters.popleft()
             futures.future_set_exception(waiter, exc)
 
-        self._read_buf.clear()
+        self._read_buffer.clear()

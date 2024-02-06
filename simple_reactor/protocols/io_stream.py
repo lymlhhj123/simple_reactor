@@ -106,24 +106,23 @@ class IOStream(Protocol):
         """read data until eof received"""
         return await self._read_data(EOF_MODE, None, timeout)
 
-    def _read_data(self, mode, args, timeout):
+    async def _read_data(self, mode, args, timeout):
         """read data from buffer"""
         self._check_transport()
 
-        waiter = self.loop.create_future()
         if not self._read_waiters:
             succeed, data = self._try_read(mode, args)
             if succeed:
-                futures.future_set_result(waiter, data)
+                return data
 
-        if not futures.future_is_done(waiter):
-            self._read_waiters.append((waiter, mode, args))
-            if timeout > 0:
-                self.loop.call_later(timeout, self._read_timeout, waiter, mode, args)
+        waiter = self.loop.create_future()
+        self._read_waiters.append((waiter, mode, args))
+        if timeout > 0:
+            self.loop.call_later(timeout, self._read_timeout, waiter, mode, args)
 
         # self._maybe_resume_reading()
 
-        return waiter
+        return await waiter
 
     def _check_transport(self):
         """raise Exception if transport closed"""
@@ -144,7 +143,7 @@ class IOStream(Protocol):
         self._read_waiters.remove((waiter, mode, arg))
 
         readable = READABLE.get(mode, "unknown")
-        exc = TimeoutError(f"read operation timeout, mode: {readable}, arg: {arg}")
+        exc = TimeoutError(f"stream read operation timeout, mode: {readable}, arg: {arg}")
         futures.future_set_exception(waiter, exc)
 
     def _try_read(self, mode, arg):
