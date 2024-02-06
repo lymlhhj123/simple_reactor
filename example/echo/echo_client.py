@@ -19,7 +19,7 @@ class MyProtocol(IOStream):
         while True:
             try:
                 await self.writeline("hello, world")
-                line = await self.readline()
+                line = await self.read_until_eof()
             except Exception as e:
                 logger.exception(e)
                 break

@@ -32,7 +32,7 @@ class IODatagram(DatagramProtocol):
             futures.future_set_result(waiter, data)
             self._read_waiters.popleft()
 
-    async def read(self, timeout=10):
+    async def read(self, timeout=-1):
         """read datagram"""
         self._check_transport()
 

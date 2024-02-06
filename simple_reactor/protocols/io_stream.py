@@ -80,7 +80,7 @@ class IOStream(Protocol):
             futures.future_set_result(waiter, data)
             self._read_waiters.popleft()
 
-    async def read(self, size, timeout=10):
+    async def read(self, size, timeout=-1):
         """if size > 0, return data until len(data) == size; if size == -1, return data we can read"""
         assert size > 0 or size == -1, "size must be > 0 or == -1"
 
@@ -88,7 +88,7 @@ class IOStream(Protocol):
 
     readn = read
 
-    async def readline(self, delimiter=b"\r\n", timeout=10):
+    async def readline(self, delimiter=b"\r\n", timeout=-1):
         """read line until end with delimiter"""
         assert isinstance(delimiter, bytes), "delimiter type must be bytes"
 
@@ -96,13 +96,13 @@ class IOStream(Protocol):
 
     read_line = readline
 
-    async def read_until_regex(self, regex_pattern, timeout=10):
+    async def read_until_regex(self, regex_pattern, timeout=-1):
         """read some data until match regex_pattern"""
         assert isinstance(regex_pattern, bytes), "regex_pattern type must be bytes"
 
         return await self._read_data(REGEX_MODE, regex_pattern, timeout)
 
-    async def read_until_eof(self, timeout=10):
+    async def read_until_eof(self, timeout=-1):
         """read data until eof received"""
         return await self._read_data(EOF_MODE, None, timeout)
 
@@ -148,26 +148,28 @@ class IOStream(Protocol):
 
     def _try_read(self, mode, arg):
         """try read directly from read buffer"""
-        # we first check eof flag
         try:
+            # check eof flag
             if self._eof_received:
                 data = self._read_buffer.read_all()
                 return True, data
+
+            # check EOF mode
+            if mode == EOF_MODE:
+                return False, b""
 
             try:
                 if mode == SIZE_MODE:
                     data = self._readn(arg)
                 elif mode == LINE_MODE:
                     data = self._readline(arg)
-                elif mode == REGEX_MODE:
-                    data = self._read_regex(arg)
                 else:
-                    data = self._read_until_eof()
+                    data = self._read_regex(arg)
+
+                succeed = True
             except NotEnoughData:
                 succeed = False
                 data = b""
-            else:
-                succeed = True
 
             return succeed, data
         finally:
@@ -186,14 +188,6 @@ class IOStream(Protocol):
     def _read_regex(self, regex_pattern):
         """read data matched regex"""
         data = self._read_buffer.read_regex(regex_pattern)
-        return data
-
-    def _read_until_eof(self):
-        """read data until eof received"""
-        if not self._eof_received:
-            raise NotEnoughData()
-
-        data = self._read_buffer.read_all()
         return data
 
     async def writeline(self, line, delimiter=b"\r\n"):
