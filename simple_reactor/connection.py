@@ -32,6 +32,8 @@ class Connection(Transport):
 
         self._protocol_paused = False
 
+        self._reading_paused = False
+
         self._conn_lost = 0
         self.closing = False
 
@@ -41,11 +43,15 @@ class Connection(Transport):
 
     def pause_reading(self):
         """pause reading data from socket"""
-        self.channel.disable_reading()
+        if not self._reading_paused:
+            self._reading_paused = True
+            self.channel.disable_reading()
 
     def resume_reading(self):
         """resume reading data from socket"""
-        self.channel.enable_reading()
+        if self._reading_paused:
+            self._reading_paused = False
+            self.channel.enable_reading()
 
     def set_write_buffer_limits(self, high=None, low=None):
         """set write buffer high and low water"""
@@ -59,7 +65,7 @@ class Connection(Transport):
             low = high // 4
 
         if high < low:
-            raise ValueError("Invalid buffer limits, hing must be greater than low")
+            raise ValueError("Invalid buffer limits, high must be greater than low")
 
         self.high_water = high
         self.low_water = low
@@ -109,47 +115,43 @@ class Connection(Transport):
             return False
 
         if not isinstance(data, bytes):
-            logger.error(f"write method requires bytes, not {type(data)}")
+            logger.error(f"write() method requires bytes, not {type(data).__name__}")
             return False
 
-        # if buffer is empty, try to write directly
-        if not self.write_buffer:
-            errcode, writes_size = self.write_to_fd(data)
-            if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
-                exc = ConnectionError(f"data write error, {os.strerror(errcode)}")
-                self._force_close(exc)
-                return False
+        self.write_buffer.extend(data)
 
-            data = data[writes_size:]
+        if not self._do_write():
+            return False
 
-        if data:
-            self.write_buffer.extend(data)
+        if self.write_buffer and not self.channel.writable():
             self.channel.enable_writing()
-            self._pause_or_resume_protocol()
 
         return True
 
     def _do_write(self):
         """write buffer data to socket"""
         if self._conn_lost:
-            return
+            return False
 
         errcode, write_size = self.write_to_fd(self.write_buffer)
         if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
-            exc = ConnectionError(f"data write error, {os.strerror(errcode)}")
+            exc = ConnectionError(f"transport write error, {os.strerror(errcode)}")
             self._force_close(exc)
-            return
+            return False
 
         self.write_buffer = self.write_buffer[write_size:]
 
         if not self.write_buffer:
-            self.channel.disable_writing()
             if self.closing is True:
                 exc = ConnectionError("connection closed by user")
                 self._force_close(exc)
-                return
+                return False
+
+            if self.channel.writable():
+                self.channel.disable_writing()
 
         self._pause_or_resume_protocol()
+        return True
 
     def write_to_fd(self, data):
         """write data to socket"""
@@ -174,7 +176,7 @@ class Connection(Transport):
             return
 
         if errcode != errors.OK:
-            exc = ConnectionError(f"data read error, {os.strerror(errcode)}")
+            exc = ConnectionError(f"transport read error, {os.strerror(errcode)}")
             self._force_close(exc)
             return
 
