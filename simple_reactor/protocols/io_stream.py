@@ -149,25 +149,27 @@ class IOStream(Protocol):
 
     def _try_read(self, mode, arg):
         """try read directly from read buffer"""
-        succeed = True
+        # we first check eof flag
         try:
-            if mode == SIZE_MODE:
-                data = self._readn(arg)
-            elif mode == LINE_MODE:
-                data = self._readline(arg)
-            elif mode == REGEX_MODE:
-                data = self._read_regex(arg)
-            else:
-                data = self._read_until_eof()
-        except NotEnoughData:
-            # mode is not EOF, check if eof received
-            if mode != EOF_MODE and self._eof_received:
+            if self._eof_received:
                 data = self._read_buffer.read_all()
-            else:
+                return True, data
+
+            try:
+                if mode == SIZE_MODE:
+                    data = self._readn(arg)
+                elif mode == LINE_MODE:
+                    data = self._readline(arg)
+                elif mode == REGEX_MODE:
+                    data = self._read_regex(arg)
+                else:
+                    data = self._read_until_eof()
+            except NotEnoughData:
                 succeed = False
                 data = b""
+            else:
+                succeed = True
 
-        try:
             return succeed, data
         finally:
             self._read_buffer.trim()
