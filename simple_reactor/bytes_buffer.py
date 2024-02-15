@@ -4,13 +4,13 @@ import re
 
 from .errors import NotEnoughData
 
-DEFAULT_SIZE = 4 * 1024 * 1024  # default is 4MB
+INFINITE_SIZE = -1
 
 
 class BytesBuffer(object):
     """bytes buffer"""
 
-    def __init__(self, buffer_size=DEFAULT_SIZE):
+    def __init__(self, buffer_size=INFINITE_SIZE):
 
         self._empty = b""
         self._buffer = b""
@@ -25,6 +25,9 @@ class BytesBuffer(object):
 
     def full(self):
         """return True if buffer is full"""
+        if self._buffer_size == INFINITE_SIZE:
+            return False
+
         return self.size() >= self._buffer_size
 
     def size(self):
@@ -37,8 +40,8 @@ class BytesBuffer(object):
 
     def set_buffer_size(self, size):
         """reset buffer size, min value must be >= DEFAULT_SIZE"""
-        if size <= DEFAULT_SIZE:
-            return
+        if size < 0:
+            raise ValueError("buffer size must be gt 0")
 
         self._buffer_size = size
 

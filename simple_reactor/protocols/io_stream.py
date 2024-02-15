@@ -28,13 +28,14 @@ class IOStream(Protocol):
     def __init__(self):
 
         self._read_waiters = deque(maxlen=128)
+
+        # buffer
         self._read_buffer = BytesBuffer()
 
         self._encoding = "utf-8"
         self._write_paused = False
         self._eof_received = False
 
-        self._read_paused = False
         self._close_if_eof_received = True
 
     def set_encoding(self, encoding):
@@ -47,17 +48,7 @@ class IOStream(Protocol):
         try:
             self._wakeup_read_waiters()
         finally:
-            # if buffer size is small, and we want to read size > buffer size, it will cause dead lock
-            # example: buffer size is 100 bytes, and we call self.read(200), then read() will never success
-            # self._maybe_pause_reading()
-
             pass
-
-    def _maybe_pause_reading(self):
-        """check if we need pause reading"""
-        if self._read_buffer.full() and not self._read_paused:
-            self._read_paused = True
-            self.transport.pause_reading()
 
     def eof_received(self):
         """eof received, wakeup all read waiters and close transport"""
@@ -121,15 +112,7 @@ class IOStream(Protocol):
         if timeout > 0:
             self.loop.call_later(timeout, self._read_timeout, waiter, mode, args)
 
-        # self._maybe_resume_reading()
-
         return await waiter
-
-    def _maybe_resume_reading(self):
-        """check if we need resume reading"""
-        if not self._read_buffer.full() and not self._eof_received and self._read_paused:
-            self._read_paused = False
-            self.transport.resume_reading()
 
     def _read_timeout(self, waiter, mode, arg):
         """read operation is timeout"""
