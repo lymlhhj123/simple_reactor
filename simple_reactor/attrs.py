@@ -5,10 +5,10 @@ import ssl
 
 class Field(object):
 
-    def __init__(self, type_, default, is_none=False):
+    def __init__(self, type_, default, allow_none=False):
 
         self._type = type_
-        self._is_none = is_none
+        self._allow_none = allow_none
 
         self._check_valid(default)
         self._default = default
@@ -34,7 +34,7 @@ class Field(object):
 
     def _check_valid(self, value):
         """raise TypeError() if value is not valid"""
-        if value is None and self._is_none:
+        if value is None and self._allow_none:
             return
 
         if not isinstance(value, self._type):
@@ -72,11 +72,11 @@ class SSLClientContext(Field):
 
     def __init__(self, default=None):
 
-        super().__init__(type_=ssl.SSLContext, default=default, is_none=True)
+        super().__init__(type_=ssl.SSLContext, default=default, allow_none=True)
 
 
 class SSLServerContext(Field):
 
     def __init__(self, default=None):
 
-        super().__init__(type_=ssl.SSLContext, default=default, is_none=True)
+        super().__init__(type_=ssl.SSLContext, default=default, allow_none=True)
