@@ -108,7 +108,8 @@ class IOStream(Protocol):
 
     async def _read_data(self, mode, args, timeout):
         """read data from buffer"""
-        self._check_transport()
+        if self.closed():
+            raise ConnectionError("transport is closed")
 
         if not self._read_waiters:
             ok, data = self._try_read(mode, args)
@@ -202,16 +203,17 @@ class IOStream(Protocol):
 
     async def write(self, data):
         """write some bytes, data can be bytes or str"""
-        self._check_transport()
+        if self.closed():
+            raise ConnectionError("transport is closed")
 
         if self._write_paused:
-            raise BufferError("write buffer is exceed high water mark, write paused")
+            raise BufferError("transport write buffer is exceed high water mark, write paused")
 
         if isinstance(data, str):
             data = data.encode(self._encoding)
 
         if not isinstance(data, bytes):
-            raise ValueError(f"data must be bytes, not {type(data)}")
+            raise ValueError(f"data must be bytes, not {type(data).__name__}")
 
         # write directly, transport has write-buffer limit
         self.transport.write(data)
@@ -234,11 +236,6 @@ class IOStream(Protocol):
     def closed(self):
         """return True if transport is closed"""
         return not self.transport or self.transport.closed()
-
-    def _check_transport(self):
-        """raise Exception if transport closed"""
-        if self.closed():
-            raise ConnectionError("transport is already closed")
 
     def connection_lost(self, exc):
         """connection lost, wakeup all read waiters"""
