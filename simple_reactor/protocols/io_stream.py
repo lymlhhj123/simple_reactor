@@ -73,8 +73,8 @@ class IOStream(Protocol):
         """wakeup read waiters"""
         while self._read_waiters:
             waiter, mode, arg = self._read_waiters[0]
-            succeed, data = self._try_read(mode, arg)
-            if not succeed:
+            ok, data = self._try_read(mode, arg)
+            if not ok:
                 break
 
             futures.future_set_result(waiter, data)
@@ -82,7 +82,7 @@ class IOStream(Protocol):
 
     async def read(self, size, timeout=-1):
         """if size > 0, return data until len(data) == size; if size == -1, return data we can read"""
-        assert size > 0 or size == -1, "size must be > 0 or == -1"
+        assert size > 0 or size == -1, "size must be gt 0 or eq -1"
 
         return await self._read_data(SIZE_MODE, size, timeout)
 
@@ -111,8 +111,8 @@ class IOStream(Protocol):
         self._check_transport()
 
         if not self._read_waiters:
-            succeed, data = self._try_read(mode, args)
-            if succeed:
+            ok, data = self._try_read(mode, args)
+            if ok:
                 return data
 
         waiter = self.loop.create_future()
@@ -123,11 +123,6 @@ class IOStream(Protocol):
         # self._maybe_resume_reading()
 
         return await waiter
-
-    def _check_transport(self):
-        """raise Exception if transport closed"""
-        if not self.transport or self.transport.closed():
-            raise ConnectionError("transport is already closed")
 
     def _maybe_resume_reading(self):
         """check if we need resume reading"""
@@ -166,12 +161,12 @@ class IOStream(Protocol):
                 else:
                     data = self._read_regex(arg)
 
-                succeed = True
+                ok = True
             except NotEnoughData:
-                succeed = False
+                ok = False
                 data = b""
 
-            return succeed, data
+            return ok, data
         finally:
             self._read_buffer.trim()
 
@@ -230,8 +225,20 @@ class IOStream(Protocol):
         self._write_paused = False
 
     def close(self):
-        """close io stream"""
+        """close transport"""
+        if self.closed():
+            return
+
         self.transport.close()
+
+    def closed(self):
+        """return True if transport is closed"""
+        return not self.transport or self.transport.closed()
+
+    def _check_transport(self):
+        """raise Exception if transport closed"""
+        if self.closed():
+            raise ConnectionError("transport is already closed")
 
     def connection_lost(self, exc):
         """connection lost, wakeup all read waiters"""

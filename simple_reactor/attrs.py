@@ -5,9 +5,10 @@ import ssl
 
 class Field(object):
 
-    def __init__(self, type_, default):
+    def __init__(self, type_, default, is_none=False):
 
         self._type = type_
+        self._is_none = is_none
 
         self._check_valid(default)
         self._default = default
@@ -32,6 +33,9 @@ class Field(object):
         instance.__dict__[self._name] = value
 
     def _check_valid(self, value):
+        """raise TypeError() if value is not valid"""
+        if value is None and self._is_none:
+            return
 
         if not isinstance(value, self._type):
             raise TypeError(f"Require: {self._type.__name__}, but we got: {type(value).__name__}")
@@ -66,13 +70,13 @@ class Bytes(Field):
 
 class SSLClientContext(Field):
 
-    def __init__(self, default=ssl.create_default_context()):
+    def __init__(self, default=None):
 
-        super().__init__(type_=ssl.SSLContext, default=default)
+        super().__init__(type_=ssl.SSLContext, default=default, is_none=True)
 
 
 class SSLServerContext(Field):
 
-    def __init__(self, default=ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)):
+    def __init__(self, default=None):
 
-        super().__init__(type_=ssl.SSLContext, default=default)
+        super().__init__(type_=ssl.SSLContext, default=default, is_none=True)

@@ -12,10 +12,7 @@ log.logger_init(logger)
 class MyProtocol(IOStream):
 
     async def start_echo(self):
-        """
 
-        :return:
-        """
         while True:
             try:
                 await self.writeline("hello, world")
