@@ -46,7 +46,7 @@ class Connector(object):
     def connect(self):
         """start connect endpoint"""
         if self._do_connect() == CONNECT_IN_PROGRESS:
-            self._wait_connection_finished()
+            self._wait_connection_finished(self.options.connect_timeout)
 
     def _do_connect(self):
         """setup socket connect"""
@@ -67,16 +67,15 @@ class Connector(object):
             self._connection_failed(exc)
             return CONNECT_FAILED
 
-    def _wait_connection_finished(self):
+    def _wait_connection_finished(self, connect_timeout):
         """wait socket connected or failed"""
         self.connect_channel.set_read_callback(self._do_connect)
         self.connect_channel.set_write_callback(self._do_connect)
         self.connect_channel.enable_writing()
 
-        timeout = self.options.connect_timeout
-        if timeout > 0:
+        if connect_timeout > 0:
             exc = TimeoutError(f"Timeout to connect: {self.endpoint}")
-            self.connect_timer = self.loop.call_later(timeout, self._connection_failed, exc)
+            self.connect_timer = self.loop.call_later(connect_timeout, self._connection_failed, exc)
 
     def _connection_established(self):
         """client side established connection"""
@@ -91,28 +90,28 @@ class Connector(object):
         # start ssl handshake
         if self.ssl_options:
             try:
-                self._start_tls()
+                self._start_tls(self.ssl_options)
             except Exception as e:
                 self._connection_failed(e)
         else:
             self._connection_ok()
 
-    def _start_tls(self):
+    def _start_tls(self, ssl_options):
         """wrap socket to ssl, start handshake"""
-        if self.ssl_options.ssl_client_ctx:
-            ssl_context = self.ssl_options.ssl_client_ctx
+        if ssl_options.ssl_client_ctx:
+            ssl_context = ssl_options.ssl_client_ctx
         else:
             ssl_context = ssl_helper.ssl_client_context()
 
         self.sock = ssl_helper.ssl_wrap_socket(
             ssl_context=ssl_context,
             sock=self.sock,
-            server_hostname=self.ssl_options.server_hostname,
+            server_hostname=ssl_options.server_hostname,
             server_side=False
         )
 
         if self._do_ssl_handshake() == SSL_HANDSHAKE_IN_PROGRESS:
-            self._wait_handshake_finished()
+            self._wait_handshake_finished(ssl_options.handshake_timeout)
 
     def _do_ssl_handshake(self):
         """if enable ssl, then do handshake after succeed to connect"""
@@ -130,16 +129,15 @@ class Connector(object):
             self._connection_ok()
             return SSL_HANDSHAKE_OK
 
-    def _wait_handshake_finished(self):
+    def _wait_handshake_finished(self, handshake_timeout):
         """wait handshake succeed or failed"""
         self.connect_channel.set_read_callback(self._do_ssl_handshake)
         self.connect_channel.set_write_callback(self._do_ssl_handshake)
         self.connect_channel.enable_writing()
 
-        timeout = self.ssl_options.handshake_timeout
-        if timeout > 0:
+        if handshake_timeout > 0:
             exc = TimeoutError(f"Timeout to do ssl handshake: {self.endpoint}")
-            self.handshake_timer = self.loop.call_later(timeout, self._connection_failed, exc)
+            self.handshake_timer = self.loop.call_later(handshake_timeout, self._connection_failed, exc)
 
     def _connection_ok(self):
         """the final callback when connection is established"""
