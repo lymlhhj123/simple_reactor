@@ -84,6 +84,17 @@ class IODatagram(DatagramProtocol):
         # write directly
         self.transport.sendto(datagram, addr)
 
+    def close(self):
+        """close transport"""
+        if self.closed():
+            return
+
+        self.transport.close()
+
+    def closed(self):
+        """return True if transport is closed"""
+        return not self.transport or self.transport.closed()
+
     def connection_error(self, exc):
         """handle transport write/read error"""
 

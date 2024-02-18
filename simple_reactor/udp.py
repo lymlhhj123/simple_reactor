@@ -20,7 +20,7 @@ class UDP(DatagramTransport):
 
         self.channel = Channel(self.sock.fileno(), loop)
 
-        self.send_buf = deque()
+        self.write_buffer = deque()
         self.protocol = protocol
 
         self.connected = False
@@ -63,18 +63,16 @@ class UDP(DatagramTransport):
 
     def _handle_read(self):
         """do read event"""
-        while True:
-            errcode, (datagram, addr) = self._read_from_fd()
+        errcode, (datagram, addr) = self._read_from_fd()
+        if errcode in errors.IO_WOULD_BLOCK:
+            return
 
-            if errcode in errors.IO_WOULD_BLOCK:
-                break
+        if errcode != errors.OK:
+            exc = ConnectionError(f"transport read error: {os.strerror(errcode)}")
+            self.protocol.connection_error(exc)
+            return
 
-            if errcode != errors.OK:
-                exc = ConnectionError(f"udp read error, {os.strerror(errcode)}")
-                self.protocol.connection_error(exc)
-                break
-
-            self.protocol.datagram_received(datagram, addr)
+        self.protocol.datagram_received(datagram, addr)
 
     def _read_from_fd(self):
         """read datagram from socket"""
@@ -95,7 +93,7 @@ class UDP(DatagramTransport):
         else:
             addr = addr
 
-        if not addr or len(addr) != 2:
+        if not addr:
             raise ValueError("remote addr is required")
 
         ip_address = ipaddress.ip_address(addr[0])
@@ -104,28 +102,43 @@ class UDP(DatagramTransport):
         if ip_address.version != self.ip_address.version:
             raise ValueError("ip version is not matched")
 
-        # just write to buffer
-        self.send_buf.append((datagram, addr))
-        self.channel.enable_writing()
+        self.write_buffer.append((datagram, addr))
+
+        self._handle_write()
+
+        # maybe abort transport on self._handle_write() method
+        if self.conn_lost:
+            return
+
+        if self.write_buffer and not self.channel.writable():
+            self.channel.enable_writing()
 
     def _handle_write(self):
         """do write event"""
-        while self.send_buf:
-            datagram, addr = self.send_buf[0]
+        while self.write_buffer:
+            datagram, addr = self.write_buffer[0]
             errcode = self._write_to_fd(datagram, addr)
-
             if errcode in errors.IO_WOULD_BLOCK:
                 break
 
-            self.send_buf.popleft()
+            self.write_buffer.popleft()
 
             if errcode != errors.OK:
-                exc = ConnectionError(f"udp write error, {os.strerror(errcode)}")
+                exc = ConnectionError(f"transport write error: {os.strerror(errcode)}")
                 self.protocol.connection_error(exc)
                 break
 
-        if not self.send_buf:
-            self.channel.disable_writing()
+        # maybe abort transport on self.protocol.connection_error(exc) callback
+        if self.conn_lost:
+            return
+
+        if not self.write_buffer:
+            if self.closing:
+                self._force_close(errors.TRANSPORT_CLOSED)
+                return
+
+            if self.channel.writable():
+                self.channel.disable_writing()
 
     def _write_to_fd(self, datagram, addr):
         """write datagram to socket"""
@@ -139,38 +152,41 @@ class UDP(DatagramTransport):
         return errcode
 
     def closed(self):
-        """return True if connection is closed"""
+        """return True if transport is closed"""
         return self.closing or self.conn_lost
 
     def close(self):
-        """close udp connection"""
-        if self.closing:
+        """close udp transport"""
+        if self.closed():
             return
 
         self.closing = True
         self.channel.disable_reading()
 
-        if self.send_buf:
+        if self.write_buffer:
             return
 
-        self.channel.disable_writing()
-        self.conn_lost = True
-
-        exc = ConnectionError("connection close by user")
-        self.loop.call_soon(self._connection_lost, exc)
+        self._force_close(errors.TRANSPORT_CLOSED)
 
     def abort(self):
         """abort udp connection"""
         if self.conn_lost:
             return
 
-        self.closing = True
-        self.conn_lost = True
-        self.send_buf.clear()
+        self._force_close(errors.TRANSPORT_ABORTED)
 
+    def _force_close(self, exc):
+        """force close"""
+        if self.conn_lost:
+            return
+
+        if not self.closing:
+            self.closing = True
+
+        self.write_buffer.clear()
         self.channel.disable_all()
 
-        exc = ConnectionError("connection abort by user")
+        self.conn_lost = True
         self.loop.call_soon(self._connection_lost, exc)
 
     def _connection_lost(self, exc):

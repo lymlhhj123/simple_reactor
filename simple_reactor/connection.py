@@ -34,7 +34,7 @@ class Connection(Transport):
 
         self._reading_paused = False
 
-        self._conn_lost = 0
+        self._conn_lost = False
         self.closing = False
 
     def fileno(self):
@@ -110,8 +110,8 @@ class Connection(Transport):
 
     def write(self, data: bytes):
         """write data to socket"""
-        if self.closing:
-            logger.warn("connection will be closed, can not send data")
+        if self.closed():
+            logger.warn("transport is already closed, can not send data")
             return False
 
         if not isinstance(data, bytes):
@@ -120,7 +120,10 @@ class Connection(Transport):
 
         self.write_buffer.extend(data)
 
-        if not self._do_write():
+        self._do_write()
+
+        # maybe force close connection on self._do_write() method
+        if self._conn_lost:
             return False
 
         if self.write_buffer and not self.channel.writable():
@@ -130,28 +133,23 @@ class Connection(Transport):
 
     def _do_write(self):
         """write buffer data to socket"""
-        if self._conn_lost:
-            return False
-
         errcode, write_size = self.write_to_fd(self.write_buffer)
         if errcode != errors.OK and errcode not in errors.IO_WOULD_BLOCK:
-            exc = ConnectionError(f"transport write error, {os.strerror(errcode)}")
+            exc = ConnectionError(f"transport write error: {os.strerror(errcode)}")
             self._force_close(exc)
-            return False
+            return
 
         self.write_buffer = self.write_buffer[write_size:]
 
         if not self.write_buffer:
             if self.closing is True:
-                exc = ConnectionError("connection closed by user")
-                self._force_close(exc)
-                return False
+                self._force_close(errors.TRANSPORT_CLOSED)
+                return
 
             if self.channel.writable():
                 self.channel.disable_writing()
 
         self._pause_or_resume_protocol()
-        return True
 
     def write_to_fd(self, data):
         """write data to socket"""
@@ -167,16 +165,12 @@ class Connection(Transport):
 
     def _do_read(self):
         """handle read event"""
-        if self.closing:
-            return
-
         errcode, data = self.read_from_fd()
-
         if errcode in errors.IO_WOULD_BLOCK:
             return
 
         if errcode != errors.OK:
-            exc = ConnectionError(f"transport read error, {os.strerror(errcode)}")
+            exc = ConnectionError(f"transport read error: {os.strerror(errcode)}")
             self._force_close(exc)
             return
 
@@ -198,18 +192,20 @@ class Connection(Transport):
 
         return errcode, data
 
+    def abort(self):
+        """force to close connection"""
+        if self._conn_lost:
+            return
+
+        self._force_close(errors.TRANSPORT_ABORTED)
+
     def closed(self):
         """return true if connection is closed or closing"""
         return self.closing or self._conn_lost
 
-    def abort(self):
-        """force to close connection"""
-        exc = ConnectionError("connection aborted by user")
-        self._force_close(exc)
-
     def close(self):
         """close connection"""
-        if self.closing is True:
+        if self.closed():
             return
 
         self.closing = True
@@ -219,8 +215,7 @@ class Connection(Transport):
         if self.write_buffer:
             return
 
-        exc = ConnectionError("connection closed by user")
-        self._force_close(exc)
+        self._force_close(errors.TRANSPORT_CLOSED)
 
     def _force_close(self, exc):
         """force to close connection"""
@@ -235,7 +230,7 @@ class Connection(Transport):
 
         self.channel.disable_all()
 
-        self._conn_lost += 1
+        self._conn_lost = True
         self.loop.call_soon(self._connection_lost, exc)
 
     def _connection_lost(self, exc):

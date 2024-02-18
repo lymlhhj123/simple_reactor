@@ -93,30 +93,6 @@ class Channel(object):
         if self.read_callback:
             self.read_callback()
 
-    def read(self, chunk_size):
-        """helper function, read data form fd"""
-        try:
-            data = os.read(self._fd, chunk_size)
-        except IOError as e:
-            data = b""
-            errcode = utils.errno_from_ex(e)
-        else:
-            errcode = errors.OK
-
-        return errcode, data
-
-    def write(self, data):
-        """helper function, write data to fd"""
-        try:
-            chunk_size = os.write(self._fd, data)
-        except IOError as e:
-            chunk_size = 0
-            errcode = utils.errno_from_ex(e)
-        else:
-            errcode = errors.OK
-
-        return errcode, chunk_size
-
     def close(self):
         """close channel"""
         if self._fd == -1:
@@ -131,8 +107,5 @@ class Channel(object):
         self._event_loop = None
 
     def closed(self):
-        """
-
-        :return:
-        """
+        """return True if channel is closed"""
         return self._fd == -1

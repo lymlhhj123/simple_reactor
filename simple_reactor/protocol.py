@@ -50,4 +50,4 @@ class DatagramProtocol(BaseProtocol):
         """called when data received from socket"""
 
     def connection_error(self, exc):
-        """called when error happened in write"""
+        """called when error happened on write/read"""

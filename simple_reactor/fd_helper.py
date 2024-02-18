@@ -3,6 +3,9 @@
 import os
 import fcntl
 
+from . import utils
+from . import errors
+
 
 def make_async_pipe():
     """
@@ -97,3 +100,27 @@ def remove_file(file_path):
         os.remove(file_path)
     except (IOError, OSError):
         pass
+
+
+def read(fd, chunk_size=4096):
+    """read data form fd, fd must be nonblocking"""
+    try:
+        data = os.read(fd, chunk_size)
+        errcode = errors.OK
+    except IOError as e:
+        data = b""
+        errcode = utils.errno_from_ex(e)
+
+    return errcode, data
+
+
+def write(fd, data: bytes):
+    """write data to fd, fd must be nonblocking"""
+    try:
+        chunk_size = os.write(fd, data)
+        errcode = errors.OK
+    except IOError as e:
+        chunk_size = 0
+        errcode = utils.errno_from_ex(e)
+
+    return errcode, chunk_size
