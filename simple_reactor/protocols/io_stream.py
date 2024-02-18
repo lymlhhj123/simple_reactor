@@ -4,7 +4,7 @@ import logging
 from collections import deque
 
 from ..bytes_buffer import BytesBuffer
-from ..protocol import Protocol
+from ..protocol import StreamProtocol
 from .. import futures
 from ..errors import NotEnoughData
 
@@ -23,7 +23,7 @@ READABLE = {
 logger = logging.getLogger()
 
 
-class IOStream(Protocol):
+class IOStream(StreamProtocol):
 
     def __init__(self):
 

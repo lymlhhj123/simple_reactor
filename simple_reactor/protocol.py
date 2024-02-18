@@ -20,7 +20,7 @@ class BaseProtocol(object):
         """close protocol"""
 
 
-class Protocol(BaseProtocol):
+class StreamProtocol(BaseProtocol):
 
     def connection_made(self):
         """called when server side accept new connection"""
