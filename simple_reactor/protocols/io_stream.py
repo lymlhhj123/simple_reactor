@@ -6,7 +6,7 @@ from collections import deque
 from ..bytes_buffer import BytesBuffer
 from ..protocol import StreamProtocol
 from .. import futures
-from ..errors import NotEnoughData
+from .. import errors
 
 SIZE_MODE = 0
 LINE_MODE = 1
@@ -28,14 +28,12 @@ class IOStream(StreamProtocol):
     def __init__(self):
 
         self._read_waiters = deque(maxlen=128)
-
-        # buffer
         self._read_buffer = BytesBuffer()
 
         self._encoding = "utf-8"
+
         self._write_paused = False
         self._eof_received = False
-
         self._close_if_eof_received = True
 
     def set_encoding(self, encoding):
@@ -77,15 +75,11 @@ class IOStream(StreamProtocol):
 
         return await self._read_data(SIZE_MODE, size, timeout)
 
-    readn = read
-
     async def readline(self, delimiter=b"\r\n", timeout=-1):
         """read line until end with delimiter"""
         assert isinstance(delimiter, bytes), "delimiter type must be bytes"
 
         return await self._read_data(LINE_MODE, delimiter, timeout)
-
-    read_line = readline
 
     async def read_until_regex(self, regex_pattern, timeout=-1):
         """read some data until match regex_pattern"""
@@ -100,7 +94,7 @@ class IOStream(StreamProtocol):
     async def _read_data(self, mode, args, timeout):
         """read data from buffer"""
         if self.closed():
-            raise ConnectionError("transport is closed")
+            raise errors.TRANSPORT_CLOSED
 
         if not self._read_waiters:
             ok, data = self._try_read(mode, args)
@@ -146,7 +140,7 @@ class IOStream(StreamProtocol):
                     data = self._read_regex(arg)
 
                 ok = True
-            except NotEnoughData:
+            except errors.NotEnoughData:
                 ok = False
                 data = b""
 
@@ -182,12 +176,10 @@ class IOStream(StreamProtocol):
 
         return await self.write(line)
 
-    write_line = writeline
-
     async def write(self, data):
         """write some bytes, data can be bytes or str"""
         if self.closed():
-            raise ConnectionError("transport is closed")
+            raise errors.TRANSPORT_CLOSED
 
         if self._write_paused:
             raise BufferError("transport write buffer is exceed high water mark, write paused")
@@ -196,7 +188,7 @@ class IOStream(StreamProtocol):
             data = data.encode(self._encoding)
 
         if not isinstance(data, bytes):
-            raise ValueError(f"data must be bytes, not {type(data).__name__}")
+            raise TypeError(f"write() method requires bytes, not {type(data).__name__}")
 
         # write directly, transport has write-buffer limit
         self.transport.write(data)

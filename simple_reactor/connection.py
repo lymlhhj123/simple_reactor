@@ -222,15 +222,13 @@ class Connection(Transport):
         if self._conn_lost:
             return
 
+        self._conn_lost = True
+
         if not self.closing:
             self.closing = True
 
-        if self.write_buffer:
-            self.write_buffer.clear()
-
+        self.write_buffer.clear()
         self.channel.disable_all()
-
-        self._conn_lost = True
         self.loop.call_soon(self._connection_lost, exc)
 
     def _connection_lost(self, exc):

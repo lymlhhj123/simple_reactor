@@ -62,8 +62,8 @@ class AsyncClient(object):
     async def request(self, method, url, *,
                       params=None, data=None, json=None, files=None,
                       headers=None, cookies=None, auth=None,
-                      key_file=None, cert_file=None, verify=True,
-                      allow_redirect=True, max_redirects=3, timeout=None):
+                      key_file="", cert_file="", verify=True,
+                      allow_redirect=True, max_redirects=3, timeout=-1):
         """request url and return response
 
         :param method:
@@ -119,7 +119,7 @@ class AsyncClient(object):
         resp.history = history
         return resp
 
-    async def _connection_from_url(self, url, verify=True, key_file=None, cert_file=None, timeout=None):
+    async def _connection_from_url(self, url, verify, key_file, cert_file, timeout):
         """make http connection from url"""
         parsed = urlsplit(url)
         hostname = parsed.hostname

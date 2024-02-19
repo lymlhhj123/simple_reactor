@@ -12,8 +12,8 @@ IO_WOULD_BLOCK = [
     ssl.SSL_ERROR_WANT_WRITE
 ]
 
-TRANSPORT_CLOSED = ConnectionError("transport closed by user")
-TRANSPORT_ABORTED = ConnectionError("transport aborted by user")
+TRANSPORT_CLOSED = ConnectionError("transport closed")
+TRANSPORT_ABORTED = ConnectionError("transport aborted")
 
 
 class InvalidURL(Exception):

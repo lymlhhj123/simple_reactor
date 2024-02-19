@@ -180,13 +180,13 @@ class UDP(DatagramTransport):
         if self.conn_lost:
             return
 
+        self.conn_lost = True
+
         if not self.closing:
             self.closing = True
 
         self.write_buffer.clear()
         self.channel.disable_all()
-
-        self.conn_lost = True
         self.loop.call_soon(self._connection_lost, exc)
 
     def _connection_lost(self, exc):
