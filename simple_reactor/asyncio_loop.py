@@ -4,6 +4,7 @@ import os
 import socket
 import asyncio
 import functools
+import inspect
 import collections
 from concurrent.futures import (
     ThreadPoolExecutor,
@@ -74,6 +75,7 @@ class AsyncioLoop(object):
 
     def add_callback(self, fn, *args, **kwargs):
         """add callback run at next loop"""
+        assert not inspect.iscoroutinefunction(fn), "fn cannot be coroutine function"
         callback = functools.partial(fn, *args, **kwargs)
         return self._loop.call_soon(callback)
 
@@ -81,10 +83,12 @@ class AsyncioLoop(object):
 
     def call_later(self, delay, fn, *args, **kwargs):
         """add callback run after delay time"""
+        assert not inspect.iscoroutinefunction(fn), "fn cannot be coroutine function"
         return self.call_at(self.time() + delay, fn, *args, **kwargs)
 
     def call_at(self, when, fn, *args, **kwargs):
         """add callback run at specific time"""
+        assert not inspect.iscoroutinefunction(fn), "fn cannot be coroutine function"
         callback = functools.partial(fn, *args, **kwargs)
         return self._loop.call_at(when, callback)
 
@@ -187,11 +191,13 @@ class AsyncioLoop(object):
 
     async def run_in_thread(self, fn, *args, **kwargs):
         """run fn(*args, **kwargs) in another thread, not block loop"""
+        assert not inspect.iscoroutinefunction(fn), "fn cannot be coroutine function"
         func = functools.partial(fn, *args, **kwargs)
         return await self._loop.run_in_executor(self._thread_executor, func)
 
     async def run_in_process(self, fn, *args, **kwargs):
         """run fn(*args, **kwargs) in another process, not block loop"""
+        assert not inspect.iscoroutinefunction(fn), "fn cannot be coroutine function"
         func = functools.partial(fn, *args, **kwargs)
         return await self._loop.run_in_executor(self._process_executor, func)
 
