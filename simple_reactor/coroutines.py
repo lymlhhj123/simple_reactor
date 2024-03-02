@@ -4,9 +4,6 @@ import types
 import inspect
 import functools
 
-from . import futures
-from .loop_helper import get_event_loop
-
 
 def coroutine(func):
     """wrapper func to coroutine"""
