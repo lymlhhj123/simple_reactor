@@ -1,7 +1,6 @@
 # coding: utf-8
 
 from simple_reactor import get_event_loop
-from simple_reactor import sleep
 
 loop = get_event_loop()
 lock = loop.create_lock()
@@ -14,7 +13,7 @@ async def func1():
             print("func1 locked")
 
             # do something
-            await sleep(2.5)
+            await loop.sleep(2.5)
 
             print("func1 release")
 
@@ -26,7 +25,7 @@ async def func2():
             print("func2 locked")
 
             # do something
-            await sleep(5)
+            await loop.sleep(5)
 
             print("func2 release")
 

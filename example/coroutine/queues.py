@@ -3,7 +3,6 @@
 import random
 
 from simple_reactor import get_event_loop
-from simple_reactor import sleep
 
 loop = get_event_loop()
 
@@ -17,7 +16,7 @@ async def func1():
         print("Got item:", item)
         q.task_done()
 
-        await sleep(0.5)
+        await loop.sleep(0.5)
 
 
 async def func2():

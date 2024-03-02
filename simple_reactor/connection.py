@@ -34,7 +34,7 @@ class Connection(Transport):
 
         self._reading_paused = False
 
-        self._conn_lost = False
+        self.conn_lost = False
         self.closing = False
 
     def fileno(self):
@@ -123,7 +123,7 @@ class Connection(Transport):
         self._do_write()
 
         # maybe force close connection on self._do_write() method
-        if self._conn_lost:
+        if self.conn_lost:
             return False
 
         if self.write_buffer and not self.channel.writable():
@@ -194,14 +194,14 @@ class Connection(Transport):
 
     def abort(self):
         """force to close connection"""
-        if self._conn_lost:
+        if self.conn_lost:
             return
 
         self._force_close(errors.TRANSPORT_ABORTED)
 
     def closed(self):
         """return true if connection is closed or closing"""
-        return self.closing or self._conn_lost
+        return self.closing or self.conn_lost
 
     def close(self):
         """close connection"""
@@ -219,10 +219,10 @@ class Connection(Transport):
 
     def _force_close(self, exc):
         """force to close connection"""
-        if self._conn_lost:
+        if self.conn_lost:
             return
 
-        self._conn_lost = True
+        self.conn_lost = True
 
         if not self.closing:
             self.closing = True

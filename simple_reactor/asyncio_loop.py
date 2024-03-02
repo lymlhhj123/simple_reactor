@@ -66,6 +66,12 @@ class AsyncioLoop(object):
         """return loop clock time"""
         return self._loop.time()
 
+    def sleep(self, seconds):
+        """make coroutine sleep seconds"""
+        waiter = self.create_future()
+        self.call_later(seconds, futures.future_set_result, waiter, None)
+        return waiter
+
     def add_callback(self, fn, *args, **kwargs):
         """add callback run at next loop"""
         callback = functools.partial(fn, *args, **kwargs)

@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import simple_reactor
 from simple_reactor import log
 from simple_reactor import get_event_loop
 from simple_reactor.protocols import IODatagram
@@ -18,7 +17,7 @@ class MyProtocol(IODatagram):
             datagram, addr = await self.read()
             print("data received:", datagram, addr)
 
-            await simple_reactor.sleep(1)
+            await self.loop.sleep(1)
 
 
 loop = get_event_loop()

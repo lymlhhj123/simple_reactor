@@ -3,7 +3,6 @@
 import random
 
 from simple_reactor import get_event_loop
-from simple_reactor import sleep
 
 loop = get_event_loop()
 
@@ -41,7 +40,7 @@ async def func2():
             assert len(stack) == 0
 
             # do something
-            await sleep(2.5)
+            await loop.sleep(2.5)
 
             stack.append(random.random())
 

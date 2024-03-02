@@ -1,6 +1,5 @@
 # coding: utf-8
 
-import simple_reactor
 from simple_reactor import log
 from simple_reactor import get_event_loop
 from simple_reactor.protocols import IOStream
@@ -23,7 +22,7 @@ class MyProtocol(IOStream):
 
             line = line.decode("utf-8")
             logger.info("line received: %s", line)
-            await simple_reactor.sleep(1)
+            await self.loop.sleep(1)
 
         self.close()
 
